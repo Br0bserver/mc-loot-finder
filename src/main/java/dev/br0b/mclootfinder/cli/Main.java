@@ -356,7 +356,10 @@ public final class Main {
     private static void printHelp(PrintStream out) {
         out.println("mc-loot-finder — deterministic Minecraft Java loot research CLI");
         out.println();
-        out.println("Structures: ancient_city (default), bastion_remnant, desert_pyramid, woodland_mansion");
+        out.println("Structures: " + Versions.V26_1_2.structures().stream()
+                .map(StructureSpec::name)
+                .collect(java.util.stream.Collectors.joining(", "))
+                + " (default: ancient_city)");
         out.println("Commands:");
         out.println("  candidates --seed N [--structure NAME --center-x X --center-z Z --radius BLOCKS --limit N --json]");
         out.println("  container-seed --seed N --chunk-x X --chunk-z Z [--structure NAME --ordinal N --json]");

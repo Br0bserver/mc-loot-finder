@@ -77,4 +77,14 @@ class MainTest {
                 }, System.out, System.err));
         assertTrue(error.getMessage().contains("use 'chests'"));
     }
+
+    @Test
+    void helpListsCatalogStructures() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[]{"help"},
+                new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("jungle_pyramid"));
+        assertTrue(output.contains("igloo"));
+    }
 }

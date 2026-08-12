@@ -253,9 +253,11 @@ final class RecordingWorldGenLevel implements InvocationHandler {
         // Structure placement tests surrounding solidity much more often than
         // it needs a real column. Exact heightmap requests are handled above;
         // an untouched position otherwise uses the dimension's solid substrate.
-        return spec.dimensionId().equals("minecraft:the_nether")
-                ? Blocks.NETHERRACK.defaultBlockState()
-                : Blocks.STONE.defaultBlockState();
+        return switch (spec.dimensionId()) {
+            case "minecraft:the_nether" -> Blocks.NETHERRACK.defaultBlockState();
+            case "minecraft:the_end" -> Blocks.END_STONE.defaultBlockState();
+            default -> Blocks.STONE.defaultBlockState();
+        };
     }
 
     private int terrainHeight(int blockX, int blockZ) {

@@ -1,8 +1,11 @@
 package dev.br0b.mclootfinder.vanilla;
 
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.level.CustomSpawner;
 import net.minecraft.world.level.Level;
@@ -49,5 +52,20 @@ final class EntitySuppressingServerLevel extends ServerLevel {
     @Override
     public FeatureFlagSet enabledFeatures() {
         return FeatureFlagSet.of();
+    }
+
+    @Override
+    public void playSound(
+            Entity source,
+            double x,
+            double y,
+            double z,
+            SoundEvent sound,
+            SoundSource category,
+            float volume,
+            float pitch
+    ) {
+        // Item-frame data markers play a placement sound before the proxy
+        // WorldGenLevel discards the entity. No sound state is needed here.
     }
 }

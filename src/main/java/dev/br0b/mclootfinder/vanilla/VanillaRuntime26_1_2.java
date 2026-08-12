@@ -75,7 +75,8 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
         this.dimensions = dimensions;
         this.dimensionContexts = Map.of(
                 "minecraft:overworld", createDimensionContext(Level.OVERWORLD, LevelStem.OVERWORLD),
-                "minecraft:the_nether", createDimensionContext(Level.NETHER, LevelStem.NETHER)
+                "minecraft:the_nether", createDimensionContext(Level.NETHER, LevelStem.NETHER),
+                "minecraft:the_end", createDimensionContext(Level.END, LevelStem.END)
         );
 
         try {
@@ -222,16 +223,9 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
 
     /** Validates the version-pinned decoration RNG stream coordinates. */
     public void verifyStructureProfile(StructureSpec spec) {
-        Registry<Structure> structureRegistry = registries.lookupOrThrow(Registries.STRUCTURE);
-        ResourceKey<Structure> key = ResourceKey.create(
-                Registries.STRUCTURE, Identifier.parse(spec.structureId())
-        );
-        Structure target = structureRegistry.getValueOrThrow(key);
-        int step = target.step().ordinal();
-        List<Structure> structuresInStep = structureRegistry.stream()
-                .filter(structure -> structure.step() == target.step())
-                .toList();
-        int index = structuresInStep.indexOf(target);
+        DecorationCoordinates actual = structureDecorationCoordinates(spec.structureId());
+        int step = actual.step();
+        int index = actual.indexWithinStep();
         if (step != spec.decorationStep() || index != spec.indexWithinStep()) {
             throw new IllegalStateException(
                     "26.1.2 profile drift: " + spec.name() + " step/index expected "
@@ -239,6 +233,23 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
                             + " but vanilla loaded " + step + "/" + index
             );
         }
+    }
+
+    public DecorationCoordinates structureDecorationCoordinates(String structureId) {
+        Registry<Structure> structureRegistry = registries.lookupOrThrow(Registries.STRUCTURE);
+        ResourceKey<Structure> key = ResourceKey.create(
+                Registries.STRUCTURE, Identifier.parse(structureId)
+        );
+        Structure target = structureRegistry.getValueOrThrow(key);
+        int step = target.step().ordinal();
+        List<Structure> structuresInStep = structureRegistry.stream()
+                .filter(structure -> structure.step() == target.step())
+                .toList();
+        int index = structuresInStep.indexOf(target);
+        return new DecorationCoordinates(step, index);
+    }
+
+    public record DecorationCoordinates(int step, int indexWithinStep) {
     }
 
     public void verifyAncientCityProfile(dev.br0b.mclootfinder.core.VersionProfile profile) {

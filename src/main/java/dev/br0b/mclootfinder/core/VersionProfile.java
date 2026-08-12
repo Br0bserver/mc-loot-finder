@@ -75,6 +75,18 @@ public record VersionProfile(
         return structure("woodland_mansion");
     }
 
+    public StructureSpec junglePyramid() {
+        return structure("jungle_pyramid");
+    }
+
+    public StructureSpec igloo() {
+        return structure("igloo");
+    }
+
+    public StructureSpec endCity() {
+        return structure("end_city");
+    }
+
     private static String structurePath(String id) {
         int separator = id.indexOf(':');
         return separator < 0 ? id : id.substring(separator + 1);

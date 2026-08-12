@@ -15,11 +15,7 @@ class RandomSpreadLocatorTest {
     void candidateChunksMatchMinecraftPlacementImplementation() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
-        for (var profile : java.util.List.of(
-                Versions.V26_1_2.ancientCity(),
-                Versions.V26_1_2.bastionRemnant(),
-                Versions.V26_1_2.desertPyramid(),
-                Versions.V26_1_2.woodlandMansion())) {
+        for (var profile : Versions.V26_1_2.structures()) {
             var minecraft = new RandomSpreadStructurePlacement(
                     profile.placement().spacing(), profile.placement().separation(),
                     profile.placement().spreadType() == dev.br0b.mclootfinder.core.VersionProfile.SpreadType.TRIANGULAR
