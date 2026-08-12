@@ -35,6 +35,12 @@ class JsonLootTableOracleParityTest {
             "minecraft:chests/jungle_temple_dispenser",
             "minecraft:chests/igloo_chest",
             "minecraft:chests/end_city_treasure",
+            "minecraft:chests/ruined_portal",
+            "minecraft:chests/trial_chambers/corridor",
+            "minecraft:chests/trial_chambers/entrance",
+            "minecraft:chests/trial_chambers/intersection",
+            "minecraft:chests/trial_chambers/intersection_barrel",
+            "minecraft:chests/trial_chambers/supply",
             "minecraft:chests/woodland_mansion"
     );
 

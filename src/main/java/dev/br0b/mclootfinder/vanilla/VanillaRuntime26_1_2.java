@@ -224,7 +224,8 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
         DecorationCoordinates actual = structureDecorationCoordinates(spec.structureId());
         int step = actual.step();
         int index = actual.indexWithinStep();
-        if (step != spec.decorationStep() || index != spec.indexWithinStep()) {
+        if (spec.decorationStep() >= 0 && spec.indexWithinStep() >= 0
+                && (step != spec.decorationStep() || index != spec.indexWithinStep())) {
             throw new IllegalStateException(
                     "26.1.2 profile drift: " + spec.name() + " step/index expected "
                             + spec.decorationStep() + "/" + spec.indexWithinStep()

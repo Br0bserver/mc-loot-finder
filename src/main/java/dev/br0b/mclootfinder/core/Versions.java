@@ -103,6 +103,51 @@ public final class Versions {
                     "minecraft:spire_armor_trim_smithing_template"
                 ),
                 new StructureSpec(
+                    "ruined_portal",
+                    "minecraft:ruined_portal",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(40, 15, 34_222_645),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    ruinedPortalEntries(),
+                    java.util.List.of("minecraft:chests/ruined_portal"),
+                    "minecraft:enchanted_golden_apple"
+                ),
+                new StructureSpec(
+                    "ruined_portal_nether",
+                    "minecraft:ruined_portal_nether",
+                    "minecraft:the_nether",
+                    new VersionProfile.StructureProfile(40, 15, 34_222_645),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    ruinedPortalEntries(),
+                    java.util.List.of("minecraft:chests/ruined_portal"),
+                    "minecraft:enchanted_golden_apple"
+                ),
+                new StructureSpec(
+                    "trial_chambers",
+                    "minecraft:trial_chambers",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(34, 12, 94_251_327),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:trial_chambers", 1)),
+                    java.util.List.of(
+                            "minecraft:chests/trial_chambers/corridor",
+                            "minecraft:chests/trial_chambers/entrance",
+                            "minecraft:chests/trial_chambers/intersection",
+                            "minecraft:chests/trial_chambers/intersection_barrel",
+                            "minecraft:chests/trial_chambers/supply"
+                    ),
+                    "minecraft:trial_key"
+                ),
+                new StructureSpec(
                     "woodland_mansion",
                     "minecraft:mansion",
                     "minecraft:overworld",
@@ -124,6 +169,18 @@ public final class Versions {
     );
 
     private Versions() {
+    }
+
+    private static java.util.List<StructureSpec.SelectionEntry> ruinedPortalEntries() {
+        return java.util.List.of(
+                new StructureSpec.SelectionEntry("minecraft:ruined_portal", 1),
+                new StructureSpec.SelectionEntry("minecraft:ruined_portal_desert", 1),
+                new StructureSpec.SelectionEntry("minecraft:ruined_portal_jungle", 1),
+                new StructureSpec.SelectionEntry("minecraft:ruined_portal_swamp", 1),
+                new StructureSpec.SelectionEntry("minecraft:ruined_portal_mountain", 1),
+                new StructureSpec.SelectionEntry("minecraft:ruined_portal_ocean", 1),
+                new StructureSpec.SelectionEntry("minecraft:ruined_portal_nether", 1)
+        );
     }
 
     public static VersionProfile require(String version) {
