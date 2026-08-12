@@ -31,7 +31,7 @@ public final class Versions {
                     StructureSpec.ScannerKind.JIGSAW_FAST,
                     StructureSpec.ContainerSeedShortcut.DIRECT,
                     java.util.List.of(
-                            new StructureSpec.SelectionEntry("minecraft:fortress", 2),
+                            new StructureSpec.SelectionEntry("minecraft:fortress", 2, false),
                             new StructureSpec.SelectionEntry("minecraft:bastion_remnant", 3)
                     ),
                     java.util.List.of(

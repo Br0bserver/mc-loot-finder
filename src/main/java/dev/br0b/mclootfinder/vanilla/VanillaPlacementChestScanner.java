@@ -32,6 +32,8 @@ public final class VanillaPlacementChestScanner {
         }
 
         ChunkPos startChunk = start.getChunkPos();
+        VanillaRuntime26_1_2.DecorationCoordinates decoration =
+                runtime.structureDecorationCoordinates(runtime.structureId(start));
         List<ChunkPos> chunks = start.getBoundingBox().intersectingChunks()
                 .sorted(Comparator
                         .comparingInt((ChunkPos chunk) -> chunk.equals(startChunk) ? 0 : 1)
@@ -53,7 +55,7 @@ public final class VanillaPlacementChestScanner {
                     worldSeed, chunk.getMinBlockX(), chunk.getMinBlockZ()
             );
             random.setFeatureSeed(
-                    decorationSeed, spec.indexWithinStep(), spec.decorationStep()
+                    decorationSeed, decoration.indexWithinStep(), decoration.step()
             );
             BoundingBox bounds = new BoundingBox(
                     chunk.getMinBlockX(), runtime.heightAccessor(spec).getMinY(), chunk.getMinBlockZ(),

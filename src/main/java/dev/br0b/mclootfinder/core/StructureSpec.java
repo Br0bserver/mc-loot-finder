@@ -24,7 +24,11 @@ public record StructureSpec(
         }
     }
 
-    public record SelectionEntry(String structureId, int weight) {
+    public record SelectionEntry(String structureId, int weight, boolean accepted) {
+        public SelectionEntry(String structureId, int weight) {
+            this(structureId, weight, true);
+        }
+
         public SelectionEntry {
             if (weight <= 0) {
                 throw new IllegalArgumentException("structure selection weight must be positive");

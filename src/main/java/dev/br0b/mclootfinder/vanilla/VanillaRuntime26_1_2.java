@@ -183,9 +183,7 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
             StructureSpec.SelectionEntry selected = remaining.get(selectedIndex);
             StructureStart start = generateStructure(spec, selected.structureId(), startChunk);
             if (start.isValid()) {
-                return selected.structureId().equals(spec.structureId())
-                        ? start
-                        : StructureStart.INVALID_START;
+                return selected.accepted() ? start : StructureStart.INVALID_START;
             }
             remaining.remove(selectedIndex);
             totalWeight -= selected.weight();
@@ -247,6 +245,15 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
                 .toList();
         int index = structuresInStep.indexOf(target);
         return new DecorationCoordinates(step, index);
+    }
+
+    public String structureId(StructureStart start) {
+        Registry<Structure> structureRegistry = registries.lookupOrThrow(Registries.STRUCTURE);
+        Identifier id = structureRegistry.getKey(start.getStructure());
+        if (id == null) {
+            throw new IllegalStateException("Generated structure is absent from the registry");
+        }
+        return id.toString();
     }
 
     public record DecorationCoordinates(int step, int indexWithinStep) {
