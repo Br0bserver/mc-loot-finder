@@ -5,11 +5,19 @@ import java.util.List;
 /** Version-specific constants that are data-driven in vanilla Minecraft. */
 public record VersionProfile(
         String minecraftVersion,
-        StructureSpec ancientCity,
-        StructureSpec bastionRemnant,
-        StructureSpec desertPyramid,
-        StructureSpec woodlandMansion
+        List<StructureSpec> structures
 ) {
+    public VersionProfile {
+        structures = List.copyOf(structures);
+        if (structures.isEmpty()) {
+            throw new IllegalArgumentException("version must support at least one structure");
+        }
+        long distinctNames = structures.stream().map(StructureSpec::name).distinct().count();
+        if (distinctNames != structures.size()) {
+            throw new IllegalArgumentException("structure names must be unique");
+        }
+    }
+
     public record StructureProfile(
             int spacing,
             int separation,
@@ -39,20 +47,36 @@ public record VersionProfile(
         String normalized = name.startsWith("minecraft:")
                 ? name.substring("minecraft:".length())
                 : name;
-        return switch (normalized) {
-            case "ancient_city" -> ancientCity;
-            case "bastion_remnant" -> bastionRemnant;
-            case "desert_pyramid" -> desertPyramid;
-            case "woodland_mansion", "mansion" -> woodlandMansion;
-            default -> throw new IllegalArgumentException(
-                    "Unsupported structure: " + name
-                            + "; supported: ancient_city, bastion_remnant, desert_pyramid, "
-                            + "woodland_mansion"
-            );
-        };
+        return structures.stream()
+                .filter(spec -> spec.name().equals(normalized)
+                        || structurePath(spec.structureId()).equals(normalized))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Unsupported structure: " + name + "; supported: "
+                                + structures.stream()
+                                .map(StructureSpec::name)
+                                .collect(java.util.stream.Collectors.joining(", "))
+                ));
     }
 
-    public List<StructureSpec> structures() {
-        return List.of(ancientCity, bastionRemnant, desertPyramid, woodlandMansion);
+    public StructureSpec ancientCity() {
+        return structure("ancient_city");
+    }
+
+    public StructureSpec bastionRemnant() {
+        return structure("bastion_remnant");
+    }
+
+    public StructureSpec desertPyramid() {
+        return structure("desert_pyramid");
+    }
+
+    public StructureSpec woodlandMansion() {
+        return structure("woodland_mansion");
+    }
+
+    private static String structurePath(String id) {
+        int separator = id.indexOf(':');
+        return separator < 0 ? id : id.substring(separator + 1);
     }
 }

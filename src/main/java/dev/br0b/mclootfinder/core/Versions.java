@@ -8,6 +8,7 @@ public final class Versions {
      */
     public static final VersionProfile V26_1_2 = new VersionProfile(
             "26.1.2",
+            java.util.List.of(
             new StructureSpec(
                     "ancient_city",
                     "minecraft:ancient_city",
@@ -72,6 +73,7 @@ public final class Versions {
                     java.util.List.of(new StructureSpec.SelectionEntry("minecraft:mansion", 1)),
                     java.util.List.of("minecraft:chests/woodland_mansion"),
                     "minecraft:vex_armor_trim_smithing_template"
+            )
             )
     );
 
