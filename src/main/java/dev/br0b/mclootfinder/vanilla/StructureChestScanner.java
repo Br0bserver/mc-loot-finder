@@ -18,9 +18,15 @@ public final class StructureChestScanner {
             VanillaRuntime26_1_2 runtime
     ) {
         List<ChestPrediction> placed = switch (spec.scannerKind()) {
-            case JIGSAW_FAST -> JigsawChestScanner.scan(
-                    worldSeed, spec, start, runtime.templateManager()
-            );
+            case JIGSAW_FAST -> {
+                var decoration = runtime.structureDecorationCoordinates(
+                        runtime.structureId(start)
+                );
+                yield JigsawChestScanner.scan(
+                        worldSeed, spec, start, runtime.templateManager(),
+                        decoration.indexWithinStep(), decoration.step()
+                );
+            }
             case VANILLA_PLACEMENT -> VanillaPlacementChestScanner.scan(
                     worldSeed, spec, start, runtime
             );

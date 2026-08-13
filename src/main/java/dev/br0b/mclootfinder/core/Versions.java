@@ -187,6 +187,35 @@ public final class Versions {
                     "minecraft:golden_apple"
                 ),
                 new StructureSpec(
+                    "nether_fortress",
+                    "minecraft:fortress",
+                    "minecraft:the_nether",
+                    new VersionProfile.StructureProfile(27, 4, 30_084_232),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(
+                            new StructureSpec.SelectionEntry("minecraft:fortress", 2),
+                            new StructureSpec.SelectionEntry("minecraft:bastion_remnant", 3, false)
+                    ),
+                    java.util.List.of("minecraft:chests/nether_bridge"),
+                    "minecraft:diamond"
+                ),
+                new StructureSpec(
+                    "village",
+                    "minecraft:village_plains",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(34, 8, 10_387_312),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.JIGSAW_FAST,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    villageEntries(),
+                    villageLootTables(),
+                    "minecraft:diamond"
+                ),
+                new StructureSpec(
                     "woodland_mansion",
                     "minecraft:mansion",
                     "minecraft:overworld",
@@ -219,6 +248,37 @@ public final class Versions {
                 new StructureSpec.SelectionEntry("minecraft:ruined_portal_mountain", 1),
                 new StructureSpec.SelectionEntry("minecraft:ruined_portal_ocean", 1),
                 new StructureSpec.SelectionEntry("minecraft:ruined_portal_nether", 1)
+        );
+    }
+
+    private static java.util.List<StructureSpec.SelectionEntry> villageEntries() {
+        return java.util.List.of(
+                new StructureSpec.SelectionEntry("minecraft:village_plains", 1),
+                new StructureSpec.SelectionEntry("minecraft:village_desert", 1),
+                new StructureSpec.SelectionEntry("minecraft:village_savanna", 1),
+                new StructureSpec.SelectionEntry("minecraft:village_snowy", 1),
+                new StructureSpec.SelectionEntry("minecraft:village_taiga", 1)
+        );
+    }
+
+    private static java.util.List<String> villageLootTables() {
+        return java.util.List.of(
+                "minecraft:chests/village/village_armorer",
+                "minecraft:chests/village/village_butcher",
+                "minecraft:chests/village/village_cartographer",
+                "minecraft:chests/village/village_desert_house",
+                "minecraft:chests/village/village_fisher",
+                "minecraft:chests/village/village_fletcher",
+                "minecraft:chests/village/village_mason",
+                "minecraft:chests/village/village_plains_house",
+                "minecraft:chests/village/village_savanna_house",
+                "minecraft:chests/village/village_shepherd",
+                "minecraft:chests/village/village_snowy_house",
+                "minecraft:chests/village/village_taiga_house",
+                "minecraft:chests/village/village_tannery",
+                "minecraft:chests/village/village_temple",
+                "minecraft:chests/village/village_toolsmith",
+                "minecraft:chests/village/village_weaponsmith"
         );
     }
 

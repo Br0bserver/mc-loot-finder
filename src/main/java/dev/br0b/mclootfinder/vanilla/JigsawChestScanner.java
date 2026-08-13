@@ -32,6 +32,20 @@ public final class JigsawChestScanner {
             StructureStart start,
             StructureTemplateManager templates
     ) {
+        return scan(
+                worldSeed, spec, start, templates,
+                spec.indexWithinStep(), spec.decorationStep()
+        );
+    }
+
+    public static List<ChestPrediction> scan(
+            long worldSeed,
+            StructureSpec spec,
+            StructureStart start,
+            StructureTemplateManager templates,
+            int structureIndex,
+            int decorationStep
+    ) {
         if (!start.isValid()) {
             return List.of();
         }
@@ -60,8 +74,8 @@ public final class JigsawChestScanner {
                     worldSeed,
                     chunkX,
                     chunkZ,
-                    spec.indexWithinStep(),
-                    spec.decorationStep(),
+                    structureIndex,
+                    decorationStep,
                     ordinal
             );
             predictions.add(new ChestPrediction(
