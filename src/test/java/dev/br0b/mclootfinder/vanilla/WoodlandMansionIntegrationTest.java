@@ -32,7 +32,7 @@ class WoodlandMansionIntegrationTest {
                 if (!start.isValid()) {
                     continue;
                 }
-                var chests = VanillaPlacementChestScanner.scan(
+                var chests = StructureChestScanner.scan(
                         worldSeed, spec, start, runtime
                 );
                 assertFalse(chests.isEmpty(), "valid mansion contained no captured chests");
