@@ -48,6 +48,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -60,6 +61,7 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
     private final RegistryAccess.Frozen registries;
     private final WorldDimensions.Complete dimensions;
     private final LevelStorageSource.LevelStorageAccess storageAccess;
+    private final Path scratchPath;
     private final StructureTemplateManager templateManager;
     private final Map<String, DimensionContext> dimensionContexts;
 
@@ -81,11 +83,20 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
                 "minecraft:the_end", createDimensionContext(Level.END, LevelStem.END)
         );
 
+        Path createdScratch = null;
         try {
-            Path scratch = Files.createTempDirectory("mc-loot-finder-templates-");
-            LevelStorageSource storageSource = LevelStorageSource.createDefault(scratch);
+            createdScratch = Files.createTempDirectory("mc-loot-finder-templates-");
+            LevelStorageSource storageSource = LevelStorageSource.createDefault(createdScratch);
             this.storageAccess = storageSource.createAccess("scratch");
+            this.scratchPath = createdScratch;
         } catch (IOException exception) {
+            if (createdScratch != null) {
+                try {
+                    deleteRecursively(createdScratch);
+                } catch (IOException cleanupException) {
+                    exception.addSuppressed(cleanupException);
+                }
+            }
             throw new UncheckedIOException("Could not create the temporary template path", exception);
         }
         this.templateManager = new StructureTemplateManager(
@@ -345,6 +356,10 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
         return registries;
     }
 
+    Path scratchPath() {
+        return scratchPath;
+    }
+
     private DimensionContext dimension(StructureSpec spec) {
         DimensionContext context = dimensionContexts.get(spec.dimensionId());
         if (context == null) {
@@ -355,12 +370,48 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
 
     @Override
     public void close() {
+        RuntimeException failure = null;
         try {
             storageAccess.close();
         } catch (IOException exception) {
-            throw new UncheckedIOException(exception);
-        } finally {
+            failure = new UncheckedIOException(exception);
+        }
+        try {
             resourceManager.close();
+        } catch (RuntimeException exception) {
+            failure = appendFailure(failure, exception);
+        }
+        try {
+            deleteRecursively(scratchPath);
+        } catch (IOException exception) {
+            failure = appendFailure(failure, new UncheckedIOException(exception));
+        }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    private static RuntimeException appendFailure(
+            RuntimeException failure,
+            RuntimeException next
+    ) {
+        if (failure == null) {
+            return next;
+        }
+        failure.addSuppressed(next);
+        return failure;
+    }
+
+    private static void deleteRecursively(Path root) throws IOException {
+        if (!Files.exists(root)) {
+            return;
+        }
+        List<Path> paths;
+        try (var walk = Files.walk(root)) {
+            paths = walk.sorted(Comparator.reverseOrder()).toList();
+        }
+        for (Path path : paths) {
+            Files.deleteIfExists(path);
         }
     }
 
