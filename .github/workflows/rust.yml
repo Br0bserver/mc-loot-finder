@@ -37,7 +37,7 @@ jobs:
             --seed 114514 \
             --structure ancient_city \
             --radius 5000 \
-            --limit 5 \
+            --limit 1000 \
             --json | tee ancient-city-chests.json
       - uses: actions/upload-artifact@v4
         with:
