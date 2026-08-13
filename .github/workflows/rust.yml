@@ -1,0 +1,83 @@
+name: Rust CI
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - src/**
+      - .github/workflows/rust.yml
+      - .github/workflows/release.yml
+  pull_request:
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - src/**
+      - .github/workflows/rust.yml
+      - .github/workflows/release.yml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+          components: rustfmt
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Check Rust CLI
+        run: cargo check --locked
+      - name: Test Rust CLI
+        run: cargo test --release --locked
+      - name: Install static Linux linker
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+      - name: Build static release binary
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl
+      - name: Run ancient city smoke test
+        run: |
+          target/x86_64-unknown-linux-musl/release/mc-loot-finder chests \
+            --seed 114514 \
+            --structure ancient_city \
+            --radius 5000 \
+            --limit 1000 \
+            --json | tee ancient-city-chests.json
+      - name: Check find exit codes
+        run: |
+          target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
+            --seed 114514 \
+            --structure ancient_city \
+            --item minecraft:silence_armor_trim_smithing_template \
+            --radius 5000 \
+            --json
+
+          if target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
+            --seed 114514 \
+            --structure ancient_city \
+            --item minecraft:bedrock \
+            --radius 0 \
+            --json
+          then
+            echo "expected a no-match search to exit with status 1" >&2
+            exit 1
+          else
+            status=$?
+            test "$status" -eq 1
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ancient-city-chests
+          path: ancient-city-chests.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mc-loot-finder-linux-x86_64
+          path: target/x86_64-unknown-linux-musl/release/mc-loot-finder
