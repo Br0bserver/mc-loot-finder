@@ -6,6 +6,8 @@ use pumpkin_world::generation::structure::structures::{
     StructureGenerator, StructureGeneratorContext, create_chunk_random,
 };
 
+const EXPECTED_GEOMETRY: &str = include_str!("../ancient-city-114514.tsv");
+
 fn main() {
     let generator = JigsawGenerator::new("minecraft:ancient_city/city_center", 7)
         .with_start_jigsaw("minecraft:city_anchor");
@@ -58,6 +60,7 @@ fn main() {
         bounds.max.z,
     );
 
+    let mut geometry = String::new();
     for (index, piece) in collector.pieces.iter().enumerate() {
         let piece = piece
             .as_any()
@@ -67,6 +70,19 @@ fn main() {
         piece.element.for_each_template(|name, _, _, _| {
             templates.push(name.to_owned());
         });
+        geometry.push_str(&format!(
+            "{index:03}\t{}\t{}\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            piece.pos.0.x,
+            piece.pos.0.y,
+            piece.pos.0.z,
+            piece.rotation,
+            piece.piece.bounding_box.min.x,
+            piece.piece.bounding_box.min.y,
+            piece.piece.bounding_box.min.z,
+            piece.piece.bounding_box.max.x,
+            piece.piece.bounding_box.max.y,
+            piece.piece.bounding_box.max.z,
+        ));
         println!(
             "PUMPKIN_PIECE index={index:03} position=({}, {}, {}) rotation={:?} templates={:?} box=({}, {}, {})..({}, {}, {})",
             piece.pos.0.x,
@@ -82,4 +98,6 @@ fn main() {
             piece.piece.bounding_box.max.z,
         );
     }
+
+    assert_eq!(geometry, EXPECTED_GEOMETRY, "Pumpkin geometry drifted");
 }
