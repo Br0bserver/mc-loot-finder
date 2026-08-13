@@ -239,15 +239,25 @@ mod tests {
                 &scanner.generator.base_router.multi_noise,
                 &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
             );
-            let biome = MultiNoiseBiomeSupplier::OVERWORLD.biome(
-                biome_coords::from_block(start.x),
-                biome_coords::from_block(start.y),
-                biome_coords::from_block(start.z),
-                &mut sampler,
-            );
+            let biome_x = biome_coords::from_block(start.x);
+            let biome_y = biome_coords::from_block(start.y);
+            let biome_z = biome_coords::from_block(start.z);
+            let point = sampler.sample(biome_x, biome_y, biome_z);
+            let biome =
+                MultiNoiseBiomeSupplier::OVERWORLD.biome(biome_x, biome_y, biome_z, &mut sampler);
             println!(
-                "candidate=({chunk_x},{chunk_z}) start=({},{},{}) biome=minecraft:{} id={}",
-                start.x, start.y, start.z, biome.registry_id, biome.id
+                "candidate=({chunk_x},{chunk_z}) start=({},{},{}) biome=minecraft:{} id={} climate=({},{},{},{},{},{})",
+                start.x,
+                start.y,
+                start.z,
+                biome.registry_id,
+                biome.id,
+                point.temperature,
+                point.humidity,
+                point.continentalness,
+                point.erosion,
+                point.depth,
+                point.weirdness
             );
         }
     }
