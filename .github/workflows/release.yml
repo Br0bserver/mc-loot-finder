@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        run: cargo test --release --locked
+      - name: Build
+        run: cargo build --release --locked
+      - name: Package
+        run: |
+          mkdir dist
+          cp target/release/mc-loot-finder dist/mc-loot-finder-linux-x86_64
+          cd dist
+          sha256sum mc-loot-finder-linux-x86_64 > mc-loot-finder-linux-x86_64.sha256
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/mc-loot-finder-linux-x86_64 \
+            dist/mc-loot-finder-linux-x86_64.sha256 \
+            --verify-tag \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME"

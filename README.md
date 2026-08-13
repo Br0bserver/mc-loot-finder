@@ -2,7 +2,14 @@
 
 `mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市，列出其中的容器，并搜索指定战利品。
 
-程序不读取存档，也不需要安装 Java。Linux x86_64 独立二进制由 GitHub Actions 构建，可在仓库的 Actions 运行产物中下载。
+程序不读取存档，也不需要安装 Java。Linux x86_64 独立二进制可从 GitHub Releases 下载。
+
+下载后赋予执行权限：
+
+```bash
+chmod +x mc-loot-finder-linux-x86_64
+./mc-loot-finder-linux-x86_64 help
+```
 
 ## 使用
 
