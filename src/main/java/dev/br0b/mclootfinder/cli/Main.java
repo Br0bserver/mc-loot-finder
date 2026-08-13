@@ -5,11 +5,10 @@ import dev.br0b.mclootfinder.core.VersionProfile;
 import dev.br0b.mclootfinder.core.Versions;
 import dev.br0b.mclootfinder.core.structure.RandomSpreadLocator;
 import dev.br0b.mclootfinder.core.structure.StructureCandidate;
+import dev.br0b.mclootfinder.engine.SearchEngine;
 import dev.br0b.mclootfinder.vanilla.ChestPrediction;
-import dev.br0b.mclootfinder.vanilla.JsonLootTableOracle26_1_2;
 import dev.br0b.mclootfinder.vanilla.StructureChestScanner;
-import dev.br0b.mclootfinder.vanilla.VanillaRuntime26_1_2;
-import net.minecraft.world.level.ChunkPos;
+import dev.br0b.mclootfinder.vanilla.VanillaSearchEngine;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -165,23 +164,15 @@ public final class Main {
         }
         int validStructures = 0;
         List<ChestPrediction> predictions = new ArrayList<>();
-        try (VanillaRuntime26_1_2 runtime = VanillaRuntime26_1_2.load(worldSeed)) {
-            runtime.verifyStructureProfile(spec);
+        try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
+            engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
-                ChunkPos candidateChunk = new ChunkPos(candidate.chunkX(), candidate.chunkZ());
-                if (!runtime.isStructurePlacementChunk(spec, candidateChunk)) {
-                    continue;
-                }
-                var start = runtime.generateSelectedStructure(
-                        spec, candidateChunk
-                );
-                if (!start.isValid()) {
+                var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
+                if (!scan.validStructure()) {
                     continue;
                 }
                 validStructures++;
-                predictions.addAll(StructureChestScanner.scanAll(
-                        worldSeed, spec, start, runtime
-                ));
+                predictions.addAll(scan.containers());
             }
         }
         requireUnambiguousContainerStreams(spec.name(), predictions);
@@ -246,24 +237,15 @@ public final class Main {
         int unpredictableZeroSeeds = 0;
         List<ChestPrediction> allChests = new ArrayList<>();
         List<ChestPrediction> matches = new ArrayList<>();
-        try (VanillaRuntime26_1_2 runtime = VanillaRuntime26_1_2.load(worldSeed)) {
-            runtime.verifyStructureProfile(spec);
-            JsonLootTableOracle26_1_2 oracle = new JsonLootTableOracle26_1_2(runtime.registries());
+        try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
+            engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
-                ChunkPos candidateChunk = new ChunkPos(candidate.chunkX(), candidate.chunkZ());
-                if (!runtime.isStructurePlacementChunk(spec, candidateChunk)) {
-                    continue;
-                }
-                var start = runtime.generateSelectedStructure(
-                        spec, candidateChunk
-                );
-                if (!start.isValid()) {
+                var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
+                if (!scan.validStructure()) {
                     continue;
                 }
                 validStructures++;
-                allChests.addAll(StructureChestScanner.scanAll(
-                        worldSeed, spec, start, runtime
-                ));
+                allChests.addAll(scan.containers());
             }
             requireUnambiguousContainerStreams(spec.name(), allChests);
             allChests = visibleContainers(allChests);
@@ -276,7 +258,9 @@ public final class Main {
                     unpredictableZeroSeeds++;
                     continue;
                 }
-                if (oracle.contains(chest.lootTable(), chest.lootTableSeed(), target)) {
+                if (engine.lootOracle().contains(
+                        chest.lootTable(), chest.lootTableSeed(), target
+                )) {
                     matches.add(chest);
                 }
             }
@@ -340,8 +324,8 @@ public final class Main {
             out.println("Generating...");
             out.println();
         }
-        try (VanillaRuntime26_1_2 runtime = VanillaRuntime26_1_2.load(0L)) {
-            var stacks = new JsonLootTableOracle26_1_2(runtime.registries()).roll(table, lootSeed);
+        try (SearchEngine engine = VanillaSearchEngine.load(0L)) {
+            var stacks = engine.lootOracle().roll(table, lootSeed);
             if (json) {
                 out.printf("{\"version\":\"26.1.2\",\"loot_table\":\"%s\","
                         + "\"loot_seed\":%d,\"items\":[", table, lootSeed);
