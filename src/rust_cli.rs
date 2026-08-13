@@ -23,6 +23,7 @@ pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
     match command {
         "candidates" => candidates(&options),
         "chests" => chests(&options),
+        "find" => find(&options),
         "container-seed" => container_seed(&options),
         "explain" => explain(&options),
         "loot" => loot_command(&options),
@@ -30,6 +31,130 @@ pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
             "command '{command}' has not been migrated to the Rust CLI yet"
         )),
     }
+}
+
+fn find(options: &Options) -> Result<u8, String> {
+    require_version(options)?;
+    let structure = candidate_structure(options.text("structure", "ancient_city"))?;
+    if structure.name != "ancient_city" {
+        return Err(format!(
+            "Rust find currently supports only ancient_city; '{}' is not available yet",
+            structure.name
+        ));
+    }
+    let world_seed = options.required_i64("seed")?;
+    let item = options.text("item", structure.default_item);
+    require_identifier(item, "--item")?;
+    let center_x = options.i32("center-x", 0)?;
+    let center_z = options.i32("center-z", 0)?;
+    let radius = options.i32("radius", 5_000)?;
+    let limit = options.i32("limit", 20)?;
+    if limit < 0 {
+        return Err("--limit must be non-negative".to_owned());
+    }
+
+    let candidates = locate(world_seed, center_x, center_z, radius, structure.placement)?;
+    let scanner = ancient_city::Scanner::new(world_seed);
+    let mut valid_structures = 0;
+    let mut checked_chests = 0;
+    let mut unpredictable_zero_seeds = 0;
+    let mut matches = Vec::new();
+    for candidate in &candidates {
+        let scan = scanner.scan(candidate.chunk_x, candidate.chunk_z)?;
+        if !scan.valid_structure {
+            continue;
+        }
+        valid_structures += 1;
+        for chest in scan.chests {
+            if !structure.loot_tables.contains(&chest.loot_table.as_str()) {
+                continue;
+            }
+            checked_chests += 1;
+            if chest.loot_seed == 0 {
+                unpredictable_zero_seeds += 1;
+                continue;
+            }
+            let item_count = loot::roll(&chest.loot_table, chest.loot_seed)?
+                .into_iter()
+                .filter(|stack| stack.item == item)
+                .map(|stack| stack.count)
+                .sum::<i32>();
+            if item_count > 0 {
+                matches.push((chest, item_count));
+            }
+        }
+    }
+
+    if options.flag("json") {
+        print!(
+            "{{\"version\":\"26.1.2\",\"structure\":\"ancient_city\",\"seed\":{},\"item\":\"{}\",\"placement_candidates\":{},\"valid_structures\":{},\"checked_chests\":{},\"hits\":{},\"unpredictable_zero_seeds\":{},\"matches\":[",
+            world_seed,
+            item,
+            candidates.len(),
+            valid_structures,
+            checked_chests,
+            matches.len(),
+            unpredictable_zero_seeds
+        );
+        for (index, (chest, item_count)) in matches.iter().take(limit as usize).enumerate() {
+            if index != 0 {
+                print!(",");
+            }
+            print!(
+                "{{\"x\":{},\"y\":{},\"z\":{},\"item_count\":{},\"loot_table\":\"{}\",\"loot_seed\":{},\"start_chunk_x\":{},\"start_chunk_z\":{}}}",
+                chest.x,
+                chest.y,
+                chest.z,
+                item_count,
+                chest.loot_table,
+                chest.loot_seed,
+                chest.structure_chunk_x,
+                chest.structure_chunk_z
+            );
+        }
+        println!("]}}");
+        return Ok(0);
+    }
+
+    println!("Minecraft Java 26.1.2");
+    println!("World seed: {world_seed}");
+    println!("Structure: ancient_city");
+    println!("Item: {item}");
+    println!(
+        "Search area: {} blocks around ({center_x}, {center_z})\n",
+        grouped(i64::from(radius))
+    );
+    println!("Found {}\n", quantity(matches.len() as i64, "chest"));
+    for (index, (chest, item_count)) in matches.iter().take(limit as usize).enumerate() {
+        println!("[{}]", index + 1);
+        println!("  Position: ({}, {}, {})", chest.x, chest.y, chest.z);
+        println!("  Item count: {item_count}");
+        println!("  Loot table: {}", chest.loot_table);
+        println!("  Loot seed: {}", chest.loot_seed);
+        println!(
+            "  Start chunk: ({}, {})\n",
+            chest.structure_chunk_x, chest.structure_chunk_z
+        );
+    }
+    let shown = matches.len().min(limit as usize);
+    println!(
+        "Checked: {}, {}, {}",
+        quantity(candidates.len() as i64, "candidate"),
+        quantity(valid_structures, "valid structure"),
+        quantity(checked_chests, "container")
+    );
+    println!(
+        "Shown: {} of {}",
+        grouped(shown as i64),
+        quantity(matches.len() as i64, "match")
+    );
+    if unpredictable_zero_seeds != 0 {
+        println!(
+            "Skipped: {} with LootTableSeed 0",
+            quantity(unpredictable_zero_seeds, "container")
+        );
+    }
+    Ok(0)
 }
 
 fn chests(options: &Options) -> Result<u8, String> {
