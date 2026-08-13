@@ -84,6 +84,7 @@ fn find(options: &Options) -> Result<u8, String> {
             }
         }
     }
+    let exit_code = if matches.is_empty() { 1 } else { 0 };
 
     if options.flag("json") {
         print!(
@@ -113,7 +114,7 @@ fn find(options: &Options) -> Result<u8, String> {
             );
         }
         println!("]}}");
-        return Ok(0);
+        return Ok(exit_code);
     }
 
     println!("Minecraft Java 26.1.2");
@@ -154,7 +155,7 @@ fn find(options: &Options) -> Result<u8, String> {
             quantity(unpredictable_zero_seeds, "container")
         );
     }
-    Ok(0)
+    Ok(exit_code)
 }
 
 fn chests(options: &Options) -> Result<u8, String> {

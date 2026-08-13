@@ -46,6 +46,28 @@ jobs:
             --radius 5000 \
             --limit 1000 \
             --json | tee ancient-city-chests.json
+      - name: Check find exit codes
+        run: |
+          target/release/mc-loot-finder find \
+            --seed 114514 \
+            --structure ancient_city \
+            --item minecraft:silence_armor_trim_smithing_template \
+            --radius 5000 \
+            --json
+
+          if target/release/mc-loot-finder find \
+            --seed 114514 \
+            --structure ancient_city \
+            --item minecraft:bedrock \
+            --radius 0 \
+            --json
+          then
+            echo "expected a no-match search to exit with status 1" >&2
+            exit 1
+          else
+            status=$?
+            test "$status" -eq 1
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: ancient-city-chests
