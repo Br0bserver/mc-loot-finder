@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::rust_core::ContainerSeedShortcut;
 use crate::rust_core::candidate_structure;
 use crate::rust_core::candidates::locate;
 use crate::rust_core::decoration_random::container_loot_seed;
+use crate::rust_core::{CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType};
 
 pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
     let arguments = arguments.into_iter().collect::<Vec<_>>();
@@ -21,6 +21,7 @@ pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
     match command {
         "candidates" => candidates(&options),
         "container-seed" => container_seed(&options),
+        "explain" => explain(&options),
         _ => Err(format!(
             "command '{command}' has not been migrated to the Rust CLI yet"
         )),
@@ -77,9 +78,144 @@ fn container_seed(options: &Options) -> Result<u8, String> {
 
 fn print_help() {
     println!("mc-loot-finder");
-    println!("Rust migration build for Minecraft Java 26.1.2");
+    println!("Minecraft Java 26.1.2 structure container and loot finder");
     println!();
-    println!("Commands will be enabled as their results match the Java reference implementation.");
+    println!("Commands:");
+    println!();
+    println!("  candidates --seed N [search options]");
+    println!("    List possible structure chunks without full verification.");
+    println!();
+    println!("  chests --seed N [search options]");
+    println!("    Verify structures and list their block containers.");
+    println!();
+    println!("  find --seed N [--item ID] [search options]");
+    println!("    Find containers that generate the requested item.");
+    println!();
+    println!("  loot --loot-seed N [--table ID]");
+    println!("    Replay one supported loot table.");
+    println!();
+    println!("  container-seed --seed N --chunk-x X --chunk-z Z [options]");
+    println!("    Calculate a seed for supported shortcut structures.");
+    println!();
+    println!("  explain [--structure NAME]");
+    println!("    Show defaults, supported structures, and loot tables.");
+    println!();
+    println!("Search options:");
+    println!("  --structure NAME  --center-x X  --center-z Z");
+    println!("  --radius N  --limit N");
+    println!();
+    println!("Common options:");
+    println!("  --version 26.1.2  --json");
+    println!();
+    println!("Use 'explain' to list supported structures and defaults.");
+}
+
+fn explain(options: &Options) -> Result<u8, String> {
+    require_version(options)?;
+    let structure_name = options.text("structure", "");
+    if structure_name.is_empty() {
+        if options.flag("json") {
+            print!("{{\"version\":\"26.1.2\",\"structures\":[");
+            for (index, structure) in CANDIDATE_STRUCTURES.iter().enumerate() {
+                if index != 0 {
+                    print!(",");
+                }
+                print!(
+                    "{{\"name\":\"{}\",\"dimension\":\"{}\",\"default_item\":\"{}\",\"loot_tables\":{}}}",
+                    structure.name,
+                    structure.dimension,
+                    structure.default_item,
+                    structure.loot_tables.len()
+                );
+            }
+            println!("]}}");
+            return Ok(0);
+        }
+        println!("Minecraft Java 26.1.2\n");
+        println!("Command defaults:");
+        println!("  candidates: ancient_city, center (0, 0), radius 5,000, limit 100");
+        println!("  chests: ancient_city, center (0, 0), radius 2,000, limit 100");
+        println!("  find: ancient_city, center (0, 0), radius 5,000, limit 20");
+        println!("  loot: minecraft:chests/ancient_city\n");
+        println!("Supported structures:");
+        for (index, structure) in CANDIDATE_STRUCTURES.iter().enumerate() {
+            println!("\n[{}] {}", index + 1, structure.name);
+            println!("  Dimension: {}", structure.dimension);
+            println!("  Default item: {}", structure.default_item);
+            println!(
+                "  Loot tables: {}",
+                grouped(structure.loot_tables.len() as i64)
+            );
+        }
+        println!("\nUse 'explain --structure NAME' for details.");
+        return Ok(0);
+    }
+
+    let structure = candidate_structure(structure_name)?;
+    if options.flag("json") {
+        let spread = match structure.placement.spread {
+            SpreadType::Linear => "LINEAR",
+            SpreadType::Triangular => "TRIANGULAR",
+        };
+        let shortcut = match structure.container_seed {
+            ContainerSeedShortcut::Direct => "DIRECT",
+            ContainerSeedShortcut::DesertPyramid => "DESERT_PYRAMID",
+            ContainerSeedShortcut::None => "NONE",
+        };
+        print!(
+            "{{\"version\":\"26.1.2\",\"name\":\"{}\",\"structure_id\":\"{}\",\"dimension\":\"{}\",\"default_item\":\"{}\",\"placement\":{{\"spacing\":{},\"separation\":{},\"salt\":{},\"spread\":\"{}\"}},\"decoration_step\":{},\"decoration_index\":{},\"scanner\":\"{}\",\"container_seed_shortcut\":\"{}\",\"loot_tables\":[",
+            structure.name,
+            structure.structure_id,
+            structure.dimension,
+            structure.default_item,
+            structure.placement.spacing,
+            structure.placement.separation,
+            structure.placement.salt,
+            spread,
+            structure.decoration_step,
+            structure.structure_index,
+            structure.scanner,
+            shortcut
+        );
+        for (index, table) in structure.loot_tables.iter().enumerate() {
+            if index != 0 {
+                print!(",");
+            }
+            print!("\"{table}\"");
+        }
+        println!("]}}");
+        return Ok(0);
+    }
+
+    let spread = match structure.placement.spread {
+        SpreadType::Linear => "LINEAR",
+        SpreadType::Triangular => "TRIANGULAR",
+    };
+    let shortcut = match structure.container_seed {
+        ContainerSeedShortcut::Direct => "DIRECT",
+        ContainerSeedShortcut::DesertPyramid => "DESERT_PYRAMID",
+        ContainerSeedShortcut::None => "NONE",
+    };
+    println!("Minecraft Java 26.1.2");
+    println!("Structure: {}", structure.name);
+    println!("Structure ID: {}", structure.structure_id);
+    println!("Dimension: {}", structure.dimension);
+    println!("Default item: {}\n", structure.default_item);
+    println!("Placement:");
+    println!("  Spacing: {}", structure.placement.spacing);
+    println!("  Separation: {}", structure.placement.separation);
+    println!("  Salt: {}", structure.placement.salt);
+    println!("  Spread: {spread}\n");
+    println!("Container calculation:");
+    println!("  Decoration step: {}", structure.decoration_step);
+    println!("  Structure index: {}", structure.structure_index);
+    println!("  Scanner: {}", structure.scanner);
+    println!("  Seed shortcut: {shortcut}\n");
+    println!("Loot tables:");
+    for table in structure.loot_tables {
+        println!("  {table}");
+    }
+    Ok(0)
 }
 
 fn candidates(options: &Options) -> Result<u8, String> {
