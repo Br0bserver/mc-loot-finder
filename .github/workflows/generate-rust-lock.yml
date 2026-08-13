@@ -1,0 +1,29 @@
+name: Generate Rust lockfile
+
+on:
+  push:
+    branches:
+      - agent/generate-pumpkin-lock
+
+jobs:
+  generate-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Generate lockfile
+        run: cargo generate-lockfile
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Check Rust CLI
+        run: cargo check --locked
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cargo-lock
+          path: Cargo.lock
