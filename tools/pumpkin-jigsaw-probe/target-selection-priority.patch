@@ -1,8 +1,10 @@
 diff --git a/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs b/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
-index d49eade6..bbfd0a6d 100644
+index d49eade6..de55945c 100644
 --- a/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
 +++ b/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
-@@ -331,0 +332,3 @@ impl JigsawPlacement {
+@@ -333 +333,4 @@ impl JigsawPlacement {
+-                            for target_jigsaw in target_jigsaws_shuffled {
 +                            target_jigsaws_shuffled.sort_by_key(|jigsaw| {
 +                                std::cmp::Reverse(jigsaw.selection_priority)
 +                            });
++                            for target_jigsaw in target_jigsaws_shuffled {
