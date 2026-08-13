@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 
+[dependencies]
+serde_json = "1.0"
+
 [[bin]]
 name = "mc-loot-finder"
 path = "src/main.rs"

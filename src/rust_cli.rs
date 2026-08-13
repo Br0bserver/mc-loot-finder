@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::rust_core::candidate_structure;
 use crate::rust_core::candidates::locate;
 use crate::rust_core::decoration_random::container_loot_seed;
+use crate::rust_core::loot;
 use crate::rust_core::{CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType};
 
 pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
@@ -22,9 +23,70 @@ pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
         "candidates" => candidates(&options),
         "container-seed" => container_seed(&options),
         "explain" => explain(&options),
+        "loot" => loot_command(&options),
         _ => Err(format!(
             "command '{command}' has not been migrated to the Rust CLI yet"
         )),
+    }
+}
+
+fn loot_command(options: &Options) -> Result<u8, String> {
+    require_version(options)?;
+    let table = options.text("table", "minecraft:chests/ancient_city");
+    require_identifier(table, "--table")?;
+    let supported = CANDIDATE_STRUCTURES
+        .iter()
+        .flat_map(|structure| structure.loot_tables.iter())
+        .any(|supported| *supported == table);
+    if !supported {
+        return Err(format!(
+            "unsupported loot table: {table}; use one listed by 'explain'"
+        ));
+    }
+    let seed = options.required_i64("loot-seed")?;
+    if !options.flag("json") {
+        println!("Minecraft Java 26.1.2");
+        println!("Loot table: {table}");
+        println!("Loot seed: {seed}\n");
+        println!("Generating...\n");
+    }
+    let stacks = loot::roll(table, seed)?;
+    if options.flag("json") {
+        print!(
+            "{{\"version\":\"26.1.2\",\"loot_table\":\"{table}\",\"loot_seed\":{seed},\"items\":["
+        );
+        for (index, stack) in stacks.iter().enumerate() {
+            if index != 0 {
+                print!(",");
+            }
+            print!("{{\"item\":\"{}\",\"count\":{}}}", stack.item, stack.count);
+        }
+        println!("]}}");
+    } else {
+        println!("Generated {}\n", quantity(stacks.len() as i64, "stack"));
+        for (index, stack) in stacks.iter().enumerate() {
+            println!("[{}] {} x{}", index + 1, stack.item, stack.count);
+        }
+    }
+    Ok(0)
+}
+
+fn require_identifier(value: &str, option: &str) -> Result<(), String> {
+    let Some((namespace, path)) = value.split_once(':') else {
+        return Err(format!("{option} must be a namespaced Minecraft id"));
+    };
+    let valid_namespace = !namespace.is_empty()
+        && namespace.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"_.-".contains(&byte)
+        });
+    let valid_path = !path.is_empty()
+        && path.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"_./-".contains(&byte)
+        });
+    if valid_namespace && valid_path {
+        Ok(())
+    } else {
+        Err(format!("{option} must be a namespaced Minecraft id"))
     }
 }
 

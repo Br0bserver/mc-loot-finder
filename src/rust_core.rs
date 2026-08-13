@@ -1,6 +1,7 @@
 pub mod candidates;
 pub mod decoration_random;
 pub mod legacy_random;
+pub mod loot;
 pub mod xoroshiro;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
