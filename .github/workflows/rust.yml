@@ -27,13 +27,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-      - name: Generate lockfile for dependency changes
-        run: cargo generate-lockfile
-      - uses: actions/upload-artifact@v4
-        with:
-          name: generated-cargo-lock
-          path: Cargo.lock
       - name: Check formatting
         run: cargo fmt --check
       - name: Check Rust CLI
-        run: cargo check
+        run: cargo check --locked
