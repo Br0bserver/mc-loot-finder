@@ -1,5 +1,6 @@
 package dev.br0b.mclootfinder.vanilla;
 
+import dev.br0b.mclootfinder.loot.StandaloneLootOracle26_1_2;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -84,7 +85,7 @@ class JsonLootTableOracleParityTest {
             LootParams params = new LootParams.Builder(level)
                     .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(BlockPos.ZERO))
                     .create(LootContextParamSets.CHEST);
-            JsonLootTableOracle26_1_2 oracle = new JsonLootTableOracle26_1_2(runtime.registries());
+            LootOracle oracle = new StandaloneLootOracle26_1_2();
 
             for (String tableId : TABLES) {
                 Identifier id = Identifier.parse(tableId);

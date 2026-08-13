@@ -2,6 +2,7 @@ package dev.br0b.mclootfinder.cli;
 
 import dev.br0b.mclootfinder.vanilla.ChestPrediction;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -13,6 +14,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MainTest {
+    @Test
+    @Timeout(3)
+    void lootCommandUsesStandaloneRuntime() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[]{
+                "loot", "--loot-seed", "1",
+                "--table", "minecraft:chests/ancient_city", "--json"
+        }, new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
+
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("\"loot_seed\":1"));
+        assertTrue(output.contains("minecraft:enchanted_golden_apple"));
+    }
+
     @Test
     void candidatesJsonIsMachineReadableShape() {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();

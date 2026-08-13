@@ -37,5 +37,12 @@ public final class LegacyRandom48 {
         } while (bits - value + (bound - 1) < 0);
         return value;
     }
-}
 
+    public long nextLong() {
+        return ((long) next(32) << 32) + next(32);
+    }
+
+    public float nextFloat() {
+        return next(24) * 0x1.0p-24f;
+    }
+}

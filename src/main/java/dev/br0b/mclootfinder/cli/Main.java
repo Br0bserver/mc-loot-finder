@@ -6,6 +6,7 @@ import dev.br0b.mclootfinder.core.Versions;
 import dev.br0b.mclootfinder.core.structure.RandomSpreadLocator;
 import dev.br0b.mclootfinder.core.structure.StructureCandidate;
 import dev.br0b.mclootfinder.engine.SearchEngine;
+import dev.br0b.mclootfinder.loot.StandaloneLootOracle26_1_2;
 import dev.br0b.mclootfinder.vanilla.ChestPrediction;
 import dev.br0b.mclootfinder.vanilla.StructureChestScanner;
 import dev.br0b.mclootfinder.vanilla.VanillaSearchEngine;
@@ -324,26 +325,24 @@ public final class Main {
             out.println("Generating...");
             out.println();
         }
-        try (SearchEngine engine = VanillaSearchEngine.load(0L)) {
-            var stacks = engine.lootOracle().roll(table, lootSeed);
-            if (json) {
-                out.printf("{\"version\":\"26.1.2\",\"loot_table\":\"%s\","
-                        + "\"loot_seed\":%d,\"items\":[", table, lootSeed);
-                for (int index = 0; index < stacks.size(); index++) {
-                    var stack = stacks.get(index);
-                    if (index != 0) {
-                        out.print(',');
-                    }
-                    out.printf("{\"item\":\"%s\",\"count\":%d}",
-                            stack.item(), stack.count());
+        var stacks = new StandaloneLootOracle26_1_2().roll(table, lootSeed);
+        if (json) {
+            out.printf("{\"version\":\"26.1.2\",\"loot_table\":\"%s\","
+                    + "\"loot_seed\":%d,\"items\":[", table, lootSeed);
+            for (int index = 0; index < stacks.size(); index++) {
+                var stack = stacks.get(index);
+                if (index != 0) {
+                    out.print(',');
                 }
-                out.println("]}");
-            } else {
-                out.printf("Generated %s%n%n", quantity(stacks.size(), "stack"));
-                for (int index = 0; index < stacks.size(); index++) {
-                    var stack = stacks.get(index);
-                    out.printf("[%d] %s x%d%n", index + 1, stack.item(), stack.count());
-                }
+                out.printf("{\"item\":\"%s\",\"count\":%d}",
+                        stack.item(), stack.count());
+            }
+            out.println("]}");
+        } else {
+            out.printf("Generated %s%n%n", quantity(stacks.size(), "stack"));
+            for (int index = 0; index < stacks.size(); index++) {
+                var stack = stacks.get(index);
+                out.printf("[%d] %s x%d%n", index + 1, stack.item(), stack.count());
             }
         }
         return 0;
