@@ -932,7 +932,7 @@ dependencies = [
 [[package]]
 name = "pumpkin-codecs"
 version = "0.1.0-dev+26.2"
-source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=41b8c14174717ed06870cde5618eea4b68365d60#41b8c14174717ed06870cde5618eea4b68365d60"
+source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=c27dba8ff0af489feec17fdbef542508e7a8e59a#c27dba8ff0af489feec17fdbef542508e7a8e59a"
 dependencies = [
  "serde_json",
  "tracing",
@@ -941,7 +941,7 @@ dependencies = [
 [[package]]
 name = "pumpkin-config"
 version = "0.1.0-dev+26.2"
-source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=41b8c14174717ed06870cde5618eea4b68365d60#41b8c14174717ed06870cde5618eea4b68365d60"
+source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=c27dba8ff0af489feec17fdbef542508e7a8e59a#c27dba8ff0af489feec17fdbef542508e7a8e59a"
 dependencies = [
  "pumpkin-util",
  "serde",
@@ -953,7 +953,7 @@ dependencies = [
 [[package]]
 name = "pumpkin-data"
 version = "0.1.0-dev+26.2"
-source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=41b8c14174717ed06870cde5618eea4b68365d60#41b8c14174717ed06870cde5618eea4b68365d60"
+source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=c27dba8ff0af489feec17fdbef542508e7a8e59a#c27dba8ff0af489feec17fdbef542508e7a8e59a"
 dependencies = [
  "crc-fast",
  "phf",
@@ -966,7 +966,7 @@ dependencies = [
 [[package]]
 name = "pumpkin-nbt"
 version = "0.1.0-dev+26.2"
-source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=41b8c14174717ed06870cde5618eea4b68365d60#41b8c14174717ed06870cde5618eea4b68365d60"
+source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=c27dba8ff0af489feec17fdbef542508e7a8e59a#c27dba8ff0af489feec17fdbef542508e7a8e59a"
 dependencies = [
  "bytes",
  "cesu8",
@@ -981,7 +981,7 @@ dependencies = [
 [[package]]
 name = "pumpkin-util"
 version = "0.1.0-dev+26.2"
-source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=41b8c14174717ed06870cde5618eea4b68365d60#41b8c14174717ed06870cde5618eea4b68365d60"
+source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=c27dba8ff0af489feec17fdbef542508e7a8e59a#c27dba8ff0af489feec17fdbef542508e7a8e59a"
 dependencies = [
  "base64",
  "bytes",
@@ -1008,7 +1008,7 @@ dependencies = [
 [[package]]
 name = "pumpkin-world"
 version = "0.1.0-dev+26.2"
-source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=41b8c14174717ed06870cde5618eea4b68365d60#41b8c14174717ed06870cde5618eea4b68365d60"
+source = "git+https://github.com/Br0bserver/Pumpkin.git?rev=c27dba8ff0af489feec17fdbef542508e7a8e59a#c27dba8ff0af489feec17fdbef542508e7a8e59a"
 dependencies = [
  "arc-swap",
  "bitflags",

@@ -267,11 +267,16 @@ mod tests {
         let scanner = Scanner::new(114514);
         let chunk_x = 96;
         let chunk_z = 5;
+        let mut random = create_chunk_random(scanner.world_seed, chunk_x, chunk_z);
+        let pumpkin_util::random::RandomGenerator::Legacy(legacy) = &mut random else {
+            panic!("ancient city structure RNG should be legacy");
+        };
+        legacy.enable_bounded_trace();
         let context = StructureGeneratorContext {
             seed: scanner.world_seed,
             chunk_x,
             chunk_z,
-            random: create_chunk_random(scanner.world_seed, chunk_x, chunk_z),
+            random,
             sea_level: SEA_LEVEL,
             min_y: WORLD_MIN_Y,
             height_sampler: None,
