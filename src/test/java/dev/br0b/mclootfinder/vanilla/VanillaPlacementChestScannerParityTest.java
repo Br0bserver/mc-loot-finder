@@ -80,7 +80,10 @@ class VanillaPlacementChestScannerParityTest {
                         .filter(chest -> !chest.lootTable().isEmpty())
                         .sorted(BY_POSITION)
                         .toList(),
-                actual.stream().sorted(BY_POSITION).toList()
+                actual.stream()
+                        .filter(chest -> !chest.lootTable().isEmpty())
+                        .sorted(BY_POSITION)
+                        .toList()
         );
     }
 }

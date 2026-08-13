@@ -1,10 +1,12 @@
 package dev.br0b.mclootfinder.cli;
 
+import dev.br0b.mclootfinder.vanilla.ChestPrediction;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -86,5 +88,20 @@ class MainTest {
         String output = bytes.toString(StandardCharsets.UTF_8);
         assertTrue(output.contains("jungle_pyramid"));
         assertTrue(output.contains("igloo"));
+    }
+
+    @Test
+    void emptyLootTableContainersStillDetectSharedRandomStreams() {
+        var first = new ChestPrediction(1, 1, 32, 64, 32, "", 0, 1L);
+        var second = new ChestPrediction(
+                2, 2, 33, 64, 33, "minecraft:chests/trial_chambers/supply", 1, 2L
+        );
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
+                Main.requireUnambiguousContainerStreams(
+                        "trial_chambers",
+                        List.of(first, second)
+                ));
+        assertTrue(error.getMessage().contains("cross-start stream merging"));
     }
 }

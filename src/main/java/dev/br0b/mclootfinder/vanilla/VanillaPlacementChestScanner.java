@@ -85,9 +85,6 @@ public final class VanillaPlacementChestScanner {
                     continue;
                 }
                 int containerOrdinal = ordinal++;
-                if (container.lootTable().isEmpty()) {
-                    continue;
-                }
                 result.add(new ChestPrediction(
                         startChunk.x(),
                         startChunk.z(),

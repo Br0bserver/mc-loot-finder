@@ -17,7 +17,19 @@ public final class StructureChestScanner {
             StructureStart start,
             VanillaRuntime26_1_2 runtime
     ) {
-        List<ChestPrediction> placed = switch (spec.scannerKind()) {
+        return scanAll(worldSeed, spec, start, runtime).stream()
+                .filter(chest -> !chest.lootTable().isEmpty())
+                .toList();
+    }
+
+    /** Includes empty-table containers because they still consume decoration RNG. */
+    public static List<ChestPrediction> scanAll(
+            long worldSeed,
+            StructureSpec spec,
+            StructureStart start,
+            VanillaRuntime26_1_2 runtime
+    ) {
+        return switch (spec.scannerKind()) {
             case JIGSAW_FAST -> {
                 var decoration = runtime.structureDecorationCoordinates(
                         runtime.structureId(start)
@@ -31,9 +43,6 @@ public final class StructureChestScanner {
                     worldSeed, spec, start, runtime
             );
         };
-        return placed.stream()
-                .filter(chest -> !chest.lootTable().isEmpty())
-                .toList();
     }
 
     public static long containerLootSeed(

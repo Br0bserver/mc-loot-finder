@@ -169,12 +169,13 @@ public final class Main {
                     continue;
                 }
                 validStructures++;
-                predictions.addAll(StructureChestScanner.scan(
+                predictions.addAll(StructureChestScanner.scanAll(
                         worldSeed, spec, start, runtime
                 ));
             }
         }
-        requireUnambiguousContainerStreams(spec, predictions);
+        requireUnambiguousContainerStreams(spec.name(), predictions);
+        predictions = visibleContainers(predictions);
 
         if (json) {
             out.printf("{\"version\":\"%s\",\"structure\":\"%s\",\"seed\":%d,"
@@ -251,11 +252,12 @@ public final class Main {
                     continue;
                 }
                 validStructures++;
-                allChests.addAll(StructureChestScanner.scan(
+                allChests.addAll(StructureChestScanner.scanAll(
                         worldSeed, spec, start, runtime
                 ));
             }
-            requireUnambiguousContainerStreams(spec, allChests);
+            requireUnambiguousContainerStreams(spec.name(), allChests);
+            allChests = visibleContainers(allChests);
             for (ChestPrediction chest : allChests) {
                 if (!spec.lootTables().contains(chest.lootTable())) {
                     continue;
@@ -391,25 +393,35 @@ public final class Main {
         }
     }
 
-    private static void requireUnambiguousContainerStreams(
-            StructureSpec spec,
+    private static List<ChestPrediction> visibleContainers(List<ChestPrediction> chests) {
+        return chests.stream()
+                .filter(chest -> !chest.lootTable().isEmpty())
+                .toList();
+    }
+
+    static void requireUnambiguousContainerStreams(
+            String structureName,
             List<ChestPrediction> chests
     ) {
         Map<Long, Long> ownerByDecorationChunk = new HashMap<>();
         for (ChestPrediction chest : chests) {
-            long decorationChunk = ChunkPos.pack(
+            long decorationChunk = packChunk(
                     Math.floorDiv(chest.x(), 16), Math.floorDiv(chest.z(), 16)
             );
-            long startChunk = ChunkPos.pack(chest.structureChunkX(), chest.structureChunkZ());
+            long startChunk = packChunk(chest.structureChunkX(), chest.structureChunkZ());
             Long previous = ownerByDecorationChunk.putIfAbsent(decorationChunk, startChunk);
             if (previous != null && previous.longValue() != startChunk) {
                 throw new IllegalArgumentException(
-                        "Two " + spec.name() + " starts consume containers in decoration chunk ("
-                                + ChunkPos.getX(decorationChunk) + ","
-                                + ChunkPos.getZ(decorationChunk)
+                        "Two " + structureName + " starts consume containers in decoration chunk ("
+                                + (int) decorationChunk + ","
+                                + (int) (decorationChunk >> 32)
                                 + "); cross-start stream merging is not implemented"
                 );
             }
         }
+    }
+
+    private static long packChunk(int x, int z) {
+        return (x & 0xffffffffL) | ((z & 0xffffffffL) << 32);
     }
 }
