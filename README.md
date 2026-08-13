@@ -1,93 +1,37 @@
 # mc-loot-finder
 
-`mc-loot-finder` 是一个针对 Minecraft Java `26.1.2` 的命令行工具。它根据世界种子定位结构，在内存中调用原版结构生成代码，列出结构内的方块容器，并重放容器的战利品表。
+`mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市，列出其中的容器，并搜索指定战利品。
 
-它不读取存档，也不加载目标世界区块。输出包括容器坐标、LootTable、LootTableSeed，以及指定物品是否会出现在战利品中。
+程序不读取存档，也不需要安装 Java。Linux x86_64 独立二进制由 GitHub Actions 构建，可在仓库的 Actions 运行产物中下载。
 
-## 构建
-
-需要 Java 25。
-
-```bash
-./gradlew installDist
-```
-
-生成的程序位于：
-
-```text
-build/install/mc-loot-finder/bin/mc-loot-finder
-```
-
-## 命令
-
-```text
-candidates       快速列出可能生成结构的区块
-chests           验证结构并列出方块容器
-find             搜索指定物品
-loot             用 LootTable 和 LootTableSeed 重放战利品
-container-seed   计算部分结构的容器种子快捷结果
-explain          查询支持的结构和具体配置
-```
-
-所有命令的详细参数和默认值由程序自己提供：
-
-```bash
-build/install/mc-loot-finder/bin/mc-loot-finder help
-build/install/mc-loot-finder/bin/mc-loot-finder explain
-build/install/mc-loot-finder/bin/mc-loot-finder explain --structure trial_chambers
-```
-
-`explain --structure NAME --json` 输出单个结构的机器可读配置，包括维度、默认目标物品、放置参数、可用战利品表和 `container-seed` 是否支持。
-
-## 示例
+## 使用
 
 搜索远古城市中的幽静纹饰：
 
 ```bash
-build/install/mc-loot-finder/bin/mc-loot-finder find \
-  --seed 0 \
+mc-loot-finder find \
+  --seed 114514 \
   --structure ancient_city \
   --item minecraft:silence_armor_trim_smithing_template \
   --radius 5000
 ```
 
-列出试炼密室容器：
+列出远古城市内的容器及其 LootTableSeed：
 
 ```bash
-build/install/mc-loot-finder/bin/mc-loot-finder chests \
-  --seed 0 --structure trial_chambers --radius 2000
+mc-loot-finder chests \
+  --seed 114514 \
+  --structure ancient_city \
+  --radius 5000
 ```
 
-直接重放一个容器的战利品：
+运行 `mc-loot-finder help` 查看命令，运行 `mc-loot-finder explain` 查看默认参数和支持范围。脚本调用时可加 `--json`；`--limit` 只限制显示条数，不会缩小实际搜索范围。
 
-```bash
-build/install/mc-loot-finder/bin/mc-loot-finder loot \
-  --table minecraft:chests/ruined_portal \
-  --loot-seed -6371263386669125558
-```
+## 当前范围
 
-脚本处理时加 `--json`。`--limit` 只限制显示数量，不限制实际搜索。
+- 精确支持 Minecraft Java 26.1.2 的远古城市定位、结构布局、方块容器和战利品。
+- `candidates` 可以快速计算其他已登记结构的候选区块，但不验证结构是否实际生成。
+- 不读取已有世界，不处理数据包，也不处理箱子矿车等实体容器。
+- 固定世界种子、箱子位置、LootTableSeed 和战利品结果均通过原版结果回归测试。
 
-## LootTableSeed
-
-结构生成时，容器通常只保存 `LootTable` 和 `LootTableSeed`，玩家打开容器时才根据这两项生成物品。相同版本中，表和非零种子相同，生成的物品结果就相同。
-
-`LootTableSeed` 不是世界种子，也不是区块坐标。一个结构里的不同容器通常有不同的种子。
-
-种子为 `0` 是原版的实时随机哨兵，无法精确预测；`find` 会跳过这类容器。
-
-## 支持范围
-
-当前支持：远古城市、堡垒遗迹、沙漠神殿、丛林神庙、雪屋、末地城、主世界和下界废弃传送门、试炼密室、沉船、海底废墟、下界要塞、村庄、埋藏的宝藏、掠夺者前哨站、林地府邸。
-
-只处理方块容器，不处理箱子矿车等实体容器，因此不支持废弃矿井。只支持原版 Minecraft Java `26.1.2`，不读取自定义世界生成或战利品数据包。
-
-`candidates` 只提供候选区块，不保证结构一定生成。遇到尚未实现的原版语义，程序会停止并报错，不返回近似结果。
-
-## 测试
-
-```bash
-./gradlew test
-```
-
-测试覆盖结构放置、随机数、固定结果和战利品表与原版的对拍。
+源码使用 Rust，世界生成链路基于项目维护的 Pumpkin fork。许可证为 GPL-3.0-only。
