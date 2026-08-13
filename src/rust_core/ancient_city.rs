@@ -316,6 +316,16 @@ mod tests {
                 piece.piece.bounding_box.max.y,
                 piece.piece.bounding_box.max.z,
             );
+            for (junction_index, junction) in piece.junctions.iter().enumerate() {
+                println!(
+                    "PUMPKIN_JUNCTION piece={piece_index:03} junction={junction_index:02} source={},{},{} delta_y={} projection={:?}",
+                    junction.source_x,
+                    junction.source_ground_y,
+                    junction.source_z,
+                    junction.delta_y,
+                    junction.projection,
+                );
+            }
             piece.element.for_each_template(|name, _, _, template| {
                 let (corner_x, corner_z) = piece.rotation.rotate_offset(
                     template.size.x.saturating_sub(1),
