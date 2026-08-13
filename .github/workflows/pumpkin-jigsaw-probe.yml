@@ -35,8 +35,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tools/pumpkin-jigsaw-probe -> target
+          cache-on-failure: true
       - name: Apply vanilla start-anchor shuffle
         run: git -C vendor/pumpkin apply ../../tools/pumpkin-jigsaw-probe/start-anchor-shuffle.patch
       - name: Print Pumpkin layout summary
         run: cargo run --release --manifest-path tools/pumpkin-jigsaw-probe/Cargo.toml
-
