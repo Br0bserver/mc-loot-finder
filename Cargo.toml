@@ -5,9 +5,9 @@ edition = "2024"
 license = "GPL-3.0-only"
 
 [dependencies]
-pumpkin-world = { git = "https://github.com/Br0bserver/Pumpkin.git", rev = "0c00c484cec8ef1dd21795034b38f8ca715d1d05" }
-pumpkin-data = { git = "https://github.com/Br0bserver/Pumpkin.git", rev = "0c00c484cec8ef1dd21795034b38f8ca715d1d05" }
-pumpkin-util = { git = "https://github.com/Br0bserver/Pumpkin.git", rev = "0c00c484cec8ef1dd21795034b38f8ca715d1d05" }
+pumpkin-world = { git = "https://github.com/Br0bserver/Pumpkin.git", rev = "0021fb9b354e8dc8ab07b5cfb7ca69af0c2b5374" }
+pumpkin-data = { git = "https://github.com/Br0bserver/Pumpkin.git", rev = "0021fb9b354e8dc8ab07b5cfb7ca69af0c2b5374" }
+pumpkin-util = { git = "https://github.com/Br0bserver/Pumpkin.git", rev = "0021fb9b354e8dc8ab07b5cfb7ca69af0c2b5374" }
 serde_json = "1.0"
 
 [[bin]]
