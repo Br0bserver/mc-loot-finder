@@ -41,5 +41,7 @@ jobs:
           cache-on-failure: true
       - name: Apply vanilla start-anchor shuffle
         run: git -C vendor/pumpkin apply ../../tools/pumpkin-jigsaw-probe/start-anchor-shuffle.patch
+      - name: Apply vanilla target selection priority
+        run: git -C vendor/pumpkin apply ../../tools/pumpkin-jigsaw-probe/target-selection-priority.patch
       - name: Print Pumpkin layout summary
         run: cargo run --release --manifest-path tools/pumpkin-jigsaw-probe/Cargo.toml
