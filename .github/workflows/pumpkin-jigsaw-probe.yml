@@ -43,5 +43,7 @@ jobs:
         run: git -C vendor/pumpkin apply ../../tools/pumpkin-jigsaw-probe/start-anchor-shuffle.patch
       - name: Apply vanilla target selection priority
         run: patch -d vendor/pumpkin -p1 < tools/pumpkin-jigsaw-probe/target-selection-priority.patch
+      - name: Preserve missing-template RNG consumption
+        run: git -C vendor/pumpkin apply ../../tools/pumpkin-jigsaw-probe/missing-template-rng.patch
       - name: Print Pumpkin layout summary
         run: cargo run --release --manifest-path tools/pumpkin-jigsaw-probe/Cargo.toml

@@ -1,0 +1,25 @@
+diff --git a/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs b/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
+index 1cb7e490..1ea4b9f5 100644
+--- a/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
++++ b/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
+@@ -303,9 +303,6 @@ impl JigsawPlacement {
+                             break;
+                         }
+ 
+-                        let Some(target_size) = get_element_size(&element) else {
+-                            continue;
+-                        };
+                         let target_projection = element.projection;
+                         let target_rigid = target_projection == JigsawProjection::Rigid;
+ 
+@@ -321,6 +318,10 @@ impl JigsawPlacement {
+                             rotations.swap(i, j);
+                         }
+ 
++                        let Some(target_size) = get_element_size(&element) else {
++                            continue;
++                        };
++
+                         for target_rotation in rotations {
+                             let target_jigsaws = get_element_jigsaw_blocks(&element);
+ 
