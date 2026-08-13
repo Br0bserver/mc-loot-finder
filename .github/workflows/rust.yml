@@ -36,9 +36,11 @@ jobs:
         run: cargo check --locked
       - name: Test Rust CLI
         run: cargo test --release --locked
-      - name: Build and run ancient city smoke test
+      - name: Build release binary
+        run: cargo build --release --locked
+      - name: Run ancient city smoke test
         run: |
-          cargo run --release --locked -- chests \
+          target/release/mc-loot-finder chests \
             --seed 114514 \
             --structure ancient_city \
             --radius 5000 \
@@ -48,3 +50,7 @@ jobs:
         with:
           name: ancient-city-chests
           path: ancient-city-chests.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mc-loot-finder-linux-x86_64
+          path: target/release/mc-loot-finder
