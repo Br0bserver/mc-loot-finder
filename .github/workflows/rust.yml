@@ -1,0 +1,33 @@
+name: Rust CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - src/**
+      - .github/workflows/rust.yml
+  pull_request:
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - src/**
+      - .github/workflows/rust.yml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Check Rust CLI
+        run: cargo check --locked
