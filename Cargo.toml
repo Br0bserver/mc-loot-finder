@@ -5,6 +5,7 @@ edition = "2024"
 license = "GPL-3.0-only"
 
 [dependencies]
+pumpkin-world = { git = "https://github.com/Pumpkin-MC/Pumpkin.git", rev = "395c4aa36ba957ed8fa433eb7850c63b2f3e0541" }
 serde_json = "1.0"
 
 [[bin]]
