@@ -1,0 +1,18 @@
+diff --git a/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs b/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
+index eb3658da..d60d6028 100644
+--- a/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
++++ b/pumpkin-world/src/generation/structure/structures/jigsaw_placement.rs
+@@ -136,7 +136,11 @@ impl JigsawPlacement {
+         let mut anchored_position = position;
+         if let Some(target_jigsaw_id) = start_jigsaw {
+             let mut found_anchor = None;
+-            let jigsaws = get_jigsaw_blocks(&template);
++            let mut jigsaws = get_jigsaw_blocks(&template);
++            for index in (1..jigsaws.len()).rev() {
++                let other = context.random.next_bounded_i32(index as i32 + 1) as usize;
++                jigsaws.swap(index, other);
++            }
+             for jigsaw in jigsaws {
+                 if jigsaw.name == target_jigsaw_id {
+                     let rotated_pos = rotate_pos(jigsaw.pos.0, rotation);
+
