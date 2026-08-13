@@ -11,22 +11,25 @@ on:
       - Cargo.lock
       - src/**
       - .github/workflows/rust.yml
+      - .github/workflows/release.yml
   pull_request:
     paths:
       - Cargo.toml
       - Cargo.lock
       - src/**
       - .github/workflows/rust.yml
+      - .github/workflows/release.yml
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.97.1
           components: rustfmt
+          targets: x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -36,11 +39,13 @@ jobs:
         run: cargo check --locked
       - name: Test Rust CLI
         run: cargo test --release --locked
-      - name: Build release binary
-        run: cargo build --release --locked
+      - name: Install static Linux linker
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+      - name: Build static release binary
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl
       - name: Run ancient city smoke test
         run: |
-          target/release/mc-loot-finder chests \
+          target/x86_64-unknown-linux-musl/release/mc-loot-finder chests \
             --seed 114514 \
             --structure ancient_city \
             --radius 5000 \
@@ -48,14 +53,14 @@ jobs:
             --json | tee ancient-city-chests.json
       - name: Check find exit codes
         run: |
-          target/release/mc-loot-finder find \
+          target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
             --seed 114514 \
             --structure ancient_city \
             --item minecraft:silence_armor_trim_smithing_template \
             --radius 5000 \
             --json
 
-          if target/release/mc-loot-finder find \
+          if target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
             --seed 114514 \
             --structure ancient_city \
             --item minecraft:bedrock \
@@ -75,4 +80,4 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: mc-loot-finder-linux-x86_64
-          path: target/release/mc-loot-finder
+          path: target/x86_64-unknown-linux-musl/release/mc-loot-finder

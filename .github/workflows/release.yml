@@ -19,15 +19,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.97.1
+          targets: x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
       - name: Test
         run: cargo test --release --locked
-      - name: Build
-        run: cargo build --release --locked
+      - name: Install static Linux linker
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+      - name: Build static binary
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl
       - name: Package
         run: |
           mkdir dist
-          cp target/release/mc-loot-finder dist/mc-loot-finder-linux-x86_64
+          cp target/x86_64-unknown-linux-musl/release/mc-loot-finder \
+            dist/mc-loot-finder-linux-x86_64
           cd dist
           sha256sum mc-loot-finder-linux-x86_64 > mc-loot-finder-linux-x86_64.sha256
       - name: Publish GitHub Release
