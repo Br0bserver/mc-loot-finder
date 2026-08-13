@@ -9,6 +9,7 @@ use pumpkin_util::{
     math::{block_box::BlockBox, vector3::Vector3},
     world_seed::Seed,
 };
+use pumpkin_world::generation::structure::structures::jigsaw::PoolElementStructurePiece;
 use pumpkin_world::{
     biome::MultiNoiseBiomeSupplier,
     generation::{
@@ -16,9 +17,7 @@ use pumpkin_world::{
         noise::router::multi_noise_sampler::{MultiNoiseSampler, MultiNoiseSamplerBuilderOptions},
         structure::{
             lazily_generate_structure,
-            structures::{
-                PoolElementStructurePiece, StructureGeneratorContext, create_chunk_random,
-            },
+            structures::{StructureGeneratorContext, create_chunk_random},
         },
     },
 };
