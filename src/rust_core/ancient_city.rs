@@ -204,181 +204,30 @@ fn _keep_block_box_in_public_api(_: BlockBox, _: Rotation) {}
 
 #[cfg(test)]
 mod tests {
-    use pumpkin_world::{
-        biome::BiomeSupplier,
-        generation::{
-            biome_coords,
-            structure::{generate_structure_position, structures::StructureGeneratorContext},
-        },
-    };
-
     use super::*;
 
     #[test]
-    fn diagnose_26_1_2_biome_mismatch() {
+    fn scans_known_26_1_2_cities() {
         let scanner = Scanner::new(114514);
-        for (chunk_x, chunk_z) in [(96, 5), (197, 222)] {
-            let context = StructureGeneratorContext {
-                seed: scanner.world_seed,
-                chunk_x,
-                chunk_z,
-                random: create_chunk_random(scanner.world_seed, chunk_x, chunk_z),
-                sea_level: SEA_LEVEL,
-                min_y: WORLD_MIN_Y,
-                height_sampler: None,
-                structure_key: Some(StructureKeys::AncientCity),
-            };
-            let position = generate_structure_position(
-                &StructureKeys::AncientCity,
-                &Structure::ANCIENT_CITY,
-                context,
-            )
-            .expect("ancient city candidate should produce a jigsaw position");
-            let start = position.start_pos.0;
-            let mut sampler = MultiNoiseSampler::generate(
-                &scanner.generator.base_router.multi_noise,
-                &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
-            );
-            let biome_x = biome_coords::from_block(start.x);
-            let biome_y = biome_coords::from_block(start.y);
-            let biome_z = biome_coords::from_block(start.z);
-            let point = sampler.sample(biome_x, biome_y, biome_z);
-            let biome =
-                MultiNoiseBiomeSupplier::OVERWORLD.biome(biome_x, biome_y, biome_z, &mut sampler);
-            println!(
-                "candidate=({chunk_x},{chunk_z}) start=({},{},{}) biome=minecraft:{} id={} climate=({},{},{},{},{},{})",
-                start.x,
-                start.y,
-                start.z,
-                biome.registry_id,
-                biome.id,
-                point.temperature,
-                point.humidity,
-                point.continentalness,
-                point.erosion,
-                point.depth,
-                point.weirdness
-            );
-        }
-    }
+        let first = scanner.scan(96, 5).expect("scan first city");
+        assert!(first.valid_structure);
+        assert!(first.chests.iter().any(|chest| {
+            chest.x == 1450
+                && chest.y == -35
+                && chest.z == 137
+                && chest.loot_table == "minecraft:chests/ancient_city"
+                && chest.loot_seed == 1_392_286_922_750_350_146
+                && chest.ordinal == 0
+        }));
 
-    #[test]
-    fn diagnose_26_1_2_layout_mismatch() {
-        let scanner = Scanner::new(114514);
-        let chunk_x = 96;
-        let chunk_z = 5;
-        let mut random = create_chunk_random(scanner.world_seed, chunk_x, chunk_z);
-        let pumpkin_util::random::RandomGenerator::Legacy(legacy) = &mut random else {
-            panic!("ancient city structure RNG should be legacy");
-        };
-        legacy.enable_bounded_trace();
-        let context = StructureGeneratorContext {
-            seed: scanner.world_seed,
-            chunk_x,
-            chunk_z,
-            random,
-            sea_level: SEA_LEVEL,
-            min_y: WORLD_MIN_Y,
-            height_sampler: None,
-            structure_key: Some(StructureKeys::AncientCity),
-        };
-        let mut sampler = MultiNoiseSampler::generate(
-            &scanner.generator.base_router.multi_noise,
-            &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
-        );
-        let position = lazily_generate_structure(
-            &StructureKeys::AncientCity,
-            &Structure::ANCIENT_CITY,
-            context,
-            &MultiNoiseBiomeSupplier::OVERWORLD,
-            &mut sampler,
-        )
-        .expect("ancient city should generate");
-        let collector = position.collector.lock().expect("collector");
-
-        println!("PUMPKIN_LAYOUT pieces={}", collector.pieces.len());
-        for (piece_index, piece) in collector.pieces.iter().enumerate() {
-            let piece = piece
-                .as_any()
-                .downcast_ref::<PoolElementStructurePiece>()
-                .expect("ancient city jigsaw piece");
-            let origin = piece.pos.0;
-            let mut templates = Vec::new();
-            piece.element.for_each_template(|name, _, _, _| {
-                templates.push(name.to_owned());
-            });
-            println!(
-                "PUMPKIN_PIECE index={piece_index:03} position={},{},{} rotation={:?} templates={:?} box={},{},{}..{},{},{}",
-                origin.x,
-                origin.y,
-                origin.z,
-                piece.rotation,
-                templates,
-                piece.piece.bounding_box.min.x,
-                piece.piece.bounding_box.min.y,
-                piece.piece.bounding_box.min.z,
-                piece.piece.bounding_box.max.x,
-                piece.piece.bounding_box.max.y,
-                piece.piece.bounding_box.max.z,
-            );
-            for (junction_index, junction) in piece.junctions.iter().enumerate() {
-                println!(
-                    "PUMPKIN_JUNCTION piece={piece_index:03} junction={junction_index:02} source={},{},{} delta_y={} projection={:?}",
-                    junction.source_x,
-                    junction.source_ground_y,
-                    junction.source_z,
-                    junction.delta_y,
-                    junction.projection,
-                );
-            }
-            piece.element.for_each_template(|name, _, _, template| {
-                let (corner_x, corner_z) = piece.rotation.rotate_offset(
-                    template.size.x.saturating_sub(1),
-                    template.size.z.saturating_sub(1),
-                );
-                let placement_origin = Vector3::new(
-                    origin.x + corner_x.min(0),
-                    origin.y,
-                    origin.z + corner_z.min(0),
-                );
-                for block in &template.blocks {
-                    let palette = &template.palette[block.state as usize];
-                    if palette.name != "minecraft:chest" {
-                        continue;
-                    }
-                    let local = piece.rotation.transform_pos(block.pos, template.size);
-                    let world = Vector3::new(
-                        placement_origin.x + local.x,
-                        placement_origin.y + local.y,
-                        placement_origin.z + local.z,
-                    );
-                    println!(
-                        "PUMPKIN_CHEST piece={piece_index} template={name} piece_position=({},{},{}) rotation={:?} template_size=({},{},{}) template_local=({},{},{}) transformed_local=({},{},{}) world=({},{},{}) box=({},{},{})..({},{},{})",
-                        origin.x,
-                        origin.y,
-                        origin.z,
-                        piece.rotation,
-                        template.size.x,
-                        template.size.y,
-                        template.size.z,
-                        block.pos.x,
-                        block.pos.y,
-                        block.pos.z,
-                        local.x,
-                        local.y,
-                        local.z,
-                        world.x,
-                        world.y,
-                        world.z,
-                        piece.piece.bounding_box.min.x,
-                        piece.piece.bounding_box.min.y,
-                        piece.piece.bounding_box.min.z,
-                        piece.piece.bounding_box.max.x,
-                        piece.piece.bounding_box.max.y,
-                        piece.piece.bounding_box.max.z,
-                    );
-                }
-            });
-        }
+        let second = scanner.scan(244, 171).expect("scan second city");
+        assert!(second.valid_structure);
+        assert!(second.chests.iter().any(|chest| {
+            chest.x == 3965
+                && chest.y == -37
+                && chest.z == 2755
+                && chest.loot_table == "minecraft:chests/ancient_city"
+                && chest.loot_seed == -5_503_126_436_529_563_106
+        }));
     }
 }
