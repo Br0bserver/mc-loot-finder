@@ -46,11 +46,11 @@ jobs:
             --radius 5000 \
             --limit 1000 \
             --json | tee ancient-city-chests.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ancient-city-chests
           path: ancient-city-chests.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mc-loot-finder-linux-x86_64
           path: target/release/mc-loot-finder
