@@ -387,7 +387,7 @@ fn print_help() {
     println!("Common options:");
     println!("  --version 26.1.2  --json");
     println!();
-    println!("Use 'explain' to list supported structures and defaults.");
+    println!("Use 'explain' to list structure capabilities and defaults.");
 }
 
 fn explain(options: &Options) -> Result<u8, String> {
@@ -401,9 +401,10 @@ fn explain(options: &Options) -> Result<u8, String> {
                     print!(",");
                 }
                 print!(
-                    "{{\"name\":\"{}\",\"dimension\":\"{}\",\"default_item\":\"{}\",\"loot_tables\":{}}}",
+                    "{{\"name\":\"{}\",\"dimension\":\"{}\",\"full_scan\":{},\"default_item\":\"{}\",\"loot_tables\":{}}}",
                     structure.name,
                     structure.dimension,
+                    structure.name == "ancient_city",
                     structure.default_item,
                     structure.loot_tables.len()
                 );
@@ -417,10 +418,20 @@ fn explain(options: &Options) -> Result<u8, String> {
         println!("  chests: ancient_city, center (0, 0), radius 2,000, limit 100");
         println!("  find: ancient_city, center (0, 0), radius 5,000, limit 20");
         println!("  loot: minecraft:chests/ancient_city\n");
-        println!("Supported structures:");
+        println!("Structure capabilities:");
+        println!("  Only ancient_city currently supports chests and find.");
+        println!("  Other entries support candidate calculation only.");
         for (index, structure) in CANDIDATE_STRUCTURES.iter().enumerate() {
             println!("\n[{}] {}", index + 1, structure.name);
             println!("  Dimension: {}", structure.dimension);
+            println!(
+                "  Commands: {}",
+                if structure.name == "ancient_city" {
+                    "candidates, chests, find, loot"
+                } else {
+                    "candidates"
+                }
+            );
             println!("  Default item: {}", structure.default_item);
             println!(
                 "  Loot tables: {}",
@@ -443,10 +454,11 @@ fn explain(options: &Options) -> Result<u8, String> {
             ContainerSeedShortcut::None => "NONE",
         };
         print!(
-            "{{\"version\":\"26.1.2\",\"name\":\"{}\",\"structure_id\":\"{}\",\"dimension\":\"{}\",\"default_item\":\"{}\",\"placement\":{{\"spacing\":{},\"separation\":{},\"salt\":{},\"spread\":\"{}\"}},\"decoration_step\":{},\"decoration_index\":{},\"scanner\":\"{}\",\"container_seed_shortcut\":\"{}\",\"loot_tables\":[",
+            "{{\"version\":\"26.1.2\",\"name\":\"{}\",\"structure_id\":\"{}\",\"dimension\":\"{}\",\"full_scan\":{},\"default_item\":\"{}\",\"placement\":{{\"spacing\":{},\"separation\":{},\"salt\":{},\"spread\":\"{}\"}},\"decoration_step\":{},\"decoration_index\":{},\"scanner\":\"{}\",\"container_seed_shortcut\":\"{}\",\"loot_tables\":[",
             structure.name,
             structure.structure_id,
             structure.dimension,
+            structure.name == "ancient_city",
             structure.default_item,
             structure.placement.spacing,
             structure.placement.separation,
@@ -480,6 +492,14 @@ fn explain(options: &Options) -> Result<u8, String> {
     println!("Structure: {}", structure.name);
     println!("Structure ID: {}", structure.structure_id);
     println!("Dimension: {}", structure.dimension);
+    println!(
+        "Commands: {}",
+        if structure.name == "ancient_city" {
+            "candidates, chests, find, loot"
+        } else {
+            "candidates only"
+        }
+    );
     println!("Default item: {}\n", structure.default_item);
     println!("Placement:");
     println!("  Spacing: {}", structure.placement.spacing);
