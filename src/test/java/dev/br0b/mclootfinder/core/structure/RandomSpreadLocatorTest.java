@@ -9,6 +9,8 @@ import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RandomSpreadLocatorTest {
     @Test
@@ -40,5 +42,18 @@ class RandomSpreadLocatorTest {
                 }
             }
         }
+    }
+
+    @Test
+    void rejectsSearchAreasThatOverflowBlockCoordinates() {
+        var profile = Versions.V26_1_2.ancientCity();
+
+        IllegalArgumentException positive = assertThrows(IllegalArgumentException.class, () ->
+                RandomSpreadLocator.locate(0L, Integer.MAX_VALUE, 0, 1, profile));
+        IllegalArgumentException negative = assertThrows(IllegalArgumentException.class, () ->
+                RandomSpreadLocator.locate(0L, 0, Integer.MIN_VALUE, 1, profile));
+
+        assertTrue(positive.getMessage().contains("coordinate range"));
+        assertTrue(negative.getMessage().contains("coordinate range"));
     }
 }

@@ -27,10 +27,21 @@ public final class RandomSpreadLocator {
             throw new IllegalArgumentException("radius must be non-negative");
         }
 
-        int minChunkX = Math.floorDiv(centerBlockX - radiusBlocks, 16);
-        int maxChunkX = Math.floorDiv(centerBlockX + radiusBlocks, 16);
-        int minChunkZ = Math.floorDiv(centerBlockZ - radiusBlocks, 16);
-        int maxChunkZ = Math.floorDiv(centerBlockZ + radiusBlocks, 16);
+        long minBlockX = (long) centerBlockX - radiusBlocks;
+        long maxBlockX = (long) centerBlockX + radiusBlocks;
+        long minBlockZ = (long) centerBlockZ - radiusBlocks;
+        long maxBlockZ = (long) centerBlockZ + radiusBlocks;
+        if (minBlockX < Integer.MIN_VALUE || maxBlockX > Integer.MAX_VALUE
+                || minBlockZ < Integer.MIN_VALUE || maxBlockZ > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "search area exceeds the supported block coordinate range"
+            );
+        }
+
+        int minChunkX = (int) Math.floorDiv(minBlockX, 16L);
+        int maxChunkX = (int) Math.floorDiv(maxBlockX, 16L);
+        int minChunkZ = (int) Math.floorDiv(minBlockZ, 16L);
+        int maxChunkZ = (int) Math.floorDiv(maxBlockZ, 16L);
         int minRegionX = Math.floorDiv(minChunkX, profile.spacing());
         int maxRegionX = Math.floorDiv(maxChunkX, profile.spacing());
         int minRegionZ = Math.floorDiv(minChunkZ, profile.spacing());
@@ -55,14 +66,17 @@ public final class RandomSpreadLocator {
                 }
                 int chunkX = regionX * profile.spacing() + offsetX;
                 int chunkZ = regionZ * profile.spacing() + offsetZ;
-                int blockX = chunkX * 16 + 8;
-                int blockZ = chunkZ * 16 + 8;
-                long dx = (long) blockX - centerBlockX;
-                long dz = (long) blockZ - centerBlockZ;
-                long distanceSquared = dx * dx + dz * dz;
-                if (distanceSquared <= (long) radiusBlocks * radiusBlocks) {
+                long candidateBlockX = (long) chunkX * 16 + 8;
+                long candidateBlockZ = (long) chunkZ * 16 + 8;
+                long dx = candidateBlockX - centerBlockX;
+                long dz = candidateBlockZ - centerBlockZ;
+                long radiusSquared = (long) radiusBlocks * radiusBlocks;
+                if (Math.abs(dx) <= radiusBlocks && Math.abs(dz) <= radiusBlocks
+                        && dx * dx <= radiusSquared - dz * dz) {
+                    long distanceSquared = dx * dx + dz * dz;
                     candidates.add(new StructureCandidate(
-                            chunkX, chunkZ, blockX, blockZ, distanceSquared
+                            chunkX, chunkZ, (int) candidateBlockX, (int) candidateBlockZ,
+                            distanceSquared
                     ));
                 }
             }
