@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+use crate::rust_core::ContainerSeedShortcut;
 use crate::rust_core::candidate_structure;
 use crate::rust_core::candidates::locate;
+use crate::rust_core::decoration_random::container_loot_seed;
 
 pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
     let arguments = arguments.into_iter().collect::<Vec<_>>();
@@ -18,10 +20,59 @@ pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
     let options = Options::parse(&arguments[1..])?;
     match command {
         "candidates" => candidates(&options),
+        "container-seed" => container_seed(&options),
         _ => Err(format!(
             "command '{command}' has not been migrated to the Rust CLI yet"
         )),
     }
+}
+
+fn container_seed(options: &Options) -> Result<u8, String> {
+    require_version(options)?;
+    let structure = candidate_structure(options.text("structure", "ancient_city"))?;
+    if structure.container_seed == ContainerSeedShortcut::None {
+        return Err(format!(
+            "container-seed is not available for {}; use 'chests' to execute vanilla placement",
+            structure.name
+        ));
+    }
+    let world_seed = options.required_i64("seed")?;
+    let chunk_x = options.i32("chunk-x", 0)?;
+    let chunk_z = options.i32("chunk-z", 0)?;
+    let structure_index = options.i32("structure-index", structure.structure_index)?;
+    let step = options.i32("step", structure.decoration_step)?;
+    let ordinal = options.i32("ordinal", 0)?;
+    let loot_table_seed = container_loot_seed(
+        world_seed,
+        chunk_x,
+        chunk_z,
+        structure_index,
+        step,
+        ordinal,
+        structure.container_seed,
+    )?;
+
+    if options.flag("json") {
+        println!(
+            "{{\"version\":\"26.1.2\",\"structure\":\"{}\",\"world_seed\":{},\"chunk_x\":{},\"chunk_z\":{},\"structure_index\":{},\"step\":{},\"ordinal\":{},\"loot_table_seed\":{}}}",
+            structure.name,
+            world_seed,
+            chunk_x,
+            chunk_z,
+            structure_index,
+            step,
+            ordinal,
+            loot_table_seed
+        );
+    } else {
+        println!("Minecraft Java 26.1.2");
+        println!("Structure: {}", structure.name);
+        println!("World seed: {world_seed}");
+        println!("Decoration chunk: ({chunk_x}, {chunk_z})");
+        println!("Container ordinal: {ordinal}\n");
+        println!("LootTableSeed: {loot_table_seed}");
+    }
+    Ok(0)
 }
 
 fn print_help() {
