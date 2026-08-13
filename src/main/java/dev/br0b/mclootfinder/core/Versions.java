@@ -143,7 +143,12 @@ public final class Versions {
                             "minecraft:chests/trial_chambers/entrance",
                             "minecraft:chests/trial_chambers/intersection",
                             "minecraft:chests/trial_chambers/intersection_barrel",
-                            "minecraft:chests/trial_chambers/supply"
+                            "minecraft:chests/trial_chambers/supply",
+                            "minecraft:chests/trial_chambers/reward",
+                            "minecraft:dispensers/trial_chambers/chamber",
+                            "minecraft:dispensers/trial_chambers/corridor",
+                            "minecraft:dispensers/trial_chambers/water",
+                            "minecraft:pots/trial_chambers/corridor"
                     ),
                     "minecraft:trial_key"
                 ),

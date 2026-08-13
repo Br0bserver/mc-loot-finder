@@ -39,6 +39,9 @@ class SharedAndTrialStructureIntegrationTest {
                     chest.lootTable().startsWith("minecraft:dispensers/trial_chambers/")));
             assertTrue(containers.stream().anyMatch(chest ->
                     chest.lootTable().startsWith("minecraft:pots/trial_chambers/")));
+            assertTrue(containers.stream()
+                    .map(ChestPrediction::lootTable)
+                    .allMatch(spec.lootTables()::contains));
         }
     }
 }

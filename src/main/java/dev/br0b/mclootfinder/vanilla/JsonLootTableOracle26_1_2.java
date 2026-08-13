@@ -51,11 +51,25 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
         Table table = tables.computeIfAbsent(lootTable, this::load);
         RandomSource random = RandomSource.create(lootTableSeed);
         List<LootStack> result = new ArrayList<>();
+        rollInto(table, random, result);
+        return List.copyOf(result);
+    }
 
+    private void rollInto(Table table, RandomSource random, List<LootStack> result) {
         for (Pool pool : table.pools()) {
+            if (pool.randomChance() != null && random.nextFloat() >= pool.randomChance()) {
+                continue;
+            }
             int rolls = pool.rolls().nextInt(random);
             for (int roll = 0; roll < rolls; roll++) {
                 Entry entry = select(pool.entries(), random);
+                if (entry.randomChance() != null && random.nextFloat() >= entry.randomChance()) {
+                    continue;
+                }
+                if (entry.nestedTable() != null) {
+                    rollInto(tables.computeIfAbsent(entry.nestedTable(), this::load), random, result);
+                    continue;
+                }
                 if (entry.itemId() == null) {
                     continue;
                 }
@@ -76,7 +90,6 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
                 ));
             }
         }
-        return List.copyOf(result);
     }
 
     private ItemStack apply(Function function, ItemStack stack, RandomSource random) {
@@ -102,12 +115,16 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
                     Optional.of(resolveOptions(function.options()))
             );
             case "minecraft:set_potion" -> stack;
+            case "minecraft:set_ominous_bottle_amplifier" -> {
+                function.number().nextInt(random);
+                yield stack;
+            }
             case "minecraft:exploration_map", "minecraft:set_name" -> stack;
             case "minecraft:set_instrument" -> {
                 var instruments = registries.lookupOrThrow(Registries.INSTRUMENT);
                 TagKey<net.minecraft.world.item.Instrument> tag = TagKey.create(
                         Registries.INSTRUMENT,
-                        Identifier.parse(function.options().substring(1))
+                        Identifier.parse(function.options().getFirst().substring(1))
                 );
                 List<?> choices = instruments.getOrThrow(tag).stream().toList();
                 if (!choices.isEmpty()) {
@@ -129,7 +146,7 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
     private ItemStack enchantRandomly(
             ItemStack stack,
             RandomSource random,
-            String options,
+            List<String> options,
             boolean onlyCompatible
     ) {
         ItemStack inputStack = stack;
@@ -153,18 +170,24 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
         return stack;
     }
 
-    private HolderSet<Enchantment> resolveOptions(String value) {
+    private HolderSet<Enchantment> resolveOptions(List<String> values) {
         var enchantments = registries.lookupOrThrow(Registries.ENCHANTMENT);
+        if (values.size() != 1 || !values.getFirst().startsWith("#")) {
+            return HolderSet.direct(values.stream()
+                    .map(value -> ResourceKey.create(
+                            Registries.ENCHANTMENT, Identifier.parse(value)
+                    ))
+                    .map(enchantments::getOrThrow)
+                    .toList());
+        }
+        String value = values.getFirst();
         if (value.startsWith("#")) {
             TagKey<Enchantment> tag = TagKey.create(
                     Registries.ENCHANTMENT, Identifier.parse(value.substring(1))
             );
             return enchantments.getOrThrow(tag);
         }
-        ResourceKey<Enchantment> key = ResourceKey.create(
-                Registries.ENCHANTMENT, Identifier.parse(value)
-        );
-        return HolderSet.direct(enchantments.getOrThrow(key));
+        throw new IllegalStateException("Unreachable enchantment option: " + value);
     }
 
     private static Entry select(List<Entry> entries, RandomSource random) {
@@ -198,33 +221,39 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
             List<Pool> pools = new ArrayList<>();
             for (JsonElement poolElement : root.getAsJsonArray("pools")) {
                 JsonObject pool = poolElement.getAsJsonObject();
-                if (pool.has("conditions")) {
-                    throw new IllegalStateException("Pool conditions are unsupported: " + lootTable);
-                }
                 List<Entry> entries = new ArrayList<>();
                 for (JsonElement entryElement : pool.getAsJsonArray("entries")) {
                     JsonObject entry = entryElement.getAsJsonObject();
                     String type = entry.get("type").getAsString();
-                    if (!type.equals("minecraft:item") && !type.equals("minecraft:empty")) {
+                    if (!type.equals("minecraft:item") && !type.equals("minecraft:empty")
+                            && !type.equals("minecraft:loot_table")) {
                         throw new IllegalStateException(
                                 "Unsupported loot entry in " + lootTable + ": " + type
                         );
                     }
-                    if (entry.has("conditions") || entry.has("quality")) {
+                    if (entry.has("quality")) {
                         throw new IllegalStateException(
-                                "Conditional/quality entries are unsupported: " + lootTable
+                                "Quality entries are unsupported: " + lootTable
                         );
                     }
+                    Double entryChance = parseRandomChance(entry, lootTable);
                     List<Function> functions = new ArrayList<>();
                     if (entry.has("functions")) {
                         for (JsonElement functionElement : entry.getAsJsonArray("functions")) {
                             functions.add(parseFunction(functionElement.getAsJsonObject()));
                         }
                     }
+                    if (type.equals("minecraft:loot_table") && !functions.isEmpty()) {
+                        throw new IllegalStateException(
+                                "Functions on nested loot tables are unsupported: " + lootTable
+                        );
+                    }
                     entries.add(new Entry(
-                            type.equals("minecraft:empty") ? null : entry.get("name").getAsString(),
+                            type.equals("minecraft:item") ? entry.get("name").getAsString() : null,
+                            type.equals("minecraft:loot_table") ? entry.get("value").getAsString() : null,
                             entry.has("weight") ? entry.get("weight").getAsInt() : 1,
-                            List.copyOf(functions)
+                            List.copyOf(functions),
+                            entryChance
                     ));
                 }
                 List<Function> poolFunctions = new ArrayList<>();
@@ -236,7 +265,8 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
                 pools.add(new Pool(
                         parseNumber(pool.get("rolls")),
                         List.copyOf(entries),
-                        List.copyOf(poolFunctions)
+                        List.copyOf(poolFunctions),
+                        parseRandomChance(pool, lootTable)
                 ));
             }
             return new Table(List.copyOf(pools));
@@ -257,21 +287,24 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
             case "minecraft:enchant_randomly" -> new Function(
                     type,
                     null,
-                    json.get("options").getAsString(),
+                    parseOptions(json.get("options")),
                     !json.has("only_compatible") || json.get("only_compatible").getAsBoolean(),
                     List.of()
             );
             case "minecraft:enchant_with_levels" -> new Function(
                     type,
                     parseNumber(json.get("levels")),
-                    json.get("options").getAsString(),
+                    List.of(json.get("options").getAsString()),
                     true,
                     List.of()
             );
             case "minecraft:set_potion", "minecraft:exploration_map", "minecraft:set_name" ->
                     new Function(type, null, null, true, List.of());
+            case "minecraft:set_ominous_bottle_amplifier" -> new Function(
+                    type, parseNumber(json.get("amplifier")), null, true, List.of()
+            );
             case "minecraft:set_instrument" -> new Function(
-                    type, null, json.get("options").getAsString(), true, List.of()
+                    type, null, List.of(json.get("options").getAsString()), true, List.of()
             );
             case "minecraft:set_stew_effect" -> {
                 List<NumberSpec> effects = new ArrayList<>();
@@ -296,6 +329,33 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
         return new NumberSpec(object.get("min").getAsFloat(), object.get("max").getAsFloat());
     }
 
+    private static List<String> parseOptions(JsonElement element) {
+        if (element.isJsonPrimitive()) {
+            return List.of(element.getAsString());
+        }
+        List<String> options = new ArrayList<>();
+        for (JsonElement option : element.getAsJsonArray()) {
+            options.add(option.getAsString());
+        }
+        if (options.isEmpty()) {
+            throw new IllegalStateException("Enchantment options must not be empty");
+        }
+        return List.copyOf(options);
+    }
+
+    private static Double parseRandomChance(JsonObject object, String lootTable) {
+        if (!object.has("conditions")) {
+            return null;
+        }
+        var conditions = object.getAsJsonArray("conditions");
+        if (conditions.size() != 1
+                || !"minecraft:random_chance".equals(
+                conditions.get(0).getAsJsonObject().get("condition").getAsString())) {
+            throw new IllegalStateException("Unsupported loot condition: " + lootTable);
+        }
+        return conditions.get(0).getAsJsonObject().get("chance").getAsDouble();
+    }
+
     private static int nextInclusive(RandomSource random, int min, int max) {
         return min >= max ? min : random.nextInt(max - min + 1) + min;
     }
@@ -303,16 +363,27 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
     private record Table(List<Pool> pools) {
     }
 
-    private record Pool(NumberSpec rolls, List<Entry> entries, List<Function> functions) {
+    private record Pool(
+            NumberSpec rolls,
+            List<Entry> entries,
+            List<Function> functions,
+            Double randomChance
+    ) {
     }
 
-    private record Entry(String itemId, int weight, List<Function> functions) {
+    private record Entry(
+            String itemId,
+            String nestedTable,
+            int weight,
+            List<Function> functions,
+            Double randomChance
+    ) {
     }
 
     private record Function(
             String type,
             NumberSpec number,
-            String options,
+            List<String> options,
             boolean onlyCompatible,
             List<NumberSpec> alternatives
     ) {
