@@ -57,5 +57,29 @@ fn main() {
         bounds.max.y,
         bounds.max.z,
     );
-}
 
+    for (index, piece) in collector.pieces.iter().enumerate() {
+        let piece = piece
+            .as_any()
+            .downcast_ref::<PoolElementStructurePiece>()
+            .expect("jigsaw piece");
+        let mut templates = Vec::new();
+        piece.element.for_each_template(|name, _, _, _| {
+            templates.push(name.to_owned());
+        });
+        println!(
+            "PUMPKIN_PIECE index={index:03} position=({}, {}, {}) rotation={:?} templates={:?} box=({}, {}, {})..({}, {}, {})",
+            piece.pos.0.x,
+            piece.pos.0.y,
+            piece.pos.0.z,
+            piece.rotation,
+            templates,
+            piece.piece.bounding_box.min.x,
+            piece.piece.bounding_box.min.y,
+            piece.piece.bounding_box.min.z,
+            piece.piece.bounding_box.max.x,
+            piece.piece.bounding_box.max.y,
+            piece.piece.bounding_box.max.z,
+        );
+    }
+}

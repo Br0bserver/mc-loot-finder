@@ -22,6 +22,17 @@ final class AncientCityLayoutProbeTest {
                     start.getPieces().size(),
                     start.getBoundingBox()
             );
+            for (int index = 0; index < start.getPieces().size(); index++) {
+                var piece = (PoolElementStructurePiece) start.getPieces().get(index);
+                System.out.printf(
+                        "VANILLA_PIECE index=%03d position=%s rotation=%s element=%s box=%s%n",
+                        index,
+                        piece.getPosition(),
+                        piece.getRotation(),
+                        piece.getElement(),
+                        piece.getBoundingBox()
+                );
+            }
 
             assertEquals(90, start.getPieces().size());
             assertEquals(3787, start.getBoundingBox().minX());
