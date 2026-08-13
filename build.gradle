@@ -24,6 +24,7 @@ dependencies {
 
 application {
     mainClass = "dev.br0b.mclootfinder.cli.Main"
+    applicationDefaultJvmArgs = ["--sun-misc-unsafe-memory-access=allow"]
 }
 
 java {
@@ -40,6 +41,7 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named("test", Test) {
     useJUnitPlatform()
     maxHeapSize = "2G"
+    jvmArgs "--sun-misc-unsafe-memory-access=allow"
 }
 
 tasks.register("runCli", JavaExec) {
@@ -47,5 +49,6 @@ tasks.register("runCli", JavaExec) {
     description = "Runs the standalone loot-finder CLI"
     classpath = sourceSets.main.runtimeClasspath
     mainClass = application.mainClass
+    jvmArgs "--sun-misc-unsafe-memory-access=allow"
     standardInput = System.in
 }

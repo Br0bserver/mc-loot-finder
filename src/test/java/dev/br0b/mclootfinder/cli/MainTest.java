@@ -29,6 +29,19 @@ class MainTest {
     }
 
     @Test
+    void candidatesTextUsesBlocksInsteadOfAWidthDependentTable() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[]{
+                "candidates", "--seed", "0", "--radius", "5000", "--limit", "1"
+        }, new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("Search area: 5,000 blocks around (0, 0)"));
+        assertTrue(output.contains("[1]\n  Chunk: ("));
+        assertTrue(output.contains("Candidates are not verified structures."));
+        assertTrue(!output.contains("chunk_x chunk_z"));
+    }
+
+    @Test
     void bastionCandidatePipelineUsesItsOwnProfile() {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         int result = Main.run(new String[]{
@@ -81,13 +94,13 @@ class MainTest {
     }
 
     @Test
-    void helpListsCatalogStructures() {
+    void helpPointsToCommandsAndStructureCatalog() {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         assertEquals(0, Main.run(new String[]{"help"},
                 new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
         String output = bytes.toString(StandardCharsets.UTF_8);
-        assertTrue(output.contains("jungle_pyramid"));
-        assertTrue(output.contains("igloo"));
+        assertTrue(output.contains("find --seed N"));
+        assertTrue(output.contains("Use 'explain' to list supported structures"));
     }
 
     @Test
@@ -108,8 +121,8 @@ class MainTest {
         assertEquals(0, Main.run(new String[]{"explain"},
                 new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
         String output = bytes.toString(StandardCharsets.UTF_8);
-        assertTrue(output.contains("candidates: structure=ancient_city"));
-        assertTrue(output.contains("find:       structure=ancient_city"));
+        assertTrue(output.contains("candidates: ancient_city"));
+        assertTrue(output.contains("find: ancient_city"));
     }
 
     @Test
