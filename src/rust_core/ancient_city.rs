@@ -298,6 +298,24 @@ mod tests {
                 .downcast_ref::<PoolElementStructurePiece>()
                 .expect("ancient city jigsaw piece");
             let origin = piece.pos.0;
+            let mut templates = Vec::new();
+            piece.element.for_each_template(|name, _, _, _| {
+                templates.push(name.to_owned());
+            });
+            println!(
+                "PUMPKIN_PIECE index={piece_index:03} position={},{},{} rotation={:?} templates={:?} box={},{},{}..{},{},{}",
+                origin.x,
+                origin.y,
+                origin.z,
+                piece.rotation,
+                templates,
+                piece.piece.bounding_box.min.x,
+                piece.piece.bounding_box.min.y,
+                piece.piece.bounding_box.min.z,
+                piece.piece.bounding_box.max.x,
+                piece.piece.bounding_box.max.y,
+                piece.piece.bounding_box.max.z,
+            );
             piece.element.for_each_template(|name, _, _, template| {
                 let (corner_x, corner_z) = piece.rotation.rotate_offset(
                     template.size.x.saturating_sub(1),
