@@ -684,6 +684,55 @@ mod tests {
     }
 
     #[test]
+    fn rolls_silence_trim_parity_seed() {
+        assert_eq!(
+            roll("minecraft:chests/ancient_city", 40).unwrap(),
+            vec![
+                LootStack {
+                    item: "minecraft:potion".to_owned(),
+                    count: 3
+                },
+                LootStack {
+                    item: "minecraft:experience_bottle".to_owned(),
+                    count: 3
+                },
+                LootStack {
+                    item: "minecraft:sculk".to_owned(),
+                    count: 10
+                },
+                LootStack {
+                    item: "minecraft:lead".to_owned(),
+                    count: 1
+                },
+                LootStack {
+                    item: "minecraft:book".to_owned(),
+                    count: 10
+                },
+                LootStack {
+                    item: "minecraft:diamond_leggings".to_owned(),
+                    count: 1
+                },
+                LootStack {
+                    item: "minecraft:diamond_horse_armor".to_owned(),
+                    count: 1
+                },
+                LootStack {
+                    item: "minecraft:compass".to_owned(),
+                    count: 1
+                },
+                LootStack {
+                    item: "minecraft:sculk_sensor".to_owned(),
+                    count: 2
+                },
+                LootStack {
+                    item: "minecraft:silence_armor_trim_smithing_template".to_owned(),
+                    count: 1,
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn rejects_zero_seed() {
         assert!(roll("minecraft:chests/ancient_city", 0).is_err());
     }
