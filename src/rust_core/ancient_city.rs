@@ -261,4 +261,91 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn diagnose_26_1_2_layout_mismatch() {
+        let scanner = Scanner::new(114514);
+        let chunk_x = 96;
+        let chunk_z = 5;
+        let context = StructureGeneratorContext {
+            seed: scanner.world_seed,
+            chunk_x,
+            chunk_z,
+            random: create_chunk_random(scanner.world_seed, chunk_x, chunk_z),
+            sea_level: SEA_LEVEL,
+            min_y: WORLD_MIN_Y,
+            height_sampler: None,
+            structure_key: Some(StructureKeys::AncientCity),
+        };
+        let mut sampler = MultiNoiseSampler::generate(
+            &scanner.generator.base_router.multi_noise,
+            &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
+        );
+        let position = lazily_generate_structure(
+            &StructureKeys::AncientCity,
+            &Structure::ANCIENT_CITY,
+            context,
+            &MultiNoiseBiomeSupplier::OVERWORLD,
+            &mut sampler,
+        )
+        .expect("ancient city should generate");
+        let collector = position.collector.lock().expect("collector");
+
+        println!("PUMPKIN_LAYOUT pieces={}", collector.pieces.len());
+        for (piece_index, piece) in collector.pieces.iter().enumerate() {
+            let piece = piece
+                .as_any()
+                .downcast_ref::<PoolElementStructurePiece>()
+                .expect("ancient city jigsaw piece");
+            let origin = piece.pos.0;
+            piece.element.for_each_template(|name, _, _, template| {
+                let (corner_x, corner_z) = piece.rotation.rotate_offset(
+                    template.size.x.saturating_sub(1),
+                    template.size.z.saturating_sub(1),
+                );
+                let placement_origin = Vector3::new(
+                    origin.x + corner_x.min(0),
+                    origin.y,
+                    origin.z + corner_z.min(0),
+                );
+                for block in &template.blocks {
+                    let palette = &template.palette[block.state as usize];
+                    if palette.name != "minecraft:chest" {
+                        continue;
+                    }
+                    let local = piece.rotation.transform_pos(block.pos, template.size);
+                    let world = Vector3::new(
+                        placement_origin.x + local.x,
+                        placement_origin.y + local.y,
+                        placement_origin.z + local.z,
+                    );
+                    println!(
+                        "PUMPKIN_CHEST piece={piece_index} template={name} piece_position=({},{},{}) rotation={:?} template_size=({},{},{}) template_local=({},{},{}) transformed_local=({},{},{}) world=({},{},{}) box=({},{},{})..({},{},{})",
+                        origin.x,
+                        origin.y,
+                        origin.z,
+                        piece.rotation,
+                        template.size.x,
+                        template.size.y,
+                        template.size.z,
+                        block.pos.x,
+                        block.pos.y,
+                        block.pos.z,
+                        local.x,
+                        local.y,
+                        local.z,
+                        world.x,
+                        world.y,
+                        world.z,
+                        piece.piece.bounding_box.min.x,
+                        piece.piece.bounding_box.min.y,
+                        piece.piece.bounding_box.min.z,
+                        piece.piece.bounding_box.max.x,
+                        piece.piece.bounding_box.max.y,
+                        piece.piece.bounding_box.max.z,
+                    );
+                }
+            });
+        }
+    }
 }

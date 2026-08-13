@@ -33,6 +33,8 @@ jobs:
         run: cargo check --locked
       - name: Diagnose ancient city biome mismatch
         run: cargo test --release --locked diagnose_26_1_2_biome_mismatch -- --nocapture
+      - name: Diagnose ancient city layout mismatch
+        run: cargo test --release --locked diagnose_26_1_2_layout_mismatch -- --nocapture
       - name: Build and run ancient city smoke test
         run: |
           cargo run --release --locked -- chests \
