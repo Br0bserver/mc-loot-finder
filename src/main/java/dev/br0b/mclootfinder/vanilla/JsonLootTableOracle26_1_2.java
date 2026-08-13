@@ -103,6 +103,18 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
             );
             case "minecraft:set_potion" -> stack;
             case "minecraft:exploration_map", "minecraft:set_name" -> stack;
+            case "minecraft:set_instrument" -> {
+                var instruments = registries.lookupOrThrow(Registries.INSTRUMENT);
+                TagKey<net.minecraft.world.item.Instrument> tag = TagKey.create(
+                        Registries.INSTRUMENT,
+                        Identifier.parse(function.options().substring(1))
+                );
+                List<?> choices = instruments.getOrThrow(tag).stream().toList();
+                if (!choices.isEmpty()) {
+                    random.nextInt(choices.size());
+                }
+                yield stack;
+            }
             case "minecraft:set_stew_effect" -> {
                 int selected = random.nextInt(function.alternatives().size());
                 function.alternatives().get(selected).consumeFloat(random);
@@ -258,6 +270,9 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
             );
             case "minecraft:set_potion", "minecraft:exploration_map", "minecraft:set_name" ->
                     new Function(type, null, null, true, List.of());
+            case "minecraft:set_instrument" -> new Function(
+                    type, null, json.get("options").getAsString(), true, List.of()
+            );
             case "minecraft:set_stew_effect" -> {
                 List<NumberSpec> effects = new ArrayList<>();
                 for (JsonElement effect : json.getAsJsonArray("effects")) {

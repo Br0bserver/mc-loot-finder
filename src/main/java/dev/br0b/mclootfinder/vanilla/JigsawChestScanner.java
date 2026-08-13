@@ -63,7 +63,7 @@ public final class JigsawChestScanner {
         }
 
         Map<Long, Integer> nextOrdinalByChunk = new HashMap<>();
-        List<ChestPrediction> predictions = new ArrayList<>(raw.size());
+        Map<BlockPos, ChestPrediction> predictionByPosition = new java.util.LinkedHashMap<>();
         for (RawChest chest : raw) {
             int chunkX = Math.floorDiv(chest.pos().getX(), 16);
             int chunkZ = Math.floorDiv(chest.pos().getZ(), 16);
@@ -78,7 +78,7 @@ public final class JigsawChestScanner {
                     decorationStep,
                     ordinal
             );
-            predictions.add(new ChestPrediction(
+            predictionByPosition.put(chest.pos(), new ChestPrediction(
                     start.getChunkPos().x(),
                     start.getChunkPos().z(),
                     chest.pos().getX(),
@@ -89,7 +89,7 @@ public final class JigsawChestScanner {
                     lootSeed
             ));
         }
-        return List.copyOf(predictions);
+        return List.copyOf(predictionByPosition.values());
     }
 
     private static void collectFromElement(

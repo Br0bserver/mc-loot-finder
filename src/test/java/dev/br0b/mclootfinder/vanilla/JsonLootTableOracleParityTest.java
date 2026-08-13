@@ -43,6 +43,7 @@ class JsonLootTableOracleParityTest {
             "minecraft:chests/underwater_ruin_small",
             "minecraft:chests/nether_bridge",
             "minecraft:chests/buried_treasure",
+            "minecraft:chests/pillager_outpost",
             "minecraft:chests/village/village_armorer",
             "minecraft:chests/village/village_butcher",
             "minecraft:chests/village/village_cartographer",

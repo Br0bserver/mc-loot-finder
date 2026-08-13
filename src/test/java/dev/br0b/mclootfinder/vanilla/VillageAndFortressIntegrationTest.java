@@ -37,6 +37,17 @@ class VillageAndFortressIntegrationTest {
         );
     }
 
+    @Test
+    void overlappingOutpostTemplateWritesResolveToOnePhysicalChest() {
+        assertStructure(
+                Versions.V26_1_2.structure("pillager_outpost"),
+                36,
+                103,
+                1,
+                Set.of("minecraft:chests/pillager_outpost")
+        );
+    }
+
     private static void assertStructure(
             StructureSpec spec,
             int chunkX,

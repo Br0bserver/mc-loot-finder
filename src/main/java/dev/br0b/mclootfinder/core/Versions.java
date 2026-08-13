@@ -229,6 +229,19 @@ public final class Versions {
                     "minecraft:heart_of_the_sea"
                 ),
                 new StructureSpec(
+                    "pillager_outpost",
+                    "minecraft:pillager_outpost",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(32, 8, 165_745_296),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.JIGSAW_FAST,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:pillager_outpost", 1)),
+                    java.util.List.of("minecraft:chests/pillager_outpost"),
+                    "minecraft:sentry_armor_trim_smithing_template"
+                ),
+                new StructureSpec(
                     "woodland_mansion",
                     "minecraft:mansion",
                     "minecraft:overworld",
