@@ -158,8 +158,12 @@ public final class Main {
         try (VanillaRuntime26_1_2 runtime = VanillaRuntime26_1_2.load(worldSeed)) {
             runtime.verifyStructureProfile(spec);
             for (StructureCandidate candidate : candidates) {
+                ChunkPos candidateChunk = new ChunkPos(candidate.chunkX(), candidate.chunkZ());
+                if (!runtime.isStructurePlacementChunk(spec, candidateChunk)) {
+                    continue;
+                }
                 var start = runtime.generateSelectedStructure(
-                        spec, new ChunkPos(candidate.chunkX(), candidate.chunkZ())
+                        spec, candidateChunk
                 );
                 if (!start.isValid()) {
                     continue;
@@ -236,8 +240,12 @@ public final class Main {
             runtime.verifyStructureProfile(spec);
             JsonLootTableOracle26_1_2 oracle = new JsonLootTableOracle26_1_2(runtime.registries());
             for (StructureCandidate candidate : candidates) {
+                ChunkPos candidateChunk = new ChunkPos(candidate.chunkX(), candidate.chunkZ());
+                if (!runtime.isStructurePlacementChunk(spec, candidateChunk)) {
+                    continue;
+                }
                 var start = runtime.generateSelectedStructure(
-                        spec, new ChunkPos(candidate.chunkX(), candidate.chunkZ())
+                        spec, candidateChunk
                 );
                 if (!start.isValid()) {
                     continue;

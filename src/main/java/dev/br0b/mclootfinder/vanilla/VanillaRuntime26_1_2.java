@@ -27,6 +27,7 @@ import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
@@ -38,6 +39,7 @@ import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import net.minecraft.world.level.storage.LevelStorageSource;
 
@@ -109,12 +111,20 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
                 (ResourceKey<net.minecraft.world.level.levelgen.NoiseGeneratorSettings>) settingsKey;
         RandomState state = RandomState.create(registries, typedSettingsKey, worldSeed);
         DimensionType type = stem.type().value();
+        ChunkGeneratorStructureState structureState =
+                ChunkGeneratorStructureState.createForNormal(
+                        state,
+                        worldSeed,
+                        generator.getBiomeSource(),
+                        registries.lookupOrThrow(Registries.STRUCTURE_SET)
+                );
         return new DimensionContext(
                 levelKey,
                 generator,
                 state,
                 LevelHeightAccessor.create(type.minY(), type.height()),
-                type
+                type,
+                structureState
         );
     }
 
@@ -257,6 +267,27 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
         return id.toString();
     }
 
+    /** Applies vanilla frequency reduction and cross-structure exclusion rules. */
+    public boolean isStructurePlacementChunk(StructureSpec spec, ChunkPos chunk) {
+        Registry<StructureSet> sets = registries.lookupOrThrow(Registries.STRUCTURE_SET);
+        java.util.Set<String> expected = spec.structureSetEntries().stream()
+                .map(StructureSpec.SelectionEntry::structureId)
+                .collect(java.util.stream.Collectors.toSet());
+        StructureSet set = sets.stream()
+                .filter(candidate -> candidate.structures().stream()
+                        .map(entry -> entry.structure().unwrapKey().orElseThrow()
+                                .identifier().toString())
+                        .collect(java.util.stream.Collectors.toSet())
+                        .equals(expected))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Vanilla structure set not found for " + spec.name()
+                ));
+        return set.placement().isStructureChunk(
+                dimension(spec).structureState(), chunk.x(), chunk.z()
+        );
+    }
+
     public record DecorationCoordinates(int step, int indexWithinStep) {
     }
 
@@ -338,7 +369,8 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
             ChunkGenerator chunkGenerator,
             RandomState randomState,
             LevelHeightAccessor heightAccessor,
-            DimensionType dimensionType
+            DimensionType dimensionType,
+            ChunkGeneratorStructureState structureState
     ) {
     }
 }

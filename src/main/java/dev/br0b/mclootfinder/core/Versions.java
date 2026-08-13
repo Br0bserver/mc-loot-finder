@@ -216,6 +216,19 @@ public final class Versions {
                     "minecraft:diamond"
                 ),
                 new StructureSpec(
+                    "buried_treasure",
+                    "minecraft:buried_treasure",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(1, 0, 0),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:buried_treasure", 1)),
+                    java.util.List.of("minecraft:chests/buried_treasure"),
+                    "minecraft:heart_of_the_sea"
+                ),
+                new StructureSpec(
                     "woodland_mansion",
                     "minecraft:mansion",
                     "minecraft:overworld",

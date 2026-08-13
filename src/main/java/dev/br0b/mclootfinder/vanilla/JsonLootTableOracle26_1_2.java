@@ -67,6 +67,9 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
                 for (Function function : entry.functions()) {
                     stack = apply(function, stack, random);
                 }
+                for (Function function : pool.functions()) {
+                    stack = apply(function, stack, random);
+                }
                 result.add(new LootStack(
                         BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),
                         stack.getCount()
@@ -212,7 +215,17 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
                             List.copyOf(functions)
                     ));
                 }
-                pools.add(new Pool(parseNumber(pool.get("rolls")), List.copyOf(entries)));
+                List<Function> poolFunctions = new ArrayList<>();
+                if (pool.has("functions")) {
+                    for (JsonElement functionElement : pool.getAsJsonArray("functions")) {
+                        poolFunctions.add(parseFunction(functionElement.getAsJsonObject()));
+                    }
+                }
+                pools.add(new Pool(
+                        parseNumber(pool.get("rolls")),
+                        List.copyOf(entries),
+                        List.copyOf(poolFunctions)
+                ));
             }
             return new Table(List.copyOf(pools));
         } catch (IOException exception) {
@@ -275,7 +288,7 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
     private record Table(List<Pool> pools) {
     }
 
-    private record Pool(NumberSpec rolls, List<Entry> entries) {
+    private record Pool(NumberSpec rolls, List<Entry> entries, List<Function> functions) {
     }
 
     private record Entry(String itemId, int weight, List<Function> functions) {
