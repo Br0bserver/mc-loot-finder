@@ -1,4 +1,5 @@
 mod rust_cli;
+mod rust_core;
 
 use std::process::ExitCode;
 
