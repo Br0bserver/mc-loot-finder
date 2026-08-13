@@ -201,3 +201,54 @@ fn collect_piece_chests(
 
 #[allow(dead_code)]
 fn _keep_block_box_in_public_api(_: BlockBox, _: Rotation) {}
+
+#[cfg(test)]
+mod tests {
+    use pumpkin_world::{
+        biome::BiomeSupplier,
+        generation::{
+            biome_coords,
+            structure::{generate_structure_position, structures::StructureGeneratorContext},
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn diagnose_26_1_2_biome_mismatch() {
+        let scanner = Scanner::new(114514);
+        for (chunk_x, chunk_z) in [(96, 5), (197, 222)] {
+            let context = StructureGeneratorContext {
+                seed: scanner.world_seed,
+                chunk_x,
+                chunk_z,
+                random: create_chunk_random(scanner.world_seed, chunk_x, chunk_z),
+                sea_level: SEA_LEVEL,
+                min_y: WORLD_MIN_Y,
+                height_sampler: None,
+                structure_key: Some(StructureKeys::AncientCity),
+            };
+            let position = generate_structure_position(
+                &StructureKeys::AncientCity,
+                &Structure::ANCIENT_CITY,
+                context,
+            )
+            .expect("ancient city candidate should produce a jigsaw position");
+            let start = position.start_pos.0;
+            let mut sampler = MultiNoiseSampler::generate(
+                &scanner.generator.base_router.multi_noise,
+                &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
+            );
+            let biome = MultiNoiseBiomeSupplier::OVERWORLD.biome(
+                biome_coords::from_block(start.x),
+                biome_coords::from_block(start.y),
+                biome_coords::from_block(start.z),
+                &mut sampler,
+            );
+            println!(
+                "candidate=({chunk_x},{chunk_z}) start=({},{},{}) biome=minecraft:{} id={}",
+                start.x, start.y, start.z, biome.registry_id, biome.id
+            );
+        }
+    }
+}
