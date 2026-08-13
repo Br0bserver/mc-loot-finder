@@ -63,7 +63,7 @@ final class RecordingWorldGenLevel implements InvocationHandler {
         this.spec = spec;
         this.worldSeed = worldSeed;
         this.levelRandom = RandomSource.create(worldSeed);
-        this.entitySuppressingLevel = EntitySuppressingServerLevel.create();
+        this.entitySuppressingLevel = EntitySuppressingServerLevel.create(worldSeed);
         this.level = (WorldGenLevel) Proxy.newProxyInstance(
                 WorldGenLevel.class.getClassLoader(),
                 new Class<?>[]{WorldGenLevel.class},

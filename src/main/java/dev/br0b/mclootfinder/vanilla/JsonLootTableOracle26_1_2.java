@@ -99,6 +99,12 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
                     Optional.of(resolveOptions(function.options()))
             );
             case "minecraft:set_potion" -> stack;
+            case "minecraft:exploration_map", "minecraft:set_name" -> stack;
+            case "minecraft:set_stew_effect" -> {
+                int selected = random.nextInt(function.alternatives().size());
+                function.alternatives().get(selected).consumeFloat(random);
+                yield stack;
+            }
             default -> throw new IllegalStateException(
                     "Unsupported 26.1.2 loot function: " + function.type()
             );
@@ -218,24 +224,34 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
         String type = json.get("function").getAsString();
         return switch (type) {
             case "minecraft:set_count" -> new Function(
-                    type, parseNumber(json.get("count")), null, true
+                    type, parseNumber(json.get("count")), null, true, List.of()
             );
             case "minecraft:set_damage" -> new Function(
-                    type, parseNumber(json.get("damage")), null, true
+                    type, parseNumber(json.get("damage")), null, true, List.of()
             );
             case "minecraft:enchant_randomly" -> new Function(
                     type,
                     null,
                     json.get("options").getAsString(),
-                    !json.has("only_compatible") || json.get("only_compatible").getAsBoolean()
+                    !json.has("only_compatible") || json.get("only_compatible").getAsBoolean(),
+                    List.of()
             );
             case "minecraft:enchant_with_levels" -> new Function(
                     type,
                     parseNumber(json.get("levels")),
                     json.get("options").getAsString(),
-                    true
+                    true,
+                    List.of()
             );
-            case "minecraft:set_potion" -> new Function(type, null, null, true);
+            case "minecraft:set_potion", "minecraft:exploration_map", "minecraft:set_name" ->
+                    new Function(type, null, null, true, List.of());
+            case "minecraft:set_stew_effect" -> {
+                List<NumberSpec> effects = new ArrayList<>();
+                for (JsonElement effect : json.getAsJsonArray("effects")) {
+                    effects.add(parseNumber(effect.getAsJsonObject().get("duration")));
+                }
+                yield new Function(type, null, null, true, List.copyOf(effects));
+            }
             default -> throw new IllegalStateException("Unsupported loot function: " + type);
         };
     }
@@ -269,7 +285,8 @@ public final class JsonLootTableOracle26_1_2 implements LootOracle {
             String type,
             NumberSpec number,
             String options,
-            boolean onlyCompatible
+            boolean onlyCompatible,
+            List<NumberSpec> alternatives
     ) {
     }
 

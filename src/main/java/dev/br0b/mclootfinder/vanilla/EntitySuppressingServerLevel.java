@@ -27,6 +27,7 @@ import java.util.concurrent.Executor;
  */
 final class EntitySuppressingServerLevel extends ServerLevel {
     private static final ObjenesisStd OBJENESIS = new ObjenesisStd();
+    private long recordingSeed;
 
     private EntitySuppressingServerLevel() {
         // Never invoked: Objenesis allocates this class without running either
@@ -45,13 +46,21 @@ final class EntitySuppressingServerLevel extends ServerLevel {
         );
     }
 
-    static ServerLevel create() {
-        return OBJENESIS.newInstance(EntitySuppressingServerLevel.class);
+    static ServerLevel create(long worldSeed) {
+        EntitySuppressingServerLevel level =
+                OBJENESIS.newInstance(EntitySuppressingServerLevel.class);
+        level.recordingSeed = worldSeed;
+        return level;
     }
 
     @Override
     public FeatureFlagSet enabledFeatures() {
         return FeatureFlagSet.of();
+    }
+
+    @Override
+    public long getSeed() {
+        return recordingSeed;
     }
 
     @Override

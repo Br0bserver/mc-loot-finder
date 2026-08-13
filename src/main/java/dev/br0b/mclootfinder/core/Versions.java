@@ -148,6 +148,45 @@ public final class Versions {
                     "minecraft:trial_key"
                 ),
                 new StructureSpec(
+                    "shipwreck",
+                    "minecraft:shipwreck",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(24, 4, 165_745_295),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(
+                            new StructureSpec.SelectionEntry("minecraft:shipwreck", 1),
+                            new StructureSpec.SelectionEntry("minecraft:shipwreck_beached", 1)
+                    ),
+                    java.util.List.of(
+                            "minecraft:chests/shipwreck_map",
+                            "minecraft:chests/shipwreck_supply",
+                            "minecraft:chests/shipwreck_treasure"
+                    ),
+                    "minecraft:coast_armor_trim_smithing_template"
+                ),
+                new StructureSpec(
+                    "ocean_ruin",
+                    "minecraft:ocean_ruin_cold",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(20, 8, 14_357_621),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(
+                            new StructureSpec.SelectionEntry("minecraft:ocean_ruin_cold", 1),
+                            new StructureSpec.SelectionEntry("minecraft:ocean_ruin_warm", 1)
+                    ),
+                    java.util.List.of(
+                            "minecraft:chests/underwater_ruin_big",
+                            "minecraft:chests/underwater_ruin_small"
+                    ),
+                    "minecraft:golden_apple"
+                ),
+                new StructureSpec(
                     "woodland_mansion",
                     "minecraft:mansion",
                     "minecraft:overworld",
