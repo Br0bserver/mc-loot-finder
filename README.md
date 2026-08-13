@@ -1,104 +1,93 @@
 # mc-loot-finder
 
-一个独立 CLI：在**不生成或加载目标世界区块**的情况下，根据 Minecraft Java 世界种子预测结构内方块容器、`LootTableSeed` 和最终战利品。当前只支持 Minecraft Java **26.1.2**。
+`mc-loot-finder` 是一个针对 Minecraft Java `26.1.2` 的命令行工具。它根据世界种子定位结构，在内存中调用原版结构生成代码，列出结构内的方块容器，并重放容器的战利品表。
 
-已支持 16 个结构入口：
+它不读取存档，也不加载目标世界区块。输出包括容器坐标、LootTable、LootTableSeed，以及指定物品是否会出现在战利品中。
 
-- 主世界：远古城市、沙漠神殿、丛林神庙、雪屋、废弃传送门、试炼密室、沉船、海底废墟、村庄、埋藏的宝藏、掠夺者前哨站、林地府邸；
-- 下界：堡垒遗迹、下界要塞、废弃传送门；
-- 末地：末地城。
+## 构建
 
-村庄会自动处理五种群系变体，沉船和海底废墟也会按原版选择实际变体。只处理方块容器，不处理箱子矿车等实体容器，因此不支持废弃矿井。
-
-它不是模组。程序直接使用 Minecraft 26.1.2 的原版群系、噪声、结构生成、放置和战利品数据来核对结果；遇到尚未实现的原版规则会报错停止，不会返回看似可用的近似结果。
-
-## 立即使用
-
-需要 Java 25。Gradle Wrapper 会复用本机已有的 Fabric Loom/Minecraft 缓存。
+需要 Java 25。
 
 ```bash
 ./gradlew installDist
-
-# 主世界：幽静纹饰
-build/install/mc-loot-finder/bin/mc-loot-finder find \
-  --seed 0 --structure ancient_city --radius 5000
-
-# 下界：下界合金升级模板
-build/install/mc-loot-finder/bin/mc-loot-finder find \
-  --seed 0 --structure bastion_remnant --radius 2000
-
-# 主世界：沙丘纹饰
-build/install/mc-loot-finder/bin/mc-loot-finder find \
-  --seed 0 --structure desert_pyramid --radius 5000
-
-# 主世界：恼鬼纹饰
-build/install/mc-loot-finder/bin/mc-loot-finder find \
-  --seed 0 --structure woodland_mansion --radius 10000
 ```
 
-种子 `0` 的回归向量包括：
+生成的程序位于：
 
 ```text
-# ancient_city
-892 -47 1286
--519 -48 2283
-
-# bastion_remnant（第一条命中，下界坐标）
-167 69 -229  minecraft:chests/bastion_other
-
-# desert_pyramid（第一条沙丘纹饰命中）
-10 59 -2996  minecraft:chests/desert_pyramid
+build/install/mc-loot-finder/bin/mc-loot-finder
 ```
-
-`--radius` 是对应维度中以 `--center-x/--center-z` 为中心的方块半径。默认结构为 `ancient_city`，不指定 `--item` 时会使用该结构预设的代表性战利品。可运行 `explain` 查看所有结构的程序名。
-
-所有搜索命令支持 `--json`。需要纯 JSON 时建议使用 `installDist` 生成的脚本，避免 Gradle 构建输出混入 stdout。
 
 ## 命令
 
 ```text
-candidates --seed N [--structure NAME --center-x X --center-z Z --radius BLOCKS --limit N --json]
-chests --seed N [--structure NAME --center-x X --center-z Z --radius BLOCKS --limit N --json]
-find --seed N [--structure NAME --item ITEM_ID --center-x X --center-z Z --radius BLOCKS --limit N --json]
-loot --loot-seed N [--table LOOT_TABLE_ID --json]
-container-seed --seed N --chunk-x X --chunk-z Z [--structure NAME --ordinal N --json]
-explain
+candidates       快速列出可能生成结构的区块
+chests           验证结构并列出方块容器
+find             搜索指定物品
+loot             用 LootTable 和 LootTableSeed 重放战利品
+container-seed   计算部分结构的容器种子快捷结果
+explain          查询支持的结构和具体配置
 ```
 
-- `candidates` 只做极快的 random-spread 候选筛选。
-- `chests` 用原版内存世界生成验证结构并列出方块容器、LootTable 和 LootTableSeed。命令名沿用 `chests`，但试炼密室结果也包括发射器和饰纹陶罐。
-- `find` 执行对应战利品表并筛选目标物品。
-- `loot` 单独重放一个受支持 LootTable 的非零 LootTableSeed。
-- `--limit` 只限制显示条数，不限制搜索与统计。
+所有命令的详细参数和默认值由程序自己提供：
 
-堡垒和下界要塞共享 `nether_complexes` 结构集。CLI 会复现原版 `fortress:bastion = 2:3` 的加权选择及群系失败回退，而不是把所有候选误判成堡垒。
+```bash
+build/install/mc-loot-finder/bin/mc-loot-finder help
+build/install/mc-loot-finder/bin/mc-loot-finder explain
+build/install/mc-loot-finder/bin/mc-loot-finder explain --structure trial_chambers
+```
 
-## 实现边界
+`explain --structure NAME --json` 输出单个结构的机器可读配置，包括维度、默认目标物品、放置参数、可用战利品表和 `container-seed` 是否支持。
 
-主世界、下界和末地共用同一条搜索流程。候选位置先用独立的快速算法筛选，再由原版代码验证群系、结构集选择和结构放置。堡垒遗迹与下界要塞共享同一个原版结构集，程序会复现其加权选择与群系失败回退，不会把同一候选同时算作两种结构。
+## 示例
 
-战利品解释器直接读取 26.1.2 原版数据包 JSON。目前公开支持 46 张实际容器战利品表，包含试炼密室普通箱、奖励箱、三类发射器和饰纹陶罐；奖励箱内部引用的子表由解释器自动处理，不会被误报成地图里的额外容器。
+搜索远古城市中的幽静纹饰：
 
-对不在支持清单内或含未实现规则的表会直接报错，不会给近似结果。
+```bash
+build/install/mc-loot-finder/bin/mc-loot-finder find \
+  --seed 0 \
+  --structure ancient_city \
+  --item minecraft:silence_armor_trim_smithing_template \
+  --radius 5000
+```
 
-当前仍不支持修改世界生成/战利品的数据包和其他 Minecraft 版本。若两个同类结构极罕见地在同一装饰区块内共享容器随机流，CLI 会明确报错；LootTableSeed 恰好为 `0` 时会跳过，因为原版将它视为实时随机序列哨兵。
+列出试炼密室容器：
 
-## 验证
+```bash
+build/install/mc-loot-finder/bin/mc-loot-finder chests \
+  --seed 0 --structure trial_chambers --radius 2000
+```
+
+直接重放一个容器的战利品：
+
+```bash
+build/install/mc-loot-finder/bin/mc-loot-finder loot \
+  --table minecraft:chests/ruined_portal \
+  --loot-seed -6371263386669125558
+```
+
+脚本处理时加 `--json`。`--limit` 只限制显示数量，不限制实际搜索。
+
+## LootTableSeed
+
+结构生成时，容器通常只保存 `LootTable` 和 `LootTableSeed`，玩家打开容器时才根据这两项生成物品。相同版本中，表和非零种子相同，生成的物品结果就相同。
+
+`LootTableSeed` 不是世界种子，也不是区块坐标。一个结构里的不同容器通常有不同的种子。
+
+种子为 `0` 是原版的实时随机哨兵，无法精确预测；`find` 会跳过这类容器。
+
+## 支持范围
+
+当前支持：远古城市、堡垒遗迹、沙漠神殿、丛林神庙、雪屋、末地城、主世界和下界废弃传送门、试炼密室、沉船、海底废墟、下界要塞、村庄、埋藏的宝藏、掠夺者前哨站、林地府邸。
+
+只处理方块容器，不处理箱子矿车等实体容器，因此不支持废弃矿井。只支持原版 Minecraft Java `26.1.2`，不读取自定义世界生成或战利品数据包。
+
+`candidates` 只提供候选区块，不保证结构一定生成。遇到尚未实现的原版语义，程序会停止并报错，不返回近似结果。
+
+## 测试
 
 ```bash
 ./gradlew test
 ```
 
-验证包括：
-
-- 16 个结构入口的 random-spread 参数（含 triangular 分布）与原版实现对拍；
-- LegacyRandom、xoroshiro128++、装饰 RNG 对拍；
-- 远古城市 9 座、204 只容器的原版实际放置对拍；
-- 桥梁、疣猪兽棚、藏宝室样本覆盖四张堡垒表，20 只容器实际放置对拍；
-- 3 座沙漠神殿、12 只过程式箱子的实际放置对拍；
-- 通用放置后端与快速路径在远古城市、堡垒、沙漠神殿样本上逐箱一致；
-- 主世界和下界废弃传送门、试炼密室、沉船、海底废墟、村庄、前哨站等固定结果测试；
-- 46 张支持表各 2048 个 seed 与原版 LootTable 比较完整物品序列和数量；
-- 运行时临时目录关闭后自动删除，以及极端搜索坐标拒绝测试。
-
-理论与随机链详见 [docs/theory.md](docs/theory.md)。
+测试覆盖结构放置、随机数、固定结果和战利品表与原版的对拍。

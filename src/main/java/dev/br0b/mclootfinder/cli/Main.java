@@ -348,14 +348,77 @@ public final class Main {
 
     private static int explain(Arguments arguments, PrintStream out) {
         VersionProfile version = Versions.require(arguments.text("version", "26.1.2"));
-        out.printf("Minecraft Java %s support matrix:%n", version.minecraftVersion());
-        for (StructureSpec spec : version.structures()) {
-            out.printf("  exact: %s (%s, %d loot table(s))%n",
-                    spec.name(), spec.dimensionId(), spec.lootTables().size());
+        String structureName = arguments.text("structure", "");
+        if (structureName.isEmpty()) {
+            if (arguments.flag("json")) {
+                out.printf("{\"version\":\"%s\",\"structures\":[",
+                        version.minecraftVersion());
+                for (int index = 0; index < version.structures().size(); index++) {
+                    if (index != 0) {
+                        out.print(',');
+                    }
+                    StructureSpec spec = version.structures().get(index);
+                    out.printf("{\"name\":\"%s\",\"dimension\":\"%s\","
+                                    + "\"default_item\":\"%s\",\"loot_tables\":%d}",
+                            spec.name(), spec.dimensionId(), spec.defaultTargetItem(),
+                            spec.lootTables().size());
+                }
+                out.println("]}");
+                return 0;
+            }
+            out.printf("Minecraft Java %s%n", version.minecraftVersion());
+            out.println("Command defaults:");
+            out.println("  candidates: structure=ancient_city center=(0,0) radius=5000 limit=100");
+            out.println("  chests:     structure=ancient_city center=(0,0) radius=2000 limit=100");
+            out.println("  find:       structure=ancient_city center=(0,0) radius=5000 limit=20");
+            out.println("  loot:       table=minecraft:chests/ancient_city");
+            out.println("Supported structures:");
+            for (StructureSpec spec : version.structures()) {
+                out.printf("  %-20s %s, default=%s, loot_tables=%d%n",
+                        spec.name(), spec.dimensionId(), spec.defaultTargetItem(),
+                        spec.lootTables().size());
+            }
+            out.println("Use 'explain --structure NAME' for placement and loot details.");
+            return 0;
         }
-        out.println("  exact: random-spread candidates and weighted structure-set selection");
-        out.println("  exact: vanilla biome/structure generation -> chest coordinates and LootTableSeed");
-        out.println("  exact: bundled vanilla JSON loot tables -> aggregate items / target match");
+
+        StructureSpec spec = version.structure(structureName);
+        if (arguments.flag("json")) {
+            out.printf("{\"version\":\"%s\",\"name\":\"%s\","
+                            + "\"structure_id\":\"%s\",\"dimension\":\"%s\","
+                            + "\"default_item\":\"%s\",\"placement\":{"
+                            + "\"spacing\":%d,\"separation\":%d,\"salt\":%d,"
+                            + "\"spread\":\"%s\"},\"decoration_step\":%d,"
+                            + "\"decoration_index\":%d,\"scanner\":\"%s\","
+                            + "\"container_seed_shortcut\":\"%s\",\"loot_tables\":[",
+                    version.minecraftVersion(), spec.name(), spec.structureId(),
+                    spec.dimensionId(), spec.defaultTargetItem(), spec.placement().spacing(),
+                    spec.placement().separation(), spec.placement().salt(),
+                    spec.placement().spreadType(), spec.decorationStep(),
+                    spec.indexWithinStep(), spec.scannerKind(), spec.containerSeedShortcut());
+            for (int index = 0; index < spec.lootTables().size(); index++) {
+                if (index != 0) {
+                    out.print(',');
+                }
+                out.printf("\"%s\"", spec.lootTables().get(index));
+            }
+            out.println("]}");
+            return 0;
+        }
+        out.printf("Minecraft Java %s%n", version.minecraftVersion());
+        out.printf("structure=%s%n", spec.name());
+        out.printf("structure_id=%s%n", spec.structureId());
+        out.printf("dimension=%s%n", spec.dimensionId());
+        out.printf("default_item=%s%n", spec.defaultTargetItem());
+        out.printf("placement=spacing:%d separation:%d salt:%d spread:%s%n",
+                spec.placement().spacing(), spec.placement().separation(),
+                spec.placement().salt(), spec.placement().spreadType());
+        out.printf("decoration=step:%d index:%d%n",
+                spec.decorationStep(), spec.indexWithinStep());
+        out.printf("scanner=%s container_seed_shortcut=%s%n",
+                spec.scannerKind(), spec.containerSeedShortcut());
+        out.println("loot_tables:");
+        spec.lootTables().forEach(table -> out.println("  " + table));
         return 0;
     }
 
@@ -376,7 +439,7 @@ public final class Main {
         out.println("  chests --seed N [--structure NAME --center-x X --center-z Z --radius BLOCKS --limit N --json]");
         out.println("  find --seed N [--structure NAME --item ITEM_ID --center-x X --center-z Z --radius BLOCKS --limit N --json]");
         out.println("  loot --loot-seed N [--table LOOT_TABLE_ID --json]");
-        out.println("  explain [--version 26.1.2]");
+        out.println("  explain [--version 26.1.2] [--structure NAME] [--json]");
         out.println();
         out.println("Only Minecraft Java 26.1.2 is currently supported.");
     }

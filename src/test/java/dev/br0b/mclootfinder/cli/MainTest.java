@@ -91,6 +91,28 @@ class MainTest {
     }
 
     @Test
+    void explainCanQueryOneStructureAsJson() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[]{
+                "explain", "--structure", "trial_chambers", "--json"
+        }, new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("\"name\":\"trial_chambers\""));
+        assertTrue(output.contains("minecraft:chests/trial_chambers/reward"));
+        assertTrue(output.contains("\"default_item\":\"minecraft:trial_key\""));
+    }
+
+    @Test
+    void explainListsCommandDefaults() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[]{"explain"},
+                new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("candidates: structure=ancient_city"));
+        assertTrue(output.contains("find:       structure=ancient_city"));
+    }
+
+    @Test
     void emptyLootTableContainersStillDetectSharedRandomStreams() {
         var first = new ChestPrediction(1, 1, 32, 64, 32, "", 0, 1L);
         var second = new ChestPrediction(
