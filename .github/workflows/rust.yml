@@ -11,14 +11,12 @@ on:
       - Cargo.lock
       - src/**
       - .github/workflows/rust.yml
-      - .github/workflows/release.yml
   pull_request:
     paths:
       - Cargo.toml
       - Cargo.lock
       - src/**
       - .github/workflows/rust.yml
-      - .github/workflows/release.yml
 
 jobs:
   check:

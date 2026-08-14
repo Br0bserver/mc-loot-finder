@@ -1,8 +1,10 @@
 # mc-loot-finder
 
+> 这是基于 Pumpkin fork 的实验性 Rust 分支，只维护源码并通过 GitHub Actions 验证，不发布正式 Release。
+
 `mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市和堡垒遗迹，列出其中的容器，并搜索指定战利品。
 
-程序不读取存档，也不需要安装 Java。GitHub Releases 提供 Linux x86_64 和 Windows x86_64 裸二进制文件。
+程序不读取存档，也不需要安装 Java。Linux x86_64 和 Windows x86_64 测试二进制由 GitHub Actions 生成，仅用于验证和试用。
 
 Linux 版使用静态链接，下载后运行：
 
