@@ -10,8 +10,11 @@ import sys
 def run(cli: Path, cache: Path, *arguments: str) -> dict:
     environment = os.environ.copy()
     environment["MC_LOOT_FINDER_CACHE"] = str(cache)
+    command = [str(cli), *arguments]
+    if os.name == "nt":
+        command = ["cmd.exe", "/d", "/c", *command]
     result = subprocess.run(
-        [str(cli), *arguments],
+        command,
         check=True,
         text=True,
         capture_output=True,
@@ -57,7 +60,13 @@ def main() -> None:
     if actual_sizes != expected_sizes:
         raise AssertionError(f"unexpected cached source sizes: {actual_sizes}")
 
-    print("verified official 26.1.2 download, extraction, cache, and hashes")
+    runtime = cache / "26.1.2" / "runtime"
+    if (runtime / "server.jar").stat().st_size != 24_555_215:
+        raise AssertionError("generated runtime has an unexpected server jar")
+    if not any((runtime / "libraries").rglob("*.jar")):
+        raise AssertionError("generated runtime contains no official server libraries")
+
+    print("verified official 26.1.2 download, generated runtime, cache, and hashes")
 
 
 if __name__ == "__main__":

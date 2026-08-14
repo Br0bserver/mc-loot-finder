@@ -16,6 +16,8 @@ jobs:
   oracle-parity:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      MC_LOOT_FINDER_CACHE: ${{ runner.temp }}/mc-loot-finder-runtime
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -34,7 +36,7 @@ jobs:
         run: >-
           python3 .github/scripts/verify_runtime_bootstrap.py
           build/app-image/mc-loot-finder/bin/mc-loot-finder
-          ${{ runner.temp }}/mc-loot-finder-runtime
+          ${{ env.MC_LOOT_FINDER_CACHE }}
       - name: Verify self-contained CLI
         env:
           JAVA_HOME: ""
@@ -45,6 +47,8 @@ jobs:
   windows-smoke:
     runs-on: windows-latest
     timeout-minutes: 20
+    env:
+      MC_LOOT_FINDER_CACHE: ${{ runner.temp }}/mc-loot-finder-runtime
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -59,6 +63,11 @@ jobs:
           py -3 .github/scripts/build_app_image.py
           build/install/mc-loot-finder
           build/app-image/mc-loot-finder
+      - name: Verify official runtime source bootstrap
+        run: >-
+          py -3 .github/scripts/verify_runtime_bootstrap.py
+          build/app-image/mc-loot-finder/mc-loot-finder.exe
+          ${{ env.MC_LOOT_FINDER_CACHE }}
       - name: Verify self-contained CLI
         env:
           JAVA_HOME: ""

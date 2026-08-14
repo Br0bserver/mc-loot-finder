@@ -59,9 +59,19 @@ def main() -> None:
 
     work = output.parent / (output.name + "-work")
     runtime = work / "runtime"
+    application_input = work / "input"
     shutil.rmtree(output, ignore_errors=True)
     shutil.rmtree(work, ignore_errors=True)
-    work.mkdir(parents=True)
+    application_input.mkdir(parents=True)
+
+    selected = [application_jar]
+    for pattern in ("runtime-api*.jar", "gson-*.jar", "objenesis-*.jar"):
+        matches = sorted(libraries.glob(pattern))
+        if len(matches) != 1:
+            raise SystemExit(f"expected one {pattern}, found: {matches}")
+        selected.append(matches[0])
+    for source in selected:
+        shutil.copy2(source, application_input / source.name)
 
     subprocess.run(
         [
@@ -92,7 +102,7 @@ def main() -> None:
         "--description",
         "Minecraft Java structure container and loot finder",
         "--input",
-        str(libraries),
+        str(application_input),
         "--main-jar",
         application_jar.name,
         "--main-class",
@@ -101,6 +111,8 @@ def main() -> None:
         str(runtime),
         "--java-options",
         "--sun-misc-unsafe-memory-access=allow",
+        "--java-options",
+        "-Dmclootfinder.engine=subset",
         "--app-content",
         str(Path("LICENSE").resolve()),
         "--app-content",
@@ -115,7 +127,11 @@ def main() -> None:
     generated = work / "image" / "mc-loot-finder"
     generated.replace(output)
     shutil.rmtree(work, ignore_errors=True)
-    print(f"built app image with modules: {modules}")
+    print(
+        "built app image with "
+        + ", ".join(path.name for path in selected)
+        + f" and modules: {modules}"
+    )
 
 
 if __name__ == "__main__":

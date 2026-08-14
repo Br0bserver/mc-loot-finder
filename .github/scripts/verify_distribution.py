@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import zipfile
 
 
 EXPECTED_STRUCTURES = {
@@ -52,6 +53,27 @@ def require_fields(actual: dict, expected: dict, label: str) -> None:
         raise AssertionError(f"unexpected {label}: {actual}")
 
 
+def verify_no_bundled_mojang_runtime(distribution_root: Path) -> None:
+    for archive in distribution_root.rglob("*.jar"):
+        if archive.name.startswith("minecraft-"):
+            raise AssertionError(f"distribution contains a Minecraft jar: {archive}")
+        with zipfile.ZipFile(archive) as jar:
+            bundled = next(
+                (
+                    name
+                    for name in jar.namelist()
+                    if name.endswith(".class")
+                    and (name.startswith("net/minecraft/")
+                         or name.startswith("com/mojang/"))
+                ),
+                None,
+            )
+        if bundled is not None:
+            raise AssertionError(
+                f"distribution contains a Mojang class in {archive}: {bundled}"
+            )
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("usage: verify_distribution.py PATH_TO_CLI")
@@ -59,6 +81,7 @@ def main() -> None:
     if not cli.is_file():
         raise SystemExit(f"CLI does not exist: {cli}")
     distribution_root = cli.parent.parent
+    verify_no_bundled_mojang_runtime(distribution_root)
     for required_file in ("LICENSE", "README.md"):
         locations = (
             distribution_root / required_file,
