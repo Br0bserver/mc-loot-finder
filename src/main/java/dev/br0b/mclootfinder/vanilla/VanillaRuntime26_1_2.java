@@ -1,7 +1,9 @@
 package dev.br0b.mclootfinder.vanilla;
 
 import dev.br0b.mclootfinder.core.StructureSpec;
+import dev.br0b.mclootfinder.core.VersionProfile;
 import dev.br0b.mclootfinder.core.Versions;
+import dev.br0b.mclootfinder.core.structure.StructureCandidate;
 import net.minecraft.SharedConstants;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.Holder;
@@ -40,6 +42,7 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.placement.ConcentricRingsStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import net.minecraft.world.level.storage.LevelStorageSource;
 
@@ -280,11 +283,76 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
 
     /** Applies vanilla frequency reduction and cross-structure exclusion rules. */
     public boolean isStructurePlacementChunk(StructureSpec spec, ChunkPos chunk) {
+        StructureSet set = structureSet(spec);
+        return set.placement().isStructureChunk(
+                dimension(spec).structureState(), chunk.x(), chunk.z()
+        );
+    }
+
+    public List<StructureCandidate> locateConcentricRingCandidates(
+            StructureSpec spec,
+            int centerBlockX,
+            int centerBlockZ,
+            int radiusBlocks
+    ) {
+        if (radiusBlocks < 0) {
+            throw new IllegalArgumentException("radius must be non-negative");
+        }
+        long minBlockX = (long) centerBlockX - radiusBlocks;
+        long maxBlockX = (long) centerBlockX + radiusBlocks;
+        long minBlockZ = (long) centerBlockZ - radiusBlocks;
+        long maxBlockZ = (long) centerBlockZ + radiusBlocks;
+        if (minBlockX < Integer.MIN_VALUE || maxBlockX > Integer.MAX_VALUE
+                || minBlockZ < Integer.MIN_VALUE || maxBlockZ > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "search area exceeds the supported block coordinate range"
+            );
+        }
+        if (!(spec.placement() instanceof VersionProfile.ConcentricRingsProfile expected)) {
+            throw new IllegalArgumentException(
+                    spec.name() + " does not use concentric-rings placement"
+            );
+        }
+        StructureSet set = structureSet(spec);
+        if (!(set.placement() instanceof ConcentricRingsStructurePlacement placement)) {
+            throw new IllegalStateException(
+                    "Vanilla placement for " + spec.name() + " is not concentric rings"
+            );
+        }
+        if (placement.distance() != expected.distance()
+                || placement.spread() != expected.spread()
+                || placement.count() != expected.count()) {
+            throw new IllegalStateException(
+                    "26.1.2 concentric-rings profile drift for " + spec.name()
+            );
+        }
+
+        DimensionContext dimension = dimension(spec);
+        dimension.structureState().ensureStructuresGenerated();
+        long radiusSquared = (long) radiusBlocks * radiusBlocks;
+        List<StructureCandidate> candidates = new ArrayList<>();
+        for (ChunkPos chunk : dimension.structureState().getRingPositionsFor(placement)) {
+            int blockX = chunk.getMiddleBlockX();
+            int blockZ = chunk.getMiddleBlockZ();
+            long dx = (long) blockX - centerBlockX;
+            long dz = (long) blockZ - centerBlockZ;
+            if (Math.abs(dx) <= radiusBlocks && Math.abs(dz) <= radiusBlocks
+                    && dx * dx <= radiusSquared - dz * dz) {
+                candidates.add(new StructureCandidate(
+                        chunk.x(), chunk.z(), blockX, blockZ, dx * dx + dz * dz
+                ));
+            }
+        }
+        candidates.sort(Comparator.comparingLong(StructureCandidate::squaredDistanceFromCenter));
+        return List.copyOf(candidates);
+    }
+
+    private StructureSet structureSet(StructureSpec spec) {
         Registry<StructureSet> sets = registries.lookupOrThrow(Registries.STRUCTURE_SET);
         java.util.Set<String> expected = spec.structureSetEntries().stream()
                 .map(StructureSpec.SelectionEntry::structureId)
                 .collect(java.util.stream.Collectors.toSet());
-        StructureSet set = sets.stream()
+        return sets.stream()
                 .filter(candidate -> candidate.structures().stream()
                         .map(entry -> entry.structure().unwrapKey().orElseThrow()
                                 .identifier().toString())
@@ -294,9 +362,6 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
                 .orElseThrow(() -> new IllegalStateException(
                         "Vanilla structure set not found for " + spec.name()
                 ));
-        return set.placement().isStructureChunk(
-                dimension(spec).structureState(), chunk.x(), chunk.z()
-        );
     }
 
     public record DecorationCoordinates(int step, int indexWithinStep) {

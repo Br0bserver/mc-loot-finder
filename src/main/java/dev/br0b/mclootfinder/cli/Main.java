@@ -64,7 +64,7 @@ public final class Main {
         int radius = arguments.intValue("radius", 5_000);
         int limit = arguments.intValue("limit", 100);
         requireNonNegativeLimit(limit);
-        List<StructureCandidate> candidates = RandomSpreadLocator.locate(
+        List<StructureCandidate> candidates = locateCandidates(
                 worldSeed, centerX, centerZ, radius, spec
         );
 
@@ -153,10 +153,6 @@ public final class Main {
         int radius = arguments.intValue("radius", 2_000);
         int limit = arguments.intValue("limit", 100);
         requireNonNegativeLimit(limit);
-        List<StructureCandidate> candidates = RandomSpreadLocator.locate(
-                worldSeed, centerX, centerZ, radius, spec
-        );
-
         boolean json = arguments.flag("json");
         if (!json) {
             printSearchHeader(out, version, spec, worldSeed, centerX, centerZ, radius);
@@ -164,9 +160,11 @@ public final class Main {
             out.println();
         }
         int validStructures = 0;
+        List<StructureCandidate> candidates;
         List<ChestPrediction> predictions = new ArrayList<>();
         try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
             engine.verifyProfile(spec);
+            candidates = engine.locateCandidates(spec, centerX, centerZ, radius);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
                 if (!scan.validStructure()) {
@@ -222,10 +220,6 @@ public final class Main {
         int radius = arguments.intValue("radius", 5_000);
         int limit = arguments.intValue("limit", 20);
         requireNonNegativeLimit(limit);
-        List<StructureCandidate> candidates = RandomSpreadLocator.locate(
-                worldSeed, centerX, centerZ, radius, spec
-        );
-
         boolean json = arguments.flag("json");
         if (!json) {
             printSearchHeader(out, version, spec, worldSeed, centerX, centerZ, radius);
@@ -236,10 +230,12 @@ public final class Main {
         int validStructures = 0;
         int checkedChests = 0;
         int unpredictableZeroSeeds = 0;
+        List<StructureCandidate> candidates;
         List<ChestPrediction> allChests = new ArrayList<>();
         List<ChestPrediction> matches = new ArrayList<>();
         try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
             engine.verifyProfile(spec);
+            candidates = engine.locateCandidates(spec, centerX, centerZ, radius);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
                 if (!scan.validStructure()) {
@@ -393,16 +389,15 @@ public final class Main {
         if (arguments.flag("json")) {
             out.printf("{\"version\":\"%s\",\"name\":\"%s\","
                             + "\"structure_id\":\"%s\",\"dimension\":\"%s\","
-                            + "\"default_item\":\"%s\",\"placement\":{"
-                            + "\"spacing\":%d,\"separation\":%d,\"salt\":%d,"
-                            + "\"spread\":\"%s\"},\"decoration_step\":%d,"
-                            + "\"decoration_index\":%d,\"scanner\":\"%s\","
-                            + "\"container_seed_shortcut\":\"%s\",\"loot_tables\":[",
+                            + "\"default_item\":\"%s\",\"placement\":",
                     version.minecraftVersion(), spec.name(), spec.structureId(),
-                    spec.dimensionId(), spec.defaultTargetItem(), spec.placement().spacing(),
-                    spec.placement().separation(), spec.placement().salt(),
-                    spec.placement().spreadType(), spec.decorationStep(),
-                    spec.indexWithinStep(), spec.scannerKind(), spec.containerSeedShortcut());
+                    spec.dimensionId(), spec.defaultTargetItem());
+            printPlacementJson(out, spec);
+            out.printf(",\"decoration_step\":%d,\"decoration_index\":%d,"
+                            + "\"scanner\":\"%s\",\"container_seed_shortcut\":\"%s\","
+                            + "\"loot_tables\":[",
+                    spec.decorationStep(), spec.indexWithinStep(), spec.scannerKind(),
+                    spec.containerSeedShortcut());
             for (int index = 0; index < spec.lootTables().size(); index++) {
                 if (index != 0) {
                     out.print(',');
@@ -419,10 +414,7 @@ public final class Main {
         out.printf("Default item: %s%n", spec.defaultTargetItem());
         out.println();
         out.println("Placement:");
-        out.printf("  Spacing: %d%n", spec.placement().spacing());
-        out.printf("  Separation: %d%n", spec.placement().separation());
-        out.printf("  Salt: %d%n", spec.placement().salt());
-        out.printf("  Spread: %s%n", spec.placement().spreadType());
+        printPlacementText(out, spec);
         out.println();
         out.println("Container calculation:");
         out.printf("  Decoration step: %d%n", spec.decorationStep());
@@ -437,6 +429,55 @@ public final class Main {
 
     private static StructureSpec structure(Arguments arguments, VersionProfile version) {
         return version.structure(arguments.text("structure", "ancient_city"));
+    }
+
+    private static List<StructureCandidate> locateCandidates(
+            long worldSeed,
+            int centerX,
+            int centerZ,
+            int radius,
+            StructureSpec spec
+    ) {
+        if (spec.placement() instanceof VersionProfile.StructureProfile) {
+            return RandomSpreadLocator.locate(worldSeed, centerX, centerZ, radius, spec);
+        }
+        try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
+            engine.verifyProfile(spec);
+            return engine.locateCandidates(spec, centerX, centerZ, radius);
+        }
+    }
+
+    private static void printPlacementJson(PrintStream out, StructureSpec spec) {
+        if (spec.placement() instanceof VersionProfile.StructureProfile placement) {
+            out.printf("{\"type\":\"random_spread\",\"spacing\":%d,"
+                            + "\"separation\":%d,\"salt\":%d,\"spread\":\"%s\"}",
+                    placement.spacing(), placement.separation(), placement.salt(),
+                    placement.spreadType());
+            return;
+        }
+        VersionProfile.ConcentricRingsProfile placement =
+                (VersionProfile.ConcentricRingsProfile) spec.placement();
+        out.printf("{\"type\":\"concentric_rings\",\"distance\":%d,"
+                        + "\"spread\":%d,\"count\":%d,\"salt\":%d}",
+                placement.distance(), placement.spread(), placement.count(), placement.salt());
+    }
+
+    private static void printPlacementText(PrintStream out, StructureSpec spec) {
+        if (spec.placement() instanceof VersionProfile.StructureProfile placement) {
+            out.println("  Type: RANDOM_SPREAD");
+            out.printf("  Spacing: %d%n", placement.spacing());
+            out.printf("  Separation: %d%n", placement.separation());
+            out.printf("  Salt: %d%n", placement.salt());
+            out.printf("  Spread: %s%n", placement.spreadType());
+            return;
+        }
+        VersionProfile.ConcentricRingsProfile placement =
+                (VersionProfile.ConcentricRingsProfile) spec.placement();
+        out.println("  Type: CONCENTRIC_RINGS");
+        out.printf("  Distance: %d chunks%n", placement.distance());
+        out.printf("  Spread: %d%n", placement.spread());
+        out.printf("  Count: %d%n", placement.count());
+        out.printf("  Salt: %d%n", placement.salt());
     }
 
     private static void printSearchHeader(

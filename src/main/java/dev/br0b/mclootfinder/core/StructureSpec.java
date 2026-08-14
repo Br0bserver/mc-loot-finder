@@ -7,7 +7,7 @@ public record StructureSpec(
         String name,
         String structureId,
         String dimensionId,
-        VersionProfile.StructureProfile placement,
+        VersionProfile.PlacementProfile placement,
         int decorationStep,
         int indexWithinStep,
         ScannerKind scannerKind,
@@ -17,11 +17,21 @@ public record StructureSpec(
         String defaultTargetItem
 ) {
     public StructureSpec {
+        if (placement == null) {
+            throw new IllegalArgumentException("structure placement must be specified");
+        }
         structureSetEntries = List.copyOf(structureSetEntries);
         lootTables = List.copyOf(lootTables);
         if (structureSetEntries.stream().noneMatch(entry -> entry.structureId().equals(structureId))) {
             throw new IllegalArgumentException("structure-set entries must contain " + structureId);
         }
+    }
+
+    public VersionProfile.StructureProfile randomSpreadPlacement() {
+        if (placement instanceof VersionProfile.StructureProfile profile) {
+            return profile;
+        }
+        throw new IllegalArgumentException(name + " does not use random-spread placement");
     }
 
     public record SelectionEntry(String structureId, int weight, boolean accepted) {
