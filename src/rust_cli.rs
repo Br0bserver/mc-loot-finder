@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
-use rayon::prelude::*;
-
 use crate::rust_core::ancient_city;
 use crate::rust_core::candidate_structure;
-use crate::rust_core::candidates::{Candidate, locate};
+use crate::rust_core::candidates::locate;
 use crate::rust_core::decoration_random::container_loot_seed;
 use crate::rust_core::loot;
 use crate::rust_core::{CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType};
@@ -56,7 +54,12 @@ fn find(options: &Options) -> Result<u8, String> {
     }
 
     let candidates = locate(world_seed, center_x, center_z, radius, structure.placement)?;
-    let scans = scan_ancient_city_candidates(world_seed, &candidates)?;
+    let scanner = ancient_city::Scanner::new(world_seed);
+    let scans = scanner.scan_many(
+        candidates
+            .iter()
+            .map(|candidate| (candidate.chunk_x, candidate.chunk_z)),
+    )?;
     let mut valid_structures = 0;
     let mut checked_chests = 0;
     let mut unpredictable_zero_seeds = 0;
@@ -177,7 +180,12 @@ fn chests(options: &Options) -> Result<u8, String> {
         return Err("--limit must be non-negative".to_owned());
     }
     let candidates = locate(world_seed, center_x, center_z, radius, structure.placement)?;
-    let scans = scan_ancient_city_candidates(world_seed, &candidates)?;
+    let scanner = ancient_city::Scanner::new(world_seed);
+    let scans = scanner.scan_many(
+        candidates
+            .iter()
+            .map(|candidate| (candidate.chunk_x, candidate.chunk_z)),
+    )?;
     let mut valid_structures = 0;
     let mut containers = Vec::new();
     for scan in scans {
@@ -246,34 +254,6 @@ fn chests(options: &Options) -> Result<u8, String> {
         quantity(containers.len() as i64, "container")
     );
     Ok(0)
-}
-
-fn scan_ancient_city_candidates(
-    world_seed: i64,
-    candidates: &[Candidate],
-) -> Result<Vec<ancient_city::Scan>, String> {
-    if candidates.is_empty() {
-        return Ok(Vec::new());
-    }
-    let workers = rayon::current_num_threads().min(candidates.len());
-    let batch_size = candidates.len().div_ceil(workers);
-    let batches = candidates
-        .par_chunks(batch_size)
-        .map(|batch| {
-            let scanner = ancient_city::Scanner::new(world_seed);
-            scanner.scan_many(
-                batch
-                    .iter()
-                    .map(|candidate| (candidate.chunk_x, candidate.chunk_z)),
-            )
-        })
-        .collect::<Vec<_>>();
-
-    let mut scans = Vec::with_capacity(candidates.len());
-    for batch in batches {
-        scans.extend(batch?);
-    }
-    Ok(scans)
 }
 
 fn loot_command(options: &Options) -> Result<u8, String> {

@@ -694,7 +694,6 @@ dependencies = [
  "pumpkin-data",
  "pumpkin-util",
  "pumpkin-world",
- "rayon",
  "serde_json",
 ]
 
