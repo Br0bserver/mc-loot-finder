@@ -1,6 +1,6 @@
 # mc-loot-finder
 
-`mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市，列出其中的容器，并搜索指定战利品。
+`mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市和堡垒遗迹，列出其中的容器，并搜索指定战利品。
 
 程序不读取存档，也不需要安装 Java。GitHub Releases 提供 Linux x86_64 和 Windows x86_64 裸二进制文件。
 
@@ -29,6 +29,18 @@ mc-loot-finder find \
   --radius 5000
 ```
 
+搜索堡垒遗迹中的下界合金升级锻造模板：
+
+```bash
+mc-loot-finder find \
+  --seed 0 \
+  --structure bastion_remnant \
+  --item minecraft:netherite_upgrade_smithing_template \
+  --center-x 1000 \
+  --center-z 520 \
+  --radius 0
+```
+
 列出远古城市内的容器及其 LootTableSeed：
 
 ```bash
@@ -42,7 +54,7 @@ mc-loot-finder chests \
 
 ## 当前范围
 
-- 精确支持 Minecraft Java 26.1.2 的远古城市定位、结构布局、方块容器和战利品。
+- 精确支持 Minecraft Java 26.1.2 的远古城市和堡垒遗迹定位、结构布局、方块容器和战利品。
 - `candidates` 可以快速计算其他已登记结构的候选区块，但不验证结构是否实际生成。
 - 不读取已有世界，不处理数据包，也不处理箱子矿车等实体容器。
 - 固定世界种子、箱子位置、LootTableSeed 和战利品结果均通过原版结果回归测试。
