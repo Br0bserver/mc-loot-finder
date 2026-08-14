@@ -1,6 +1,7 @@
 package dev.br0b.mclootfinder.runtime;
 
 import java.net.URI;
+import java.util.List;
 
 /** Pinned official inputs used to construct a local search runtime. */
 public record RuntimeVersion(
@@ -12,12 +13,19 @@ public record RuntimeVersion(
         String bundledServerPath,
         long bundledServerSize,
         String bundledServerSha256,
-        int recipeVersion
+        int recipeVersion,
+        List<String> runtimeLibraryPaths
 ) {
     public RuntimeVersion {
         if (minecraftVersion.isBlank() || javaMajorVersion <= 0 || serverSize <= 0
                 || bundledServerSize <= 0 || recipeVersion <= 0) {
             throw new IllegalArgumentException("Invalid runtime version metadata");
+        }
+        runtimeLibraryPaths = List.copyOf(runtimeLibraryPaths);
+        if (runtimeLibraryPaths.isEmpty()
+                || runtimeLibraryPaths.stream().anyMatch(String::isBlank)
+                || runtimeLibraryPaths.stream().distinct().count() != runtimeLibraryPaths.size()) {
+            throw new IllegalArgumentException("Invalid runtime library list");
         }
     }
 
@@ -33,7 +41,27 @@ public record RuntimeVersion(
             "META-INF/versions/26.1.2/server-26.1.2.jar",
             24_555_215L,
             "4723380bd2a0a0206719b50f2e390383afdaf82b0a76a0d573baf788e6aa3e86",
-            1
+            2,
+            List.of(
+                    "com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar",
+                    "com/google/guava/guava/33.5.0-jre/guava-33.5.0-jre.jar",
+                    "com/mojang/authlib/7.0.63/authlib-7.0.63.jar",
+                    "com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar",
+                    "com/mojang/datafixerupper/9.0.19/datafixerupper-9.0.19.jar",
+                    "com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar",
+                    "com/mojang/logging/1.6.11/logging-1.6.11.jar",
+                    "io/netty/netty-buffer/4.2.7.Final/netty-buffer-4.2.7.Final.jar",
+                    "io/netty/netty-codec-base/4.2.7.Final/netty-codec-base-4.2.7.Final.jar",
+                    "io/netty/netty-common/4.2.7.Final/netty-common-4.2.7.Final.jar",
+                    "it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar",
+                    "org/apache/commons/commons-lang3/3.19.0/commons-lang3-3.19.0.jar",
+                    "org/apache/logging/log4j/log4j-api/2.25.2/log4j-api-2.25.2.jar",
+                    "org/apache/logging/log4j/log4j-core/2.25.2/log4j-core-2.25.2.jar",
+                    "org/apache/logging/log4j/log4j-slf4j2-impl/2.25.2/"
+                            + "log4j-slf4j2-impl-2.25.2.jar",
+                    "org/joml/joml/1.10.8/joml-1.10.8.jar",
+                    "org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar"
+            )
     );
 
     public static RuntimeVersion require(String minecraftVersion) {

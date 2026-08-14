@@ -29,6 +29,15 @@ def run(cli: Path, cache: Path, *arguments: str) -> dict:
         ) from error
 
 
+def read_properties(path: Path) -> dict[str, str]:
+    result = {}
+    for line in path.read_text(encoding="iso-8859-1").splitlines():
+        if line and not line.startswith(("#", "!")) and "=" in line:
+            key, value = line.split("=", 1)
+            result[key] = value
+    return result
+
+
 def main() -> None:
     if len(sys.argv) != 3:
         raise SystemExit("usage: verify_runtime_bootstrap.py PATH_TO_CLI CACHE_DIRECTORY")
@@ -65,8 +74,35 @@ def main() -> None:
         raise AssertionError("generated runtime has an unexpected server jar")
     if not any((runtime / "libraries").rglob("*.jar")):
         raise AssertionError("generated runtime contains no official server libraries")
+    properties = read_properties(runtime / "runtime.properties")
+    library_count = int(properties["library.count"])
+    if library_count != 17:
+        raise AssertionError(f"unexpected generated library count: {library_count}")
+    library_paths = {
+        properties[f"library.{index}.path"] for index in range(library_count)
+    }
+    forbidden_fragments = (
+        "com/azure/",
+        "com/microsoft/",
+        "com/google/code/gson/",
+        "com/github/oshi/",
+        "net/java/dev/jna/",
+        "net/sf/jopt-simple/",
+        "native-epoll",
+        "native-kqueue",
+    )
+    unexpected = sorted(
+        path for path in library_paths if any(part in path for part in forbidden_fragments)
+    )
+    if unexpected:
+        raise AssertionError(f"generated runtime contains excluded libraries: {unexpected}")
+    runtime_size = sum(path.stat().st_size for path in runtime.rglob("*") if path.is_file())
+    if runtime_size >= 58_000_000:
+        raise AssertionError(f"generated runtime is unexpectedly large: {runtime_size}")
 
-    print("verified official 26.1.2 download, generated runtime, cache, and hashes")
+    print(
+        "verified official 26.1.2 download, 17-library runtime, cache, and hashes"
+    )
 
 
 if __name__ == "__main__":

@@ -26,15 +26,22 @@ class RuntimeManagerTest {
     void installsAndVerifiesASuppliedBundledServerJar() throws Exception {
         byte[] inner = "named minecraft server classes".getBytes(StandardCharsets.UTF_8);
         byte[] library = "official runtime library".getBytes(StandardCharsets.UTF_8);
+        byte[] unusedLibrary = "unused official library".getBytes(StandardCharsets.UTF_8);
         String libraryPath = "com/example/runtime/test-runtime.jar";
+        String unusedLibraryPath = "com/example/unused/test-unused.jar";
         Path outer = temporaryDirectory.resolve("server.jar");
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(outer))) {
             zip.putNextEntry(new ZipEntry("META-INF/libraries.list"));
             zip.write((digest(library, "SHA-256") + "\tcom.example:runtime:test\t"
-                    + libraryPath + "\n").getBytes(StandardCharsets.UTF_8));
+                    + libraryPath + "\n"
+                    + digest(unusedLibrary, "SHA-256") + "\tcom.example:unused:test\t"
+                    + unusedLibraryPath + "\n").getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
             zip.putNextEntry(new ZipEntry("META-INF/libraries/" + libraryPath));
             zip.write(library);
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("META-INF/libraries/" + unusedLibraryPath));
+            zip.write(unusedLibrary);
             zip.closeEntry();
             zip.putNextEntry(new ZipEntry("META-INF/versions/test/server-test.jar"));
             zip.write(inner);
@@ -49,7 +56,8 @@ class RuntimeManagerTest {
                 "META-INF/versions/test/server-test.jar",
                 inner.length,
                 digest(inner, "SHA-256"),
-                1
+                1,
+                java.util.List.of(libraryPath)
         );
         RuntimeManager manager = new RuntimeManager(
                 version, temporaryDirectory.resolve("cache")
@@ -67,11 +75,16 @@ class RuntimeManagerTest {
         assertTrue(manager.verifySource());
         assertTrue(manager.verifyRuntime());
         assertTrue(manager.runtimeClasspath().stream().allMatch(Files::isRegularFile));
+        assertTrue(manager.runtimeClasspath().size() == 2);
         assertTrue(manager.runtimeClasspath().get(1).endsWith(libraryPath));
         assertTrue(Files.mismatch(
                 manager.runtimeClasspath().get(1),
                 writeExpectedLibrary(library)
         ) == -1);
+        assertFalse(Files.exists(
+                manager.runtimeClasspath().getFirst().getParent()
+                        .resolve("libraries").resolve(unusedLibraryPath)
+        ));
     }
 
     @Test

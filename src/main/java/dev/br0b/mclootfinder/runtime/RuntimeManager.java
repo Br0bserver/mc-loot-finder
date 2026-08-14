@@ -23,8 +23,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -262,6 +264,9 @@ public final class RuntimeManager {
             state.setProperty("serverSize", Long.toString(version.bundledServerSize()));
 
             List<RuntimeLibrary> libraries = new ArrayList<>();
+            Set<String> remainingLibraries = new LinkedHashSet<>(
+                    version.runtimeLibraryPaths()
+            );
             try (ZipFile zip = new ZipFile(outerJar.toFile())) {
                 ZipEntry listEntry = zip.getEntry("META-INF/libraries.list");
                 if (listEntry == null) {
@@ -278,6 +283,9 @@ public final class RuntimeManager {
                         String[] fields = line.split("\\t", 3);
                         if (fields.length != 3) {
                             throw new IOException("Invalid official library entry: " + line);
+                        }
+                        if (!remainingLibraries.remove(fields[2])) {
+                            continue;
                         }
                         Path relative = safeRelativePath(fields[2]);
                         String entryName = "META-INF/libraries/" + fields[2];
@@ -299,6 +307,12 @@ public final class RuntimeManager {
                         ));
                     }
                 }
+            }
+            if (!remainingLibraries.isEmpty()) {
+                throw new IOException(
+                        "Official server jar is missing required runtime libraries: "
+                                + String.join(", ", remainingLibraries)
+                );
             }
 
             state.setProperty("library.count", Integer.toString(libraries.size()));
