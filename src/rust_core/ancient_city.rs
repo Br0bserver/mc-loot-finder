@@ -4,6 +4,7 @@ use pumpkin_data::{
     Rotation,
     dimension::Dimension,
     structures::{Structure, StructureKeys},
+    tag::{RegistryKey, get_tag_ids},
 };
 use pumpkin_util::{
     math::{block_box::BlockBox, vector3::Vector3},
@@ -11,12 +12,13 @@ use pumpkin_util::{
 };
 use pumpkin_world::generation::structure::structures::jigsaw::PoolElementStructurePiece;
 use pumpkin_world::{
-    biome::MultiNoiseBiomeSupplier,
+    biome::{BiomeSupplier, MultiNoiseBiomeSupplier},
     generation::{
+        biome_coords,
         generator::{GeneratorInit, VanillaGenerator},
         noise::router::multi_noise_sampler::{MultiNoiseSampler, MultiNoiseSamplerBuilderOptions},
         structure::{
-            lazily_generate_structure,
+            generate_structure_position,
             structures::{StructureGeneratorContext, create_chunk_random},
         },
     },
@@ -51,22 +53,82 @@ pub struct Scan {
 pub struct Scanner {
     world_seed: i64,
     generator: VanillaGenerator,
+    valid_biomes: &'static [u16],
 }
 
 impl Scanner {
     #[must_use]
     pub fn new(world_seed: i64) -> Self {
+        let biome_tag = Structure::ANCIENT_CITY
+            .biomes
+            .strip_prefix('#')
+            .unwrap_or(Structure::ANCIENT_CITY.biomes);
         Self {
             world_seed,
             generator: VanillaGenerator::new(Seed(world_seed as u64), Dimension::OVERWORLD),
+            valid_biomes: get_tag_ids(RegistryKey::WorldgenBiome, biome_tag)
+                .expect("ancient city biome tag must exist"),
         }
     }
 
-    pub fn scan(&self, chunk_x: i32, chunk_z: i32) -> Result<Scan, String> {
+    pub fn scan_many(
+        &self,
+        chunks: impl IntoIterator<Item = (i32, i32)>,
+    ) -> Result<Vec<Scan>, String> {
         let mut sampler = MultiNoiseSampler::generate(
             &self.generator.base_router.multi_noise,
             &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
         );
+        chunks
+            .into_iter()
+            .map(|(chunk_x, chunk_z)| self.scan_with_sampler(chunk_x, chunk_z, &mut sampler))
+            .collect()
+    }
+
+    fn scan_with_sampler(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, String> {
+        let probe_structure = Structure {
+            size: Some(0),
+            ..Structure::ANCIENT_CITY
+        };
+        let probe_context = StructureGeneratorContext {
+            seed: self.world_seed,
+            chunk_x,
+            chunk_z,
+            random: create_chunk_random(self.world_seed, chunk_x, chunk_z),
+            sea_level: SEA_LEVEL,
+            min_y: WORLD_MIN_Y,
+            height_sampler: None,
+            structure_key: Some(StructureKeys::AncientCity),
+        };
+        let Some(probe) = generate_structure_position(
+            &StructureKeys::AncientCity,
+            &probe_structure,
+            probe_context,
+        ) else {
+            return Ok(Scan {
+                valid_structure: false,
+                chests: Vec::new(),
+            });
+        };
+        let start = probe.start_pos.0;
+        let biome = MultiNoiseBiomeSupplier::OVERWORLD.biome(
+            biome_coords::from_block(start.x),
+            biome_coords::from_block(start.y),
+            biome_coords::from_block(start.z),
+            sampler,
+        );
+        if !self.valid_biomes.contains(&(biome.id as u16)) {
+            return Ok(Scan {
+                valid_structure: false,
+                chests: Vec::new(),
+            });
+        }
+
         let context = StructureGeneratorContext {
             seed: self.world_seed,
             chunk_x,
@@ -77,18 +139,12 @@ impl Scanner {
             height_sampler: None,
             structure_key: Some(StructureKeys::AncientCity),
         };
-        let Some(position) = lazily_generate_structure(
+        let position = generate_structure_position(
             &StructureKeys::AncientCity,
             &Structure::ANCIENT_CITY,
             context,
-            &MultiNoiseBiomeSupplier::OVERWORLD,
-            &mut sampler,
-        ) else {
-            return Ok(Scan {
-                valid_structure: false,
-                chests: Vec::new(),
-            });
-        };
+        )
+        .ok_or_else(|| "validated ancient city failed full placement".to_owned())?;
 
         let collector = position
             .collector
@@ -209,7 +265,10 @@ mod tests {
     #[test]
     fn scans_known_26_1_2_cities() {
         let scanner = Scanner::new(114514);
-        let first = scanner.scan(96, 5).expect("scan first city");
+        let scans = scanner
+            .scan_many([(96, 5), (244, 171)])
+            .expect("scan known cities");
+        let first = &scans[0];
         assert!(first.valid_structure);
         assert!(first.chests.iter().any(|chest| {
             chest.x == 1450
@@ -220,7 +279,7 @@ mod tests {
                 && chest.ordinal == 0
         }));
 
-        let second = scanner.scan(244, 171).expect("scan second city");
+        let second = &scans[1];
         assert!(second.valid_structure);
         assert!(second.chests.iter().any(|chest| {
             chest.x == 3965

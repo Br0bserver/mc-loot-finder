@@ -81,3 +81,46 @@ jobs:
         with:
           name: mc-loot-finder-linux-x86_64
           path: target/x86_64-unknown-linux-musl/release/mc-loot-finder
+
+  windows-x86_64:
+    runs-on: windows-latest
+    env:
+      RUSTFLAGS: "-C target-feature=+crt-static"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Build release binary
+        run: cargo build --release --locked
+      - name: Run ancient city smoke test
+        shell: pwsh
+        run: |
+          $json = & target\release\mc-loot-finder.exe find `
+            --seed 114514 `
+            --structure ancient_city `
+            --item minecraft:silence_armor_trim_smithing_template `
+            --radius 5000 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "find exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 530 -or
+              $result.valid_structures -ne 17 -or
+              $result.checked_chests -ne 358 -or
+              $result.hits -ne 1) {
+            throw "unexpected ancient city result: $json"
+          }
+      - name: Prepare Windows binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item target\release\mc-loot-finder.exe dist\mc-loot-finder-windows-x86_64.exe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mc-loot-finder-windows-x86_64
+          path: dist/mc-loot-finder-windows-x86_64.exe
