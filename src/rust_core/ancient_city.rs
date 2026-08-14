@@ -67,6 +67,29 @@ impl Scanner {
             &self.generator.base_router.multi_noise,
             &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
         );
+        self.scan_with_sampler(chunk_x, chunk_z, &mut sampler)
+    }
+
+    pub fn scan_many(
+        &self,
+        chunks: impl IntoIterator<Item = (i32, i32)>,
+    ) -> Result<Vec<Scan>, String> {
+        let mut sampler = MultiNoiseSampler::generate(
+            &self.generator.base_router.multi_noise,
+            &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
+        );
+        chunks
+            .into_iter()
+            .map(|(chunk_x, chunk_z)| self.scan_with_sampler(chunk_x, chunk_z, &mut sampler))
+            .collect()
+    }
+
+    fn scan_with_sampler(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, String> {
         let context = StructureGeneratorContext {
             seed: self.world_seed,
             chunk_x,
@@ -82,7 +105,7 @@ impl Scanner {
             &Structure::ANCIENT_CITY,
             context,
             &MultiNoiseBiomeSupplier::OVERWORLD,
-            &mut sampler,
+            sampler,
         ) else {
             return Ok(Scan {
                 valid_structure: false,
@@ -209,7 +232,10 @@ mod tests {
     #[test]
     fn scans_known_26_1_2_cities() {
         let scanner = Scanner::new(114514);
-        let first = scanner.scan(96, 5).expect("scan first city");
+        let scans = scanner
+            .scan_many([(96, 5), (244, 171)])
+            .expect("scan known cities");
+        let first = &scans[0];
         assert!(first.valid_structure);
         assert!(first.chests.iter().any(|chest| {
             chest.x == 1450
@@ -220,7 +246,7 @@ mod tests {
                 && chest.ordinal == 0
         }));
 
-        let second = scanner.scan(244, 171).expect("scan second city");
+        let second = &scans[1];
         assert!(second.valid_structure);
         assert!(second.chests.iter().any(|chest| {
             chest.x == 3965

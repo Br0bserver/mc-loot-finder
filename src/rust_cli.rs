@@ -55,12 +55,16 @@ fn find(options: &Options) -> Result<u8, String> {
 
     let candidates = locate(world_seed, center_x, center_z, radius, structure.placement)?;
     let scanner = ancient_city::Scanner::new(world_seed);
+    let scans = scanner.scan_many(
+        candidates
+            .iter()
+            .map(|candidate| (candidate.chunk_x, candidate.chunk_z)),
+    )?;
     let mut valid_structures = 0;
     let mut checked_chests = 0;
     let mut unpredictable_zero_seeds = 0;
     let mut matches = Vec::new();
-    for candidate in &candidates {
-        let scan = scanner.scan(candidate.chunk_x, candidate.chunk_z)?;
+    for scan in scans {
         if !scan.valid_structure {
             continue;
         }
@@ -177,10 +181,14 @@ fn chests(options: &Options) -> Result<u8, String> {
     }
     let candidates = locate(world_seed, center_x, center_z, radius, structure.placement)?;
     let scanner = ancient_city::Scanner::new(world_seed);
+    let scans = scanner.scan_many(
+        candidates
+            .iter()
+            .map(|candidate| (candidate.chunk_x, candidate.chunk_z)),
+    )?;
     let mut valid_structures = 0;
     let mut containers = Vec::new();
-    for candidate in &candidates {
-        let scan = scanner.scan(candidate.chunk_x, candidate.chunk_z)?;
+    for scan in scans {
         if scan.valid_structure {
             valid_structures += 1;
             containers.extend(scan.chests);
