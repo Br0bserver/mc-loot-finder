@@ -44,18 +44,32 @@ tasks.named("test", Test) {
     jvmArgs "--sun-misc-unsafe-memory-access=allow"
 }
 
+tasks.named("jar", Jar) {
+    manifest {
+        attributes(
+                "Main-Class": application.mainClass.get(),
+                "Class-Path": configurations.runtimeClasspath.files
+                        .collect { it.name }
+                        .join(" ")
+        )
+    }
+}
+
 tasks.named("startScripts") {
     doLast {
         String original = windowsScript.getText("UTF-8")
+        String applicationJar = tasks.named("jar", Jar).get().archiveFileName.get()
         String shortened = original
-                .replace('endlocal & "%JAVA_EXE%"', '"%JAVA_EXE%"')
-                .replace('  -classpath "%CLASSPATH%"', '')
+                .replaceFirst(/(?m)^set CLASSPATH=.*\r?\n/, "")
+                .replace(
+                        '  -classpath "%CLASSPATH%" dev.br0b.mclootfinder.cli.Main',
+                        " -jar \"%APP_HOME%\\lib\\${applicationJar}\""
+                )
         if (shortened == original) {
             throw new GradleException("Windows launcher command was not updated")
         }
-        if (shortened.contains('endlocal & "%JAVA_EXE%"')
-                || shortened.contains('-classpath "%CLASSPATH%"')) {
-            throw new GradleException("Windows launcher still expands CLASSPATH on the command line")
+        if (shortened.contains("set CLASSPATH=") || shortened.contains("-classpath")) {
+            throw new GradleException("Windows launcher still contains an expanded classpath")
         }
         windowsScript.setText(shortened, "UTF-8")
     }
