@@ -45,13 +45,21 @@ def main() -> None:
     cli = Path(sys.argv[1]).resolve()
     cache = Path(sys.argv[2]).resolve()
 
-    installed = run(cli, cache, "runtime", "install", "--json")
-    if not installed["source_ready"] or not installed["generated_runtime_ready"]:
-        raise AssertionError(f"unexpected install status: {installed}")
+    initial = run(cli, cache, "runtime", "status", "--json")
+    if initial["source_ready"] or initial["generated_runtime_ready"]:
+        raise AssertionError(f"fresh cache is unexpectedly ready: {initial}")
+
+    probe = run(cli, cache, "runtime", "probe", "--engine", "subset", "--json")
+    if len(probe.get("vectors", [])) != 16:
+        raise AssertionError(f"automatic first-run probe is incomplete: {probe}")
 
     status = run(cli, cache, "runtime", "status", "--json")
-    if status != installed:
-        raise AssertionError(f"runtime status changed after installation: {status}")
+    if not status["source_ready"] or not status["generated_runtime_ready"]:
+        raise AssertionError(f"automatic first-run installation failed: {status}")
+
+    installed = run(cli, cache, "runtime", "install", "--json")
+    if installed != status:
+        raise AssertionError(f"explicit install is not idempotent: {installed}")
 
     verified = run(cli, cache, "runtime", "verify", "--json")
     if verified != {

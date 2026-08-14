@@ -69,8 +69,8 @@ public final class Main {
         return switch (args[0]) {
             case "candidates" -> candidates(new Arguments(args, 1), out);
             case "container-seed" -> containerSeed(new Arguments(args, 1), out);
-            case "chests" -> chests(new Arguments(args, 1), out);
-            case "find" -> findLoot(new Arguments(args, 1), out);
+            case "chests" -> chests(new Arguments(args, 1), out, err);
+            case "find" -> findLoot(new Arguments(args, 1), out, err);
             case "loot" -> rollLoot(new Arguments(args, 1), out);
             case "explain" -> explain(new Arguments(args, 1), out);
             case "runtime" -> runtime(args, out, err);
@@ -117,14 +117,18 @@ public final class Main {
                 }
                 yield sourceValid && runtimeValid ? 0 : 1;
             }
-            case "probe" -> runtimeProbe(arguments, out);
+            case "probe" -> runtimeProbe(arguments, out, err);
             default -> throw new IllegalArgumentException(
                     "Unknown runtime command: " + args[1]
             );
         };
     }
 
-    private static int runtimeProbe(Arguments arguments, PrintStream out) {
+    private static int runtimeProbe(
+            Arguments arguments,
+            PrintStream out,
+            PrintStream err
+    ) {
         VersionProfile version = Versions.require(arguments.text("version", "26.1.2"));
         String selectedEngine = arguments.text(
                 "engine", System.getProperty("mclootfinder.engine", "oracle")
@@ -138,7 +142,7 @@ public final class Main {
                 )
         ).entrySet()) {
             try (SearchEngine engine = openSearchEngine(
-                    arguments, version, seedGroup.getKey()
+                    arguments, version, seedGroup.getKey(), err
             )) {
                 for (RuntimeProbeCase probe : seedGroup.getValue()) {
                     StructureSpec spec = version.structure(probe.structure());
@@ -312,7 +316,11 @@ public final class Main {
         return 0;
     }
 
-    private static int chests(Arguments arguments, PrintStream out) {
+    private static int chests(
+            Arguments arguments,
+            PrintStream out,
+            PrintStream err
+    ) {
         VersionProfile version = Versions.require(arguments.text("version", "26.1.2"));
         StructureSpec spec = structure(arguments, version);
         long worldSeed = arguments.longValue("seed");
@@ -333,7 +341,9 @@ public final class Main {
         }
         int validStructures = 0;
         List<ChestPrediction> predictions = new ArrayList<>();
-        try (SearchEngine engine = openSearchEngine(arguments, version, worldSeed)) {
+        try (SearchEngine engine = openSearchEngine(
+                arguments, version, worldSeed, err
+        )) {
             engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
@@ -379,7 +389,11 @@ public final class Main {
         return 0;
     }
 
-    private static int findLoot(Arguments arguments, PrintStream out) {
+    private static int findLoot(
+            Arguments arguments,
+            PrintStream out,
+            PrintStream err
+    ) {
         VersionProfile version = Versions.require(arguments.text("version", "26.1.2"));
         StructureSpec spec = structure(arguments, version);
         long worldSeed = arguments.longValue("seed");
@@ -406,7 +420,9 @@ public final class Main {
         int unpredictableZeroSeeds = 0;
         List<ChestPrediction> allChests = new ArrayList<>();
         List<ChestPrediction> matches = new ArrayList<>();
-        try (SearchEngine engine = openSearchEngine(arguments, version, worldSeed)) {
+        try (SearchEngine engine = openSearchEngine(
+                arguments, version, worldSeed, err
+        )) {
             engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
@@ -610,7 +626,8 @@ public final class Main {
     private static SearchEngine openSearchEngine(
             Arguments arguments,
             VersionProfile version,
-            long worldSeed
+            long worldSeed,
+            PrintStream progress
     ) {
         String selected = arguments.text(
                 "engine",
@@ -618,7 +635,10 @@ public final class Main {
         );
         return switch (selected) {
             case "oracle" -> SearchEngines.open(version.minecraftVersion(), worldSeed);
-            case "subset" -> RuntimeSearchEngines.open(version.minecraftVersion(), worldSeed);
+            case "subset" -> RuntimeSearchEngines.open(
+                    version.minecraftVersion(), worldSeed, progress,
+                    arguments.flag("offline")
+            );
             default -> throw new IllegalArgumentException(
                     "Unsupported search engine: " + selected + "; use oracle or subset"
             );
@@ -706,7 +726,7 @@ public final class Main {
         out.println("  --radius N  --limit N  --engine oracle|subset");
         out.println();
         out.println("Common options:");
-        out.println("  --version 26.1.2  --json");
+        out.println("  --version 26.1.2  --json  --offline");
         out.println();
         out.println("Use 'explain' to list supported structures and defaults.");
     }

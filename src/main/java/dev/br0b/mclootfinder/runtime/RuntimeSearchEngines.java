@@ -7,6 +7,7 @@ import dev.br0b.mclootfinder.engine.StructureScan;
 import dev.br0b.mclootfinder.vanilla.LootOracle;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -32,11 +33,23 @@ public final class RuntimeSearchEngines {
     }
 
     public static SearchEngine open(String minecraftVersion, long worldSeed) {
+        return open(minecraftVersion, worldSeed, System.err, false);
+    }
+
+    public static SearchEngine open(
+            String minecraftVersion,
+            long worldSeed,
+            PrintStream progress,
+            boolean offline
+    ) {
         RuntimeManager manager = RuntimeManager.createDefault(minecraftVersion);
         if (!manager.status().generatedRuntimeReady()) {
+            manager.installSource(null, offline, progress);
+        }
+        if (!manager.status().generatedRuntimeReady()) {
             throw new IllegalStateException(
-                    "The local Minecraft Java " + minecraftVersion
-                            + " runtime is not installed; run 'mc-loot-finder runtime install'"
+                    "Could not prepare the local Minecraft Java " + minecraftVersion
+                            + " runtime"
             );
         }
 

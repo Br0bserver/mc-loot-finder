@@ -6,6 +6,12 @@
 
 它不读取存档，也不加载目标世界区块。输出包括容器坐标、LootTable、LootTableSeed，以及指定物品是否会出现在战利品中。
 
+## Vanilla subset 实验分支
+
+`experimental/vanilla-subset` 用于验证精简的 Java Worldgen 运行时。打包后的程序自带 JVM，不要求用户安装 Java，也不携带 Minecraft 类。第一次执行 `chests`、`find` 或 `runtime probe` 时，程序会下载经过版本和哈希锁定的官方 `26.1.2` 服务端包，并在本机缓存中生成约 26 MB 的运行时。
+
+使用 `runtime status` 和 `runtime verify` 可以检查缓存。需要禁止联网时加 `--offline`；此时必须已经安装运行时，或者先用 `runtime install --minecraft-jar PATH --offline` 提供官方服务端包。
+
 ## 构建
 
 需要 Java 25。
