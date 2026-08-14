@@ -51,6 +51,31 @@ jobs:
             --radius 5000 \
             --limit 1000 \
             --json | tee ancient-city-chests.json
+      - name: Run bastion remnant smoke test
+        run: |
+          result=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
+            --seed 0 \
+            --structure bastion_remnant \
+            --item minecraft:netherite_upgrade_smithing_template \
+            --center-x 1000 \
+            --center-z 520 \
+            --radius 0 \
+            --json)
+          python3 - "$result" <<'PY'
+          import json
+          import sys
+
+          result = json.loads(sys.argv[1])
+          expected = {
+              "placement_candidates": 1,
+              "valid_structures": 1,
+              "checked_chests": 6,
+              "hits": 1,
+          }
+          actual = {key: result[key] for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected bastion result: {result}")
+          PY
       - name: Check find exit codes
         run: |
           target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
@@ -114,6 +139,27 @@ jobs:
               $result.checked_chests -ne 358 -or
               $result.hits -ne 1) {
             throw "unexpected ancient city result: $json"
+          }
+      - name: Run bastion remnant smoke test
+        shell: pwsh
+        run: |
+          $json = & target\release\mc-loot-finder.exe find `
+            --seed 0 `
+            --structure bastion_remnant `
+            --item minecraft:netherite_upgrade_smithing_template `
+            --center-x 1000 `
+            --center-z 520 `
+            --radius 0 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "find exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 1 -or
+              $result.valid_structures -ne 1 -or
+              $result.checked_chests -ne 6 -or
+              $result.hits -ne 1) {
+            throw "unexpected bastion result: $json"
           }
       - name: Prepare Windows binary
         shell: pwsh
