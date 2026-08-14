@@ -27,20 +27,92 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes musl-tools
       - name: Build static binary
         run: cargo build --release --locked --target x86_64-unknown-linux-musl
-      - name: Package
+      - name: Prepare release files
         run: |
           mkdir dist
           cp target/x86_64-unknown-linux-musl/release/mc-loot-finder \
             dist/mc-loot-finder-linux-x86_64
           cd dist
-          sha256sum mc-loot-finder-linux-x86_64 > mc-loot-finder-linux-x86_64.sha256
+          sha256sum mc-loot-finder-linux-x86_64 \
+            > mc-loot-finder-linux-x86_64.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-linux-x86_64
+          path: |
+            dist/mc-loot-finder-linux-x86_64
+            dist/mc-loot-finder-linux-x86_64.sha256
+
+  windows-x86_64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        run: cargo test --release --locked
+      - name: Build
+        run: cargo build --release --locked
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $json = & target\release\mc-loot-finder.exe find `
+            --seed 114514 `
+            --structure ancient_city `
+            --item minecraft:silence_armor_trim_smithing_template `
+            --radius 5000 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "find exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 530 -or
+              $result.valid_structures -ne 17 -or
+              $result.checked_chests -ne 358 -or
+              $result.hits -ne 1) {
+            throw "unexpected ancient city result: $json"
+          }
+      - name: Prepare release files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          $binary = "dist\mc-loot-finder-windows-x86_64.exe"
+          Copy-Item target\release\mc-loot-finder.exe $binary
+          $hash = (Get-FileHash $binary -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  mc-loot-finder-windows-x86_64.exe" |
+            Set-Content "dist\mc-loot-finder-windows-x86_64.exe.sha256" -Encoding ascii
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-windows-x86_64
+          path: |
+            dist/mc-loot-finder-windows-x86_64.exe
+            dist/mc-loot-finder-windows-x86_64.exe.sha256
+
+  publish:
+    needs:
+      - linux-x86_64
+      - windows-x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-linux-x86_64
+          path: dist/linux
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-windows-x86_64
+          path: dist/windows
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            dist/mc-loot-finder-linux-x86_64 \
-            dist/mc-loot-finder-linux-x86_64.sha256 \
+            dist/linux/mc-loot-finder-linux-x86_64 \
+            dist/linux/mc-loot-finder-linux-x86_64.sha256 \
+            dist/windows/mc-loot-finder-windows-x86_64.exe \
+            dist/windows/mc-loot-finder-windows-x86_64.exe.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --generate-notes \
             --title "$GITHUB_REF_NAME"
