@@ -49,6 +49,16 @@ jobs:
         run: >-
           python3 .github/scripts/verify_distribution.py
           build/app-image/mc-loot-finder/bin/mc-loot-finder
+      - name: Package Linux test artifact
+        run: >-
+          tar -C build/app-image -czf
+          build/mc-loot-finder-linux-x86_64.tar.gz
+          mc-loot-finder
+      - uses: actions/upload-artifact@v6
+        with:
+          name: vanilla-subset-linux-x86_64
+          path: build/mc-loot-finder-linux-x86_64.tar.gz
+          if-no-files-found: error
 
   windows-smoke:
     runs-on: windows-latest
@@ -86,3 +96,14 @@ jobs:
         run: >-
           py -3 .github/scripts/verify_distribution.py
           build/app-image/mc-loot-finder/mc-loot-finder.exe
+      - name: Package Windows test artifact
+        shell: pwsh
+        run: >-
+          Compress-Archive
+          -Path build/app-image/mc-loot-finder
+          -DestinationPath build/mc-loot-finder-windows-x86_64.zip
+      - uses: actions/upload-artifact@v6
+        with:
+          name: vanilla-subset-windows-x86_64
+          path: build/mc-loot-finder-windows-x86_64.zip
+          if-no-files-found: error
