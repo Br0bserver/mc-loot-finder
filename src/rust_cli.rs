@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::rust_core::ancient_city;
 use crate::rust_core::candidate_structure;
 use crate::rust_core::candidates::locate;
 use crate::rust_core::decoration_random::container_loot_seed;
+use crate::rust_core::jigsaw::{self, Kind as JigsawKind};
 use crate::rust_core::loot;
 use crate::rust_core::{CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType};
 
@@ -36,13 +36,8 @@ pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
 fn find(options: &Options) -> Result<u8, String> {
     require_version(options)?;
     let structure = candidate_structure(options.text("structure", "ancient_city"))?;
-    if structure.name != "ancient_city" {
-        return Err(format!(
-            "Rust find currently supports only ancient_city; '{}' is not available yet",
-            structure.name
-        ));
-    }
     let world_seed = options.required_i64("seed")?;
+    let scanner = full_scanner(world_seed, structure.name)?;
     let item = options.text("item", structure.default_item);
     require_identifier(item, "--item")?;
     let center_x = options.i32("center-x", 0)?;
@@ -54,7 +49,6 @@ fn find(options: &Options) -> Result<u8, String> {
     }
 
     let candidates = locate(world_seed, center_x, center_z, radius, structure.placement)?;
-    let scanner = ancient_city::Scanner::new(world_seed);
     let scans = scanner.scan_many(
         candidates
             .iter()
@@ -92,7 +86,8 @@ fn find(options: &Options) -> Result<u8, String> {
 
     if options.flag("json") {
         print!(
-            "{{\"version\":\"26.1.2\",\"structure\":\"ancient_city\",\"seed\":{},\"item\":\"{}\",\"placement_candidates\":{},\"valid_structures\":{},\"checked_chests\":{},\"hits\":{},\"unpredictable_zero_seeds\":{},\"matches\":[",
+            "{{\"version\":\"26.1.2\",\"structure\":\"{}\",\"seed\":{},\"item\":\"{}\",\"placement_candidates\":{},\"valid_structures\":{},\"checked_chests\":{},\"hits\":{},\"unpredictable_zero_seeds\":{},\"matches\":[",
+            structure.name,
             world_seed,
             item,
             candidates.len(),
@@ -123,7 +118,7 @@ fn find(options: &Options) -> Result<u8, String> {
 
     println!("Minecraft Java 26.1.2");
     println!("World seed: {world_seed}");
-    println!("Structure: ancient_city");
+    println!("Structure: {}", structure.name);
     println!("Item: {item}");
     println!(
         "Search area: {} blocks around ({center_x}, {center_z})\n",
@@ -165,13 +160,8 @@ fn find(options: &Options) -> Result<u8, String> {
 fn chests(options: &Options) -> Result<u8, String> {
     require_version(options)?;
     let structure = candidate_structure(options.text("structure", "ancient_city"))?;
-    if structure.name != "ancient_city" {
-        return Err(format!(
-            "Rust chests currently supports only ancient_city; '{}' still uses the Java CLI",
-            structure.name
-        ));
-    }
     let world_seed = options.required_i64("seed")?;
+    let scanner = full_scanner(world_seed, structure.name)?;
     let center_x = options.i32("center-x", 0)?;
     let center_z = options.i32("center-z", 0)?;
     let radius = options.i32("radius", 2_000)?;
@@ -180,7 +170,6 @@ fn chests(options: &Options) -> Result<u8, String> {
         return Err("--limit must be non-negative".to_owned());
     }
     let candidates = locate(world_seed, center_x, center_z, radius, structure.placement)?;
-    let scanner = ancient_city::Scanner::new(world_seed);
     let scans = scanner.scan_many(
         candidates
             .iter()
@@ -198,7 +187,8 @@ fn chests(options: &Options) -> Result<u8, String> {
 
     if options.flag("json") {
         print!(
-            "{{\"version\":\"26.1.2\",\"structure\":\"ancient_city\",\"seed\":{},\"placement_candidates\":{},\"valid_structures\":{},\"chest_count\":{},\"chests\":[",
+            "{{\"version\":\"26.1.2\",\"structure\":\"{}\",\"seed\":{},\"placement_candidates\":{},\"valid_structures\":{},\"chest_count\":{},\"chests\":[",
+            structure.name,
             world_seed,
             candidates.len(),
             valid_structures,
@@ -227,7 +217,8 @@ fn chests(options: &Options) -> Result<u8, String> {
     println!("Minecraft Java 26.1.2");
     println!("World seed: {world_seed}");
     println!(
-        "Structure: ancient_city\nSearch area: {} blocks around ({center_x}, {center_z})\n",
+        "Structure: {}\nSearch area: {} blocks around ({center_x}, {center_z})\n",
+        structure.name,
         grouped(i64::from(radius))
     );
     println!("Found {}\n", quantity(containers.len() as i64, "container"));
@@ -412,7 +403,7 @@ fn explain(options: &Options) -> Result<u8, String> {
                     "{{\"name\":\"{}\",\"dimension\":\"{}\",\"full_scan\":{},\"default_item\":\"{}\",\"loot_tables\":{}}}",
                     structure.name,
                     structure.dimension,
-                    structure.name == "ancient_city",
+                    supports_full_scan(structure.name),
                     structure.default_item,
                     structure.loot_tables.len()
                 );
@@ -427,14 +418,14 @@ fn explain(options: &Options) -> Result<u8, String> {
         println!("  find: ancient_city, center (0, 0), radius 5,000, limit 20");
         println!("  loot: minecraft:chests/ancient_city\n");
         println!("Structure capabilities:");
-        println!("  Only ancient_city currently supports chests and find.");
+        println!("  ancient_city and bastion_remnant support chests and find.");
         println!("  Other entries support candidate calculation only.");
         for (index, structure) in CANDIDATE_STRUCTURES.iter().enumerate() {
             println!("\n[{}] {}", index + 1, structure.name);
             println!("  Dimension: {}", structure.dimension);
             println!(
                 "  Commands: {}",
-                if structure.name == "ancient_city" {
+                if supports_full_scan(structure.name) {
                     "candidates, chests, find, loot"
                 } else {
                     "candidates"
@@ -466,7 +457,7 @@ fn explain(options: &Options) -> Result<u8, String> {
             structure.name,
             structure.structure_id,
             structure.dimension,
-            structure.name == "ancient_city",
+            supports_full_scan(structure.name),
             structure.default_item,
             structure.placement.spacing,
             structure.placement.separation,
@@ -502,7 +493,7 @@ fn explain(options: &Options) -> Result<u8, String> {
     println!("Dimension: {}", structure.dimension);
     println!(
         "Commands: {}",
-        if structure.name == "ancient_city" {
+        if supports_full_scan(structure.name) {
             "candidates, chests, find, loot"
         } else {
             "candidates only"
@@ -524,6 +515,23 @@ fn explain(options: &Options) -> Result<u8, String> {
         println!("  {table}");
     }
     Ok(0)
+}
+
+fn supports_full_scan(structure_name: &str) -> bool {
+    matches!(structure_name, "ancient_city" | "bastion_remnant")
+}
+
+fn full_scanner(world_seed: i64, structure_name: &str) -> Result<jigsaw::Scanner, String> {
+    let kind = match structure_name {
+        "ancient_city" => JigsawKind::AncientCity,
+        "bastion_remnant" => JigsawKind::BastionRemnant,
+        _ => {
+            return Err(format!(
+                "Rust chests and find do not support {structure_name} yet"
+            ));
+        }
+    };
+    Ok(jigsaw::Scanner::new(world_seed, kind))
 }
 
 fn candidates(options: &Options) -> Result<u8, String> {
