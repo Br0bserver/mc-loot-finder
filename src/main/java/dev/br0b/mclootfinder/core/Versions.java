@@ -52,7 +52,10 @@ public final class Versions {
                     StructureSpec.ScannerKind.VANILLA_PLACEMENT,
                     StructureSpec.ContainerSeedShortcut.DESERT_PYRAMID,
                     java.util.List.of(new StructureSpec.SelectionEntry("minecraft:desert_pyramid", 1)),
-                    java.util.List.of("minecraft:chests/desert_pyramid"),
+                    java.util.List.of(
+                            "minecraft:chests/desert_pyramid",
+                            "minecraft:archaeology/desert_pyramid"
+                    ),
                     "minecraft:dune_armor_trim_smithing_template"
                 ),
                 new StructureSpec(
@@ -118,6 +121,35 @@ public final class Versions {
                             "minecraft:chests/stronghold_library"
                     ),
                     "minecraft:eye_armor_trim_smithing_template"
+                ),
+                new StructureSpec(
+                    "trail_ruins",
+                    "minecraft:trail_ruins",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(34, 8, 83_469_867),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:trail_ruins", 1)),
+                    java.util.List.of(
+                            "minecraft:archaeology/trail_ruins_common",
+                            "minecraft:archaeology/trail_ruins_rare"
+                    ),
+                    "minecraft:wayfinder_armor_trim_smithing_template"
+                ),
+                new StructureSpec(
+                    "desert_well",
+                    "minecraft:desert_well",
+                    "minecraft:overworld",
+                    new VersionProfile.FeatureProfile(1_000),
+                    4,
+                    2,
+                    StructureSpec.ScannerKind.PLACED_FEATURE,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:desert_well", 1)),
+                    java.util.List.of("minecraft:archaeology/desert_well"),
+                    "minecraft:arms_up_pottery_sherd"
                 ),
                 new StructureSpec(
                     "ruined_portal",
@@ -204,7 +236,9 @@ public final class Versions {
                     ),
                     java.util.List.of(
                             "minecraft:chests/underwater_ruin_big",
-                            "minecraft:chests/underwater_ruin_small"
+                            "minecraft:chests/underwater_ruin_small",
+                            "minecraft:archaeology/ocean_ruin_cold",
+                            "minecraft:archaeology/ocean_ruin_warm"
                     ),
                     "minecraft:golden_apple"
                 ),

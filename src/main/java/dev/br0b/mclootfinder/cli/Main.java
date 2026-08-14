@@ -48,6 +48,7 @@ public final class Main {
             case "candidates" -> candidates(new Arguments(args, 1), out);
             case "container-seed" -> containerSeed(new Arguments(args, 1), out);
             case "chests" -> chests(new Arguments(args, 1), out);
+            case "archaeology" -> archaeology(new Arguments(args, 1), out);
             case "find" -> findLoot(new Arguments(args, 1), out);
             case "loot" -> rollLoot(new Arguments(args, 1), out);
             case "explain" -> explain(new Arguments(args, 1), out);
@@ -229,6 +230,7 @@ public final class Main {
         }
         int validStructures = 0;
         int checkedChests = 0;
+        int checkedArchaeology = 0;
         int unpredictableZeroSeeds = 0;
         List<StructureCandidate> candidates;
         List<ChestPrediction> allChests = new ArrayList<>();
@@ -245,12 +247,16 @@ public final class Main {
                 allChests.addAll(scan.containers());
             }
             requireUnambiguousContainerStreams(spec.name(), allChests);
-            allChests = visibleContainers(allChests);
+            allChests = visibleLootSources(allChests);
             for (ChestPrediction chest : allChests) {
                 if (!spec.lootTables().contains(chest.lootTable())) {
                     continue;
                 }
-                checkedChests++;
+                if (chest.sourceKind() == ChestPrediction.LootSourceKind.ARCHAEOLOGY) {
+                    checkedArchaeology++;
+                } else {
+                    checkedChests++;
+                }
                 if (chest.lootTableSeed() == 0L) {
                     unpredictableZeroSeeds++;
                     continue;
@@ -266,10 +272,12 @@ public final class Main {
         if (json) {
             out.printf("{\"version\":\"%s\",\"structure\":\"%s\",\"seed\":%d,"
                             + "\"item\":\"%s\",\"placement_candidates\":%d,"
-                            + "\"valid_structures\":%d,\"checked_chests\":%d,\"hits\":%d,"
+                            + "\"valid_structures\":%d,\"checked_chests\":%d,"
+                            + "\"checked_archaeology\":%d,\"checked_sources\":%d,\"hits\":%d,"
                             + "\"unpredictable_zero_seeds\":%d,\"matches\":[",
                     version.minecraftVersion(), spec.name(), worldSeed, target, candidates.size(),
-                    validStructures, checkedChests, matches.size(), unpredictableZeroSeeds);
+                    validStructures, checkedChests, checkedArchaeology,
+                    checkedChests + checkedArchaeology, matches.size(), unpredictableZeroSeeds);
             for (int index = 0; index < Math.min(limit, matches.size()); index++) {
                 ChestPrediction chest = matches.get(index);
                 if (index != 0) {
@@ -277,26 +285,107 @@ public final class Main {
                 }
                 out.printf("{\"x\":%d,\"y\":%d,\"z\":%d,\"loot_table\":\"%s\","
                                 + "\"loot_seed\":%d,\"start_chunk_x\":%d,"
-                                + "\"start_chunk_z\":%d}",
+                                + "\"start_chunk_z\":%d",
                         chest.x(), chest.y(), chest.z(), chest.lootTable(), chest.lootTableSeed(),
                         chest.structureChunkX(), chest.structureChunkZ());
+                if (chest.sourceKind() == ChestPrediction.LootSourceKind.ARCHAEOLOGY) {
+                    out.printf(",\"source_kind\":\"archaeology\",\"block\":\"%s\"",
+                            chest.sourceBlock());
+                }
+                out.print('}');
             }
             out.println("]}");
         } else {
             out.printf("Found %s%n%n", quantity(matches.size(), "match"));
             int shown = Math.min(limit, matches.size());
             printContainers(out, matches, shown, false);
-            out.printf("Checked: %s, %s, %s%n",
+            out.printf("Checked: %s, %s, %s, %s%n",
                     quantity(candidates.size(), "candidate"),
                     quantity(validStructures, "valid structure"),
-                    quantity(checkedChests, "container"));
+                    quantity(checkedChests, "container"),
+                    quantity(checkedArchaeology, "suspicious block"));
             out.printf("Shown: %s of %s%n", number(shown), quantity(matches.size(), "match"));
             if (unpredictableZeroSeeds != 0) {
                 out.printf("Skipped: %s with LootTableSeed 0%n",
-                        quantity(unpredictableZeroSeeds, "container"));
+                        quantity(unpredictableZeroSeeds, "loot source"));
             }
         }
         return matches.isEmpty() ? 1 : 0;
+    }
+
+    private static int archaeology(Arguments arguments, PrintStream out) {
+        VersionProfile version = Versions.require(arguments.text("version", "26.1.2"));
+        StructureSpec spec = version.structure(
+                arguments.text("structure", "desert_pyramid")
+        );
+        if (spec.lootTables().stream().noneMatch(table -> table.startsWith(
+                "minecraft:archaeology/"
+        ))) {
+            throw new IllegalArgumentException(
+                    "Archaeology is not available for " + spec.name()
+            );
+        }
+        long worldSeed = arguments.longValue("seed");
+        int centerX = arguments.intValue("center-x", 0);
+        int centerZ = arguments.intValue("center-z", 0);
+        int radius = arguments.intValue("radius", 2_000);
+        int limit = arguments.intValue("limit", 100);
+        requireNonNegativeLimit(limit);
+        boolean json = arguments.flag("json");
+        if (!json) {
+            printSearchHeader(out, version, spec, worldSeed, centerX, centerZ, radius);
+            out.println("Searching...");
+            out.println();
+        }
+
+        int validStructures = 0;
+        List<StructureCandidate> candidates;
+        List<ChestPrediction> predictions = new ArrayList<>();
+        try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
+            engine.verifyProfile(spec);
+            candidates = engine.locateCandidates(spec, centerX, centerZ, radius);
+            for (StructureCandidate candidate : candidates) {
+                var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
+                if (!scan.validStructure()) {
+                    continue;
+                }
+                validStructures++;
+                predictions.addAll(scan.containers());
+            }
+        }
+        requireUnambiguousContainerStreams(spec.name(), predictions);
+        predictions = visibleArchaeology(predictions);
+
+        if (json) {
+            out.printf("{\"version\":\"%s\",\"structure\":\"%s\",\"seed\":%d,"
+                            + "\"placement_candidates\":%d,\"valid_structures\":%d,"
+                            + "\"archaeology_count\":%d,\"blocks\":[",
+                    version.minecraftVersion(), spec.name(), worldSeed, candidates.size(),
+                    validStructures, predictions.size());
+            for (int index = 0; index < Math.min(limit, predictions.size()); index++) {
+                ChestPrediction source = predictions.get(index);
+                if (index != 0) {
+                    out.print(',');
+                }
+                out.printf("{\"x\":%d,\"y\":%d,\"z\":%d,\"block\":\"%s\","
+                                + "\"loot_table\":\"%s\",\"loot_seed\":%d,"
+                                + "\"start_chunk_x\":%d,\"start_chunk_z\":%d}",
+                        source.x(), source.y(), source.z(), source.sourceBlock(),
+                        source.lootTable(), source.lootTableSeed(),
+                        source.structureChunkX(), source.structureChunkZ());
+            }
+            out.println("]}");
+        } else {
+            out.printf("Found %s%n%n", quantity(predictions.size(), "suspicious block"));
+            int shown = Math.min(limit, predictions.size());
+            printContainers(out, predictions, shown, false);
+            out.printf("Checked: %s, %s%n",
+                    quantity(candidates.size(), "candidate"),
+                    quantity(validStructures, "valid structure"));
+            out.printf("Shown: %s of %s%n",
+                    number(shown), quantity(predictions.size(), "suspicious block"));
+        }
+        return 0;
     }
 
     private static int rollLoot(Arguments arguments, PrintStream out) {
@@ -369,6 +458,7 @@ public final class Main {
             out.println("Command defaults:");
             out.println("  candidates: ancient_city, center (0, 0), radius 5,000, limit 100");
             out.println("  chests: ancient_city, center (0, 0), radius 2,000, limit 100");
+            out.println("  archaeology: desert_pyramid, center (0, 0), radius 2,000, limit 100");
             out.println("  find: ancient_city, center (0, 0), radius 5,000, limit 20");
             out.println("  loot: minecraft:chests/ancient_city");
             out.println();
@@ -455,6 +545,11 @@ public final class Main {
                     placement.spreadType());
             return;
         }
+        if (spec.placement() instanceof VersionProfile.FeatureProfile placement) {
+            out.printf("{\"type\":\"placed_feature\",\"rarity_chance\":%d}",
+                    placement.rarityChance());
+            return;
+        }
         VersionProfile.ConcentricRingsProfile placement =
                 (VersionProfile.ConcentricRingsProfile) spec.placement();
         out.printf("{\"type\":\"concentric_rings\",\"distance\":%d,"
@@ -469,6 +564,11 @@ public final class Main {
             out.printf("  Separation: %d%n", placement.separation());
             out.printf("  Salt: %d%n", placement.salt());
             out.printf("  Spread: %s%n", placement.spreadType());
+            return;
+        }
+        if (spec.placement() instanceof VersionProfile.FeatureProfile placement) {
+            out.println("  Type: PLACED_FEATURE");
+            out.printf("  Attempts: about once every %d chunks%n", placement.rarityChance());
             return;
         }
         VersionProfile.ConcentricRingsProfile placement =
@@ -510,6 +610,10 @@ public final class Main {
                     chest.structureChunkX(), chest.structureChunkZ());
             out.printf("  Loot table: %s%n", chest.lootTable());
             out.printf("  Loot seed: %d%n", chest.lootTableSeed());
+            if (chest.sourceKind() == ChestPrediction.LootSourceKind.ARCHAEOLOGY) {
+                out.printf("  Source: archaeology%n");
+                out.printf("  Block: %s%n", chest.sourceBlock());
+            }
             if (includeOrdinal) {
                 out.printf("  Ordinal: %d%n", chest.containerOrdinalInDecorationChunk());
             }
@@ -540,6 +644,9 @@ public final class Main {
         out.println();
         out.println("  chests --seed N [search options]");
         out.println("    Verify structures and list their block containers.");
+        out.println();
+        out.println("  archaeology --seed N [search options]");
+        out.println("    List suspicious sand and gravel generated by supported structures.");
         out.println();
         out.println("  find --seed N [--item ID] [search options]");
         out.println("    Find containers that generate the requested item.");
@@ -577,7 +684,22 @@ public final class Main {
 
     private static List<ChestPrediction> visibleContainers(List<ChestPrediction> chests) {
         return chests.stream()
+                .filter(chest -> chest.sourceKind() == ChestPrediction.LootSourceKind.CONTAINER)
                 .filter(chest -> !chest.lootTable().isEmpty())
+                .toList();
+    }
+
+    private static List<ChestPrediction> visibleArchaeology(List<ChestPrediction> sources) {
+        return sources.stream()
+                .filter(source -> source.sourceKind()
+                        == ChestPrediction.LootSourceKind.ARCHAEOLOGY)
+                .filter(source -> !source.lootTable().isEmpty())
+                .toList();
+    }
+
+    private static List<ChestPrediction> visibleLootSources(List<ChestPrediction> sources) {
+        return sources.stream()
+                .filter(source -> !source.lootTable().isEmpty())
                 .toList();
     }
 

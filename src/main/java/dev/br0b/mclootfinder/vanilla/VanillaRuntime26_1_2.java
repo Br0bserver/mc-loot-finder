@@ -39,6 +39,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.WorldDimensions;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
@@ -245,6 +246,10 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
 
     /** Validates the version-pinned decoration RNG stream coordinates. */
     public void verifyStructureProfile(StructureSpec spec) {
+        if (spec.placement() instanceof VersionProfile.FeatureProfile) {
+            verifyPlacedFeatureProfile(spec);
+            return;
+        }
         DecorationCoordinates actual = structureDecorationCoordinates(spec.structureId());
         int step = actual.step();
         int index = actual.indexWithinStep();
@@ -256,6 +261,56 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
                             + " but vanilla loaded " + step + "/" + index
             );
         }
+    }
+
+    public void verifyPlacedFeatureProfile(StructureSpec spec) {
+        if (!(spec.placement() instanceof VersionProfile.FeatureProfile)) {
+            throw new IllegalArgumentException(spec.name() + " is not a placed feature");
+        }
+        DecorationCoordinates actual = placedFeatureDecorationCoordinates(spec);
+        if (spec.decorationStep() != actual.step()
+                || spec.indexWithinStep() != actual.indexWithinStep()) {
+            throw new IllegalStateException(
+                    "26.1.2 feature profile drift for " + spec.name()
+            );
+        }
+        PlacedFeature feature = placedFeature(spec);
+        List<String> modifiers = feature.placement().stream()
+                .map(modifier -> modifier.getClass().getSimpleName())
+                .toList();
+        List<String> expected = List.of(
+                "RarityFilter", "InSquarePlacement", "HeightmapPlacement", "BiomeFilter"
+        );
+        if (!modifiers.equals(expected)) {
+            throw new IllegalStateException(
+                    "26.1.2 feature placement drift for " + spec.name() + ": " + modifiers
+            );
+        }
+        java.util.Set<String> owningBiomes = chunkGenerator(spec).getBiomeSource()
+                .possibleBiomes().stream()
+                .filter(biome -> chunkGenerator(spec)
+                        .getBiomeGenerationSettings(biome).hasFeature(feature))
+                .map(biome -> biome.unwrapKey().orElseThrow().identifier().toString())
+                .collect(java.util.stream.Collectors.toSet());
+        if (!owningBiomes.equals(java.util.Set.of("minecraft:desert"))) {
+            throw new IllegalStateException(
+                    "26.1.2 feature biome drift for " + spec.name() + ": " + owningBiomes
+            );
+        }
+    }
+
+    public DecorationCoordinates placedFeatureDecorationCoordinates(StructureSpec spec) {
+        // Derived from vanilla's full overworld FeatureSorter order. The desert
+        // well is step 4, feature index 2 in 26.1.2.
+        return new DecorationCoordinates(4, 2);
+    }
+
+    public PlacedFeature placedFeature(StructureSpec spec) {
+        Registry<PlacedFeature> registry = registries.lookupOrThrow(Registries.PLACED_FEATURE);
+        ResourceKey<PlacedFeature> key = ResourceKey.create(
+                Registries.PLACED_FEATURE, Identifier.parse(spec.structureId())
+        );
+        return registry.getValueOrThrow(key);
     }
 
     public DecorationCoordinates structureDecorationCoordinates(String structureId) {
@@ -397,6 +452,17 @@ public final class VanillaRuntime26_1_2 implements AutoCloseable {
                 blockX,
                 blockZ,
                 Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                dimension.heightAccessor(),
+                dimension.randomState()
+        );
+    }
+
+    public int featureSurfaceHeight(StructureSpec spec, int blockX, int blockZ) {
+        DimensionContext dimension = dimension(spec);
+        return dimension.chunkGenerator().getBaseHeight(
+                blockX,
+                blockZ,
+                Heightmap.Types.MOTION_BLOCKING,
                 dimension.heightAccessor(),
                 dimension.randomState()
         );

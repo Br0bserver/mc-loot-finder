@@ -37,6 +37,11 @@ public final class VanillaSearchEngine implements SearchEngine {
             int centerBlockZ,
             int radiusBlocks
     ) {
+        if (spec.placement() instanceof VersionProfile.FeatureProfile) {
+            return VanillaPlacedFeatureScanner.locateCandidates(
+                    worldSeed, spec, runtime, centerBlockX, centerBlockZ, radiusBlocks
+            );
+        }
         if (spec.placement() instanceof VersionProfile.StructureProfile) {
             return RandomSpreadLocator.locate(
                     worldSeed, centerBlockX, centerBlockZ, radiusBlocks, spec
@@ -49,6 +54,11 @@ public final class VanillaSearchEngine implements SearchEngine {
 
     @Override
     public StructureScan scan(StructureSpec spec, int chunkX, int chunkZ) {
+        if (spec.scannerKind() == StructureSpec.ScannerKind.PLACED_FEATURE) {
+            return VanillaPlacedFeatureScanner.scan(
+                    worldSeed, spec, runtime, chunkX, chunkZ
+            );
+        }
         ChunkPos chunk = new ChunkPos(chunkX, chunkZ);
         if (!runtime.isStructurePlacementChunk(spec, chunk)) {
             return StructureScan.absent();

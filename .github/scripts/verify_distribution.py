@@ -11,6 +11,7 @@ EXPECTED_STRUCTURES = {
     "ancient_city",
     "bastion_remnant",
     "desert_pyramid",
+    "desert_well",
     "jungle_pyramid",
     "igloo",
     "end_city",
@@ -20,6 +21,7 @@ EXPECTED_STRUCTURES = {
     "trial_chambers",
     "shipwreck",
     "ocean_ruin",
+    "trail_ruins",
     "nether_fortress",
     "village",
     "buried_treasure",
@@ -66,7 +68,7 @@ def main() -> None:
 
     catalog = run_json(cli, "explain", "--json")
     structures = {entry["name"] for entry in catalog["structures"]}
-    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 17:
+    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 19:
         raise AssertionError(f"unexpected structure catalog: {catalog}")
 
     ancient_city = run_json(
@@ -166,7 +168,138 @@ def main() -> None:
     }:
         raise AssertionError(f"unexpected stronghold loot tables: {stronghold}")
 
-    print("verified 17 structures, ancient city loot search, bastion, and stronghold containers")
+    archaeology = run_json(
+        cli,
+        "archaeology",
+        "--seed",
+        "0",
+        "--structure",
+        "desert_pyramid",
+        "--center-x",
+        "8",
+        "--center-z",
+        "-3000",
+        "--radius",
+        "0",
+        "--json",
+    )
+    require_fields(
+        archaeology,
+        {
+            "placement_candidates": 1,
+            "valid_structures": 1,
+            "archaeology_count": 6,
+        },
+        "desert pyramid archaeology scan",
+    )
+    if {block["block"] for block in archaeology["blocks"]} != {
+        "minecraft:suspicious_sand"
+    }:
+        raise AssertionError(f"unexpected archaeology blocks: {archaeology}")
+    if {block["loot_table"] for block in archaeology["blocks"]} != {
+        "minecraft:archaeology/desert_pyramid"
+    }:
+        raise AssertionError(f"unexpected archaeology loot tables: {archaeology}")
+
+    trail_ruins = run_json(
+        cli,
+        "archaeology",
+        "--seed",
+        "0",
+        "--structure",
+        "trail_ruins",
+        "--center-x",
+        "616",
+        "--center-z",
+        "-424",
+        "--radius",
+        "0",
+        "--json",
+    )
+    require_fields(
+        trail_ruins,
+        {
+            "placement_candidates": 1,
+            "valid_structures": 1,
+            "archaeology_count": 99,
+        },
+        "trail ruins archaeology scan",
+    )
+    if {block["block"] for block in trail_ruins["blocks"]} != {
+        "minecraft:suspicious_gravel"
+    }:
+        raise AssertionError(f"unexpected trail ruins blocks: {trail_ruins}")
+    if {block["loot_table"] for block in trail_ruins["blocks"]} != {
+        "minecraft:archaeology/trail_ruins_common",
+        "minecraft:archaeology/trail_ruins_rare",
+    }:
+        raise AssertionError(f"unexpected trail ruins loot tables: {trail_ruins}")
+
+    desert_well = run_json(
+        cli,
+        "archaeology",
+        "--seed",
+        "0",
+        "--structure",
+        "desert_well",
+        "--center-x",
+        "-620",
+        "--center-z",
+        "-2460",
+        "--radius",
+        "32",
+        "--json",
+    )
+    require_fields(
+        desert_well,
+        {
+            "placement_candidates": 1,
+            "valid_structures": 1,
+            "archaeology_count": 2,
+        },
+        "desert well archaeology scan",
+    )
+    if [block["loot_seed"] for block in desert_well["blocks"]] != [
+        -170699190288320,
+        -170424312381377,
+    ]:
+        raise AssertionError(f"unexpected desert well archaeology: {desert_well}")
+
+    desert_well_find = run_json(
+        cli,
+        "find",
+        "--seed",
+        "0",
+        "--structure",
+        "desert_well",
+        "--center-x",
+        "-620",
+        "--center-z",
+        "-2460",
+        "--radius",
+        "32",
+        "--item",
+        "minecraft:arms_up_pottery_sherd",
+        "--json",
+    )
+    require_fields(
+        desert_well_find,
+        {
+            "checked_chests": 0,
+            "checked_archaeology": 2,
+            "hits": 1,
+        },
+        "desert well loot search",
+    )
+    if [match["loot_seed"] for match in desert_well_find["matches"]] != [
+        -170424312381377
+    ]:
+        raise AssertionError(f"unexpected desert well loot match: {desert_well_find}")
+
+    print(
+        "verified 19 search targets, ancient city loot search, bastion and stronghold "
+        "containers, and desert pyramid, trail ruins, and desert well archaeology"
+    )
 
 
 if __name__ == "__main__":

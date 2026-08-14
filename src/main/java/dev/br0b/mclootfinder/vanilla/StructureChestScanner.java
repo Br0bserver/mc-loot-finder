@@ -18,6 +18,8 @@ public final class StructureChestScanner {
             VanillaRuntime26_1_2 runtime
     ) {
         return scanAll(worldSeed, spec, start, runtime).stream()
+                .filter(chest -> chest.sourceKind()
+                        == ChestPrediction.LootSourceKind.CONTAINER)
                 .filter(chest -> !chest.lootTable().isEmpty())
                 .toList();
     }
@@ -41,6 +43,9 @@ public final class StructureChestScanner {
             }
             case VANILLA_PLACEMENT -> VanillaPlacementChestScanner.scan(
                     worldSeed, spec, start, runtime
+            );
+            case PLACED_FEATURE -> throw new IllegalArgumentException(
+                    spec.name() + " is a placed feature, not a StructureStart"
             );
         };
     }

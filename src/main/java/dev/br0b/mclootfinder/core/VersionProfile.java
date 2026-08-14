@@ -19,7 +19,16 @@ public record VersionProfile(
     }
 
     public sealed interface PlacementProfile
-            permits StructureProfile, ConcentricRingsProfile {
+            permits StructureProfile, ConcentricRingsProfile, FeatureProfile {
+    }
+
+    /** A placed feature attempted independently in every decoration chunk. */
+    public record FeatureProfile(int rarityChance) implements PlacementProfile {
+        public FeatureProfile {
+            if (rarityChance <= 0) {
+                throw new IllegalArgumentException("feature rarity chance must be positive");
+            }
+        }
     }
 
     public record StructureProfile(
@@ -112,6 +121,14 @@ public record VersionProfile(
 
     public StructureSpec stronghold() {
         return structure("stronghold");
+    }
+
+    public StructureSpec trailRuins() {
+        return structure("trail_ruins");
+    }
+
+    public StructureSpec desertWell() {
+        return structure("desert_well");
     }
 
     private static String structurePath(String id) {

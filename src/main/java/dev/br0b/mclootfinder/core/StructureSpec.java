@@ -48,7 +48,8 @@ public record StructureSpec(
 
     public enum ScannerKind {
         JIGSAW_FAST,
-        VANILLA_PLACEMENT
+        VANILLA_PLACEMENT,
+        PLACED_FEATURE
     }
 
     /** Optional shortcut for deriving a seed without placing the structure. */

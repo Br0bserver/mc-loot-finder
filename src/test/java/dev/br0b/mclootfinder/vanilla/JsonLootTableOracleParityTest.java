@@ -8,6 +8,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemInstance;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -39,6 +41,12 @@ class JsonLootTableOracleParityTest {
             "minecraft:chests/stronghold_corridor",
             "minecraft:chests/stronghold_crossing",
             "minecraft:chests/stronghold_library",
+            "minecraft:archaeology/desert_pyramid",
+            "minecraft:archaeology/desert_well",
+            "minecraft:archaeology/ocean_ruin_cold",
+            "minecraft:archaeology/ocean_ruin_warm",
+            "minecraft:archaeology/trail_ruins_common",
+            "minecraft:archaeology/trail_ruins_rare",
             "minecraft:chests/ruined_portal",
             "minecraft:chests/shipwreck_map",
             "minecraft:chests/shipwreck_supply",
@@ -85,15 +93,23 @@ class JsonLootTableOracleParityTest {
             when(level.getServer()).thenReturn(server);
             when(level.registryAccess()).thenReturn(runtime.registries());
             when(server.reloadableRegistries()).thenReturn(runtime.reloadableResources().fullRegistries());
-            LootParams params = new LootParams.Builder(level)
+            LootParams chestParams = new LootParams.Builder(level)
                     .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(BlockPos.ZERO))
                     .create(LootContextParamSets.CHEST);
+            LootParams archaeologyParams = new LootParams.Builder(level)
+                    .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(BlockPos.ZERO))
+                    .withParameter(LootContextParams.THIS_ENTITY, mock(LivingEntity.class))
+                    .withParameter(LootContextParams.TOOL, mock(ItemInstance.class))
+                    .create(LootContextParamSets.ARCHAEOLOGY);
             LootOracle oracle = new StandaloneLootOracle26_1_2();
 
             for (String tableId : TABLES) {
                 Identifier id = Identifier.parse(tableId);
                 ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, id);
                 LootTable vanilla = runtime.reloadableResources().fullRegistries().getLootTable(key);
+                LootParams params = tableId.startsWith("minecraft:archaeology/")
+                        ? archaeologyParams
+                        : chestParams;
                 for (long seed = 1; seed <= 2_048; seed++) {
                     assertEquals(
                             vanillaRoll(vanilla, params, id, seed),

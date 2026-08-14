@@ -115,7 +115,18 @@ class MainTest {
                 new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
         String output = bytes.toString(StandardCharsets.UTF_8);
         assertTrue(output.contains("find --seed N"));
+        assertTrue(output.contains("archaeology --seed N"));
         assertTrue(output.contains("Use 'explain' to list supported structures"));
+    }
+
+    @Test
+    void explainListsArchaeologyTablesForSupportedStructures() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[]{
+                "explain", "--structure", "desert_pyramid", "--json"
+        }, new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("minecraft:archaeology/desert_pyramid"));
     }
 
     @Test

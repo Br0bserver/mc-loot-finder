@@ -122,6 +122,12 @@ LootTableSeed = nextLong()  // 每个被放置的随机容器消耗一次
 
 ## 战利品表
 
+### 考古方块
+
+可疑沙子和可疑沙砾使用 `BrushableBlockEntity`，不是普通的 `RandomizableContainer`。沙漠神殿的原版 `afterPlace` 会选择 5–8 个位置，并以方块坐标的打包值作为 LootTableSeed。海底废墟通过模板 `AppendLoot` 处理器把最多 5 个沙子或沙砾替换为可疑方块，并从模板放置随机流取得 LootTableSeed；大型废墟的多个 Piece 可以各自生成一组。
+
+记录世界执行原版结构放置后，将 `BrushableBlockEntity` 序列化为 NBT，读取其中的 `LootTable` 和 `LootTableSeed`。普通 `chests` 输出仍只包含容器；`archaeology` 只输出考古方块；`find` 搜索两者。
+
 26.1.2 的 `minecraft:chests/ancient_city` 先从主池抽 5–10 次，再从稀有池抽一次。稀有池权重是：
 
 | 结果 | 权重 |
