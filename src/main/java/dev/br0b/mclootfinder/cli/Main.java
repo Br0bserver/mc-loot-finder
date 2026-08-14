@@ -22,6 +22,25 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class Main {
+    private static final List<RuntimeProbeCase> RUNTIME_PROBE_CASES = List.of(
+            new RuntimeProbeCase("ancient_city", 114514L, 244, 171),
+            new RuntimeProbeCase("bastion_remnant", 0L, 62, 32),
+            new RuntimeProbeCase("desert_pyramid", 0L, 0, -188),
+            new RuntimeProbeCase("jungle_pyramid", 0L, 8, 69),
+            new RuntimeProbeCase("igloo", 0L, 98, 192),
+            new RuntimeProbeCase("end_city", 0L, 86, 64),
+            new RuntimeProbeCase("ruined_portal", 0L, -22, 6),
+            new RuntimeProbeCase("ruined_portal_nether", 0L, -22, 6),
+            new RuntimeProbeCase("trial_chambers", 0L, 14, 5),
+            new RuntimeProbeCase("shipwreck", 0L, 14, 8),
+            new RuntimeProbeCase("ocean_ruin", 0L, -16, -31),
+            new RuntimeProbeCase("nether_fortress", 0L, 15, 2),
+            new RuntimeProbeCase("village", 0L, 38, 45),
+            new RuntimeProbeCase("buried_treasure", 0L, 0, -22),
+            new RuntimeProbeCase("pillager_outpost", 0L, 36, 103),
+            new RuntimeProbeCase("woodland_mansion", 0L, -221, -52)
+    );
+
     private Main() {
     }
 
@@ -98,10 +117,86 @@ public final class Main {
                 }
                 yield sourceValid && runtimeValid ? 0 : 1;
             }
+            case "probe" -> runtimeProbe(arguments, out);
             default -> throw new IllegalArgumentException(
                     "Unknown runtime command: " + args[1]
             );
         };
+    }
+
+    private static int runtimeProbe(Arguments arguments, PrintStream out) {
+        VersionProfile version = Versions.require(arguments.text("version", "26.1.2"));
+        String selectedEngine = arguments.text(
+                "engine", System.getProperty("mclootfinder.engine", "oracle")
+        );
+        List<RuntimeProbeResult> results = new ArrayList<>();
+        for (var seedGroup : RUNTIME_PROBE_CASES.stream().collect(
+                java.util.stream.Collectors.groupingBy(
+                        RuntimeProbeCase::seed,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()
+                )
+        ).entrySet()) {
+            try (SearchEngine engine = openSearchEngine(
+                    arguments, version, seedGroup.getKey()
+            )) {
+                for (RuntimeProbeCase probe : seedGroup.getValue()) {
+                    StructureSpec spec = version.structure(probe.structure());
+                    engine.verifyProfile(spec);
+                    var scan = engine.scan(spec, probe.chunkX(), probe.chunkZ());
+                    List<ChestPrediction> containers = scan.containers();
+                    requireUnambiguousContainerStreams(spec.name(), containers);
+                    results.add(new RuntimeProbeResult(
+                            probe, scan.validStructure(), visibleContainers(containers)
+                    ));
+                }
+            }
+        }
+
+        if (arguments.flag("json")) {
+            out.printf("{\"version\":\"%s\",\"engine\":\"%s\",\"vectors\":[",
+                    version.minecraftVersion(), selectedEngine);
+            for (int resultIndex = 0; resultIndex < results.size(); resultIndex++) {
+                if (resultIndex != 0) {
+                    out.print(',');
+                }
+                RuntimeProbeResult result = results.get(resultIndex);
+                RuntimeProbeCase probe = result.probe();
+                out.printf("{\"structure\":\"%s\",\"seed\":%d,\"chunk_x\":%d,"
+                                + "\"chunk_z\":%d,\"valid_structure\":%s,"
+                                + "\"containers\":[",
+                        probe.structure(), probe.seed(), probe.chunkX(), probe.chunkZ(),
+                        result.validStructure());
+                for (int chestIndex = 0;
+                     chestIndex < result.containers().size(); chestIndex++) {
+                    if (chestIndex != 0) {
+                        out.print(',');
+                    }
+                    ChestPrediction chest = result.containers().get(chestIndex);
+                    out.printf("{\"x\":%d,\"y\":%d,\"z\":%d,"
+                                    + "\"loot_table\":\"%s\",\"loot_seed\":%d,"
+                                    + "\"start_chunk_x\":%d,\"start_chunk_z\":%d,"
+                                    + "\"ordinal\":%d}",
+                            chest.x(), chest.y(), chest.z(), chest.lootTable(),
+                            chest.lootTableSeed(), chest.structureChunkX(),
+                            chest.structureChunkZ(),
+                            chest.containerOrdinalInDecorationChunk());
+                }
+                out.print("]}");
+            }
+            out.println("]}");
+            return results.stream().allMatch(RuntimeProbeResult::validStructure) ? 0 : 1;
+        }
+
+        out.printf("Minecraft Java %s runtime probe (%s)%n%n",
+                version.minecraftVersion(), selectedEngine);
+        for (RuntimeProbeResult result : results) {
+            out.printf("%s: %s, %s%n",
+                    result.probe().structure(),
+                    result.validStructure() ? "valid" : "absent",
+                    quantity(result.containers().size(), "container"));
+        }
+        return results.stream().allMatch(RuntimeProbeResult::validStructure) ? 0 : 1;
     }
 
     private static void printRuntimeStatus(
@@ -603,7 +698,7 @@ public final class Main {
         out.println("  explain [--structure NAME]");
         out.println("    Show defaults, supported structures, and loot tables.");
         out.println();
-        out.println("  runtime status|install|verify [options]");
+        out.println("  runtime status|install|verify|probe [options]");
         out.println("    Inspect or prepare the local version-pinned runtime source.");
         out.println();
         out.println("Search options:");
@@ -658,5 +753,15 @@ public final class Main {
 
     private static long packChunk(int x, int z) {
         return (x & 0xffffffffL) | ((z & 0xffffffffL) << 32);
+    }
+
+    private record RuntimeProbeCase(String structure, long seed, int chunkX, int chunkZ) {
+    }
+
+    private record RuntimeProbeResult(
+            RuntimeProbeCase probe,
+            boolean validStructure,
+            List<ChestPrediction> containers
+    ) {
     }
 }

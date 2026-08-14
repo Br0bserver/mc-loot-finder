@@ -7,24 +7,24 @@ import subprocess
 import sys
 
 
-CASES = (
-    ("ancient_city", 114514, 244, 171, 17),
-    ("bastion_remnant", 0, 62, 32, 6),
-    ("desert_pyramid", 0, 0, -188, 4),
-    ("jungle_pyramid", 0, 8, 69, 4),
-    ("igloo", 0, 98, 192, 1),
-    ("end_city", 0, 86, 64, 2),
-    ("ruined_portal", 0, -22, 6, 1),
-    ("ruined_portal_nether", 0, -22, 6, 1),
-    ("trial_chambers", 0, 14, 5, 95),
-    ("shipwreck", 0, 14, 8, 3),
-    ("ocean_ruin", 0, -16, -31, 1),
-    ("nether_fortress", 0, 15, 2, 6),
-    ("village", 0, 38, 45, 5),
-    ("buried_treasure", 0, 0, -22, 1),
-    ("pillager_outpost", 0, 36, 103, 1),
-    ("woodland_mansion", 0, -221, -52, 7),
-)
+EXPECTED_COUNTS = {
+    "ancient_city": 17,
+    "bastion_remnant": 6,
+    "desert_pyramid": 4,
+    "jungle_pyramid": 4,
+    "igloo": 1,
+    "end_city": 2,
+    "ruined_portal": 1,
+    "ruined_portal_nether": 1,
+    "trial_chambers": 95,
+    "shipwreck": 3,
+    "ocean_ruin": 1,
+    "nether_fortress": 6,
+    "village": 5,
+    "buried_treasure": 1,
+    "pillager_outpost": 1,
+    "woodland_mansion": 7,
+}
 
 
 def command(cli: Path, *arguments: str) -> list[str]:
@@ -34,9 +34,9 @@ def command(cli: Path, *arguments: str) -> list[str]:
     return result
 
 
-def run_json(cli: Path, engine: str, arguments: list[str]) -> dict:
+def run_probe(cli: Path, engine: str) -> dict:
     result = subprocess.run(
-        command(cli, *arguments, "--engine", engine, "--json"),
+        command(cli, "runtime", "probe", "--engine", engine, "--json"),
         text=True,
         capture_output=True,
         env=os.environ.copy(),
@@ -66,39 +66,28 @@ def main() -> None:
         if not cli.is_file():
             raise SystemExit(f"CLI does not exist: {cli}")
 
-    for structure, seed, chunk_x, chunk_z, expected_chests in CASES:
-        arguments = [
-            "chests",
-            "--seed",
-            str(seed),
-            "--structure",
-            structure,
-            "--center-x",
-            str(chunk_x * 16 + 8),
-            "--center-z",
-            str(chunk_z * 16 + 8),
-            "--radius",
-            "0",
-            "--limit",
-            "1000",
-        ]
-        oracle = run_json(oracle_cli, "oracle", arguments)
-        subset = run_json(subset_cli, "subset", arguments)
-        expected_summary = {
-            "placement_candidates": 1,
-            "valid_structures": 1,
-            "chest_count": expected_chests,
-        }
-        actual_summary = {key: oracle.get(key) for key in expected_summary}
-        if actual_summary != expected_summary:
+    oracle = run_probe(oracle_cli, "oracle")
+    subset = run_probe(subset_cli, "subset")
+    oracle.pop("engine", None)
+    subset.pop("engine", None)
+    if subset != oracle:
+        raise AssertionError(
+            "subset runtime probe differs from the oracle.\n"
+            f"oracle:\n{json.dumps(oracle, indent=2, sort_keys=True)}\n"
+            f"subset:\n{json.dumps(subset, indent=2, sort_keys=True)}"
+        )
+
+    vectors = {vector["structure"]: vector for vector in oracle["vectors"]}
+    if set(vectors) != set(EXPECTED_COUNTS):
+        raise AssertionError(f"unexpected runtime probe structures: {sorted(vectors)}")
+    for structure, expected_chests in EXPECTED_COUNTS.items():
+        vector = vectors[structure]
+        if not vector["valid_structure"]:
+            raise AssertionError(f"runtime probe structure is absent: {structure}")
+        if len(vector["containers"]) != expected_chests:
             raise AssertionError(
-                f"oracle vector drifted for {structure}: {actual_summary}"
-            )
-        if subset != oracle:
-            raise AssertionError(
-                f"subset mismatch for {structure}.\n"
-                f"oracle:\n{json.dumps(oracle, indent=2, sort_keys=True)}\n"
-                f"subset:\n{json.dumps(subset, indent=2, sort_keys=True)}"
+                f"oracle vector drifted for {structure}: "
+                f"expected {expected_chests}, got {len(vector['containers'])}"
             )
         print(f"verified {structure}: {expected_chests} containers")
 
