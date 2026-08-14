@@ -92,7 +92,7 @@ build/install/mc-loot-finder/bin/mc-loot-finder loot \
 
 考古方块支持沙漠神殿、冷暖海底废墟、古迹废墟和沙漠井。`archaeology` 列出方块位置、类型、LootTable 和 LootTableSeed；`find` 会同时搜索普通容器和考古方块。沙漠井虽然沿用 `--structure desert_well` 参数，但内部按原版的区块地表特征生成规则搜索，并未把它近似成普通结构。
 
-只处理方块容器，不处理箱子矿车等实体容器，因此不支持废弃矿井。只支持原版 Minecraft Java `26.1.2`，不读取自定义世界生成或战利品数据包。
+只处理方块容器，不处理箱子矿车等实体容器，因此不支持废弃矿井。尚不支持地牢；地牢属于依赖真实洞穴地形的 `MonsterRoomFeature`，目前不能按普通结构搜索。只支持原版 Minecraft Java `26.1.2`，不读取自定义世界生成或战利品数据包。
 
 `candidates` 只提供候选区块，不保证结构一定生成。要塞使用原版同心圆和群系修正，因此查询要塞候选时也需要初始化原版 Worldgen。遇到尚未实现的原版语义，程序会停止并报错，不返回近似结果。
 
