@@ -6,10 +6,10 @@ import dev.br0b.mclootfinder.core.Versions;
 import dev.br0b.mclootfinder.core.structure.RandomSpreadLocator;
 import dev.br0b.mclootfinder.core.structure.StructureCandidate;
 import dev.br0b.mclootfinder.engine.SearchEngine;
+import dev.br0b.mclootfinder.engine.SearchEngines;
 import dev.br0b.mclootfinder.loot.StandaloneLootOracle26_1_2;
 import dev.br0b.mclootfinder.vanilla.ChestPrediction;
 import dev.br0b.mclootfinder.vanilla.StructureChestScanner;
-import dev.br0b.mclootfinder.vanilla.VanillaSearchEngine;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -165,7 +165,7 @@ public final class Main {
         }
         int validStructures = 0;
         List<ChestPrediction> predictions = new ArrayList<>();
-        try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
+        try (SearchEngine engine = SearchEngines.open(version.minecraftVersion(), worldSeed)) {
             engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
@@ -238,7 +238,7 @@ public final class Main {
         int unpredictableZeroSeeds = 0;
         List<ChestPrediction> allChests = new ArrayList<>();
         List<ChestPrediction> matches = new ArrayList<>();
-        try (SearchEngine engine = VanillaSearchEngine.load(worldSeed)) {
+        try (SearchEngine engine = SearchEngines.open(version.minecraftVersion(), worldSeed)) {
             engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
