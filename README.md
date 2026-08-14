@@ -1,6 +1,6 @@
 # mc-loot-finder
 
-`mc-loot-finder` 是一个针对 Minecraft Java `26.1.2` 的命令行工具。它根据世界种子定位结构，在内存中调用原版结构生成代码，列出结构内的方块容器，并重放容器的战利品表。
+`mc-loot-finder` 是一个针对 Minecraft Java `26.1.2` 的命令行工具。它根据世界种子定位结构，在内存中调用原版结构生成代码，列出结构内的方块容器和考古方块，并重放对应的战利品表。
 
 基于 Pumpkin 的实验性 Rust 版本位于 `experimental/pumpkin-rust` 分支，仅维护源码并进行 CI 验证。
 
@@ -25,7 +25,8 @@ build/install/mc-loot-finder/bin/mc-loot-finder
 ```text
 candidates       快速列出可能生成结构的区块
 chests           验证结构并列出方块容器
-find             搜索指定物品
+archaeology      列出可疑沙子和可疑沙砾
+find             在容器和考古方块中搜索指定物品
 loot             用 LootTable 和 LootTableSeed 重放战利品
 container-seed   计算部分结构的容器种子快捷结果
 explain          查询支持的结构和具体配置
@@ -60,6 +61,13 @@ build/install/mc-loot-finder/bin/mc-loot-finder chests \
   --seed 0 --structure trial_chambers --radius 2000
 ```
 
+列出沙漠神殿中的可疑沙子：
+
+```bash
+build/install/mc-loot-finder/bin/mc-loot-finder archaeology \
+  --seed 0 --structure desert_pyramid --radius 5000
+```
+
 直接重放一个容器的战利品：
 
 ```bash
@@ -81,6 +89,8 @@ build/install/mc-loot-finder/bin/mc-loot-finder loot \
 ## 支持范围
 
 当前支持：远古城市、堡垒遗迹、沙漠神殿、丛林神庙、雪屋、末地城、要塞、主世界和下界废弃传送门、试炼密室、沉船、海底废墟、下界要塞、村庄、埋藏的宝藏、掠夺者前哨站、林地府邸。
+
+考古方块目前支持沙漠神殿和冷暖海底废墟。`archaeology` 列出方块位置、类型、LootTable 和 LootTableSeed；`find` 会同时搜索结构中的普通容器和考古方块。
 
 只处理方块容器，不处理箱子矿车等实体容器，因此不支持废弃矿井。只支持原版 Minecraft Java `26.1.2`，不读取自定义世界生成或战利品数据包。
 
