@@ -8,7 +8,7 @@
 
 ```text
 世界种子
-  -> random-spread 候选起始区块
+  -> random-spread 或同心圆候选起始区块
   -> 群系验证 + 原版结构起点/结构片段
   -> 模板或过程式 Piece 中的箱子坐标与区块内放置顺序
   -> 装饰随机流产生 LootTableSeed
@@ -81,11 +81,24 @@
 
 府邸不是 Jigsaw。结构起点会组装大量模板 Piece，并在数据标记中创建箱子和灾厄村民/悦灵。记录世界执行原版模板放置，只关闭与箱子预测无关的实体类型；箱子坐标、LootTable 和 LootTableSeed 仍由原版放置代码产生。
 
+### 要塞
+
+| 参数 | 值 |
+|---|---:|
+| dimension | `minecraft:overworld` |
+| placement | `concentric_rings` |
+| distance | 32 chunks |
+| spread | 3 |
+| count | 128 |
+| loot tables | corridor、crossing、library |
+
+要塞不使用 random-spread 网格。原版先生成同心圆位置，再把候选移动到偏好的群系附近。CLI 直接读取原版 `ChunkGeneratorStructureState` 的最终 128 个位置，按搜索中心和半径过滤，然后执行原版 `StrongholdStructure` 和过程式 `StrongholdPieces`。因此要塞候选查询也需要初始化原版 Worldgen。
+
 ## 三条随机流
 
 ### 1. 结构候选位置
 
-每个 random-spread 区域用 48 位 Java LCG（原版 `LegacyRandomSource`）选择一个候选 chunk。`candidates` 只执行这一步，因此很快，但候选尚未经过群系、共享结构集选择或 Jigsaw 验证。
+每个 random-spread 区域用 48 位 Java LCG（原版 `LegacyRandomSource`）选择一个候选 chunk。这类结构的 `candidates` 只执行这一步，因此很快，但候选尚未经过群系、共享结构集选择或 Jigsaw 验证。要塞是例外：它的同心圆位置包含群系修正，需要原版 Worldgen 状态。
 
 ### 2. 原版结构布局
 
