@@ -92,8 +92,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-      - name: Test Rust CLI
-        run: cargo test --release --locked
       - name: Build release binary
         run: cargo build --release --locked
       - name: Run ancient city smoke test

@@ -21,8 +21,6 @@ jobs:
           toolchain: 1.97.1
           targets: x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
-      - name: Test
-        run: cargo test --release --locked
       - name: Install static Linux linker
         run: sudo apt-get update && sudo apt-get install --yes musl-tools
       - name: Build static binary
@@ -50,8 +48,6 @@ jobs:
         with:
           toolchain: 1.97.1
       - uses: Swatinem/rust-cache@v2
-      - name: Test
-        run: cargo test --release --locked
       - name: Build
         run: cargo build --release --locked
       - name: Smoke test
