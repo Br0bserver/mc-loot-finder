@@ -58,6 +58,10 @@ def main() -> None:
     cli = Path(sys.argv[1]).resolve()
     if not cli.is_file():
         raise SystemExit(f"CLI does not exist: {cli}")
+    distribution_root = cli.parent.parent
+    for required_file in ("LICENSE", "README.md"):
+        if not (distribution_root / required_file).is_file():
+            raise AssertionError(f"distribution is missing {required_file}")
 
     catalog = run_json(cli, "explain", "--json")
     structures = {entry["name"] for entry in catalog["structures"]}

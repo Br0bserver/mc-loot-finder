@@ -33,6 +33,15 @@ java {
     }
 }
 
+distributions {
+    main {
+        contents {
+            from("LICENSE")
+            from("README.md")
+        }
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.release = 25
     options.encoding = "UTF-8"
