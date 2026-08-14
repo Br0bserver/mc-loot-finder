@@ -79,21 +79,24 @@ public final class VanillaPlacementChestScanner {
             }
 
             int ordinal = 0;
-            for (RecordingWorldGenLevel.RecordedContainer container : recording.containers()) {
-                if (Math.floorDiv(container.pos().getX(), 16) != chunk.x()
-                        || Math.floorDiv(container.pos().getZ(), 16) != chunk.z()) {
+            for (RecordingWorldGenLevel.RecordedLootSource source : recording.lootSources()) {
+                if (Math.floorDiv(source.pos().getX(), 16) != chunk.x()
+                        || Math.floorDiv(source.pos().getZ(), 16) != chunk.z()) {
                     continue;
                 }
-                int containerOrdinal = ordinal++;
+                int containerOrdinal = source.kind()
+                        == ChestPrediction.LootSourceKind.CONTAINER ? ordinal++ : -1;
                 result.add(new ChestPrediction(
                         startChunk.x(),
                         startChunk.z(),
-                        container.pos().getX(),
-                        container.pos().getY(),
-                        container.pos().getZ(),
-                        container.lootTable(),
+                        source.pos().getX(),
+                        source.pos().getY(),
+                        source.pos().getZ(),
+                        source.lootTable(),
                         containerOrdinal,
-                        container.lootSeed()
+                        source.lootSeed(),
+                        source.kind(),
+                        source.blockId()
                 ));
             }
         }

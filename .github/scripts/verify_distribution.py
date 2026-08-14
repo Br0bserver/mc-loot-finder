@@ -166,7 +166,43 @@ def main() -> None:
     }:
         raise AssertionError(f"unexpected stronghold loot tables: {stronghold}")
 
-    print("verified 17 structures, ancient city loot search, bastion, and stronghold containers")
+    archaeology = run_json(
+        cli,
+        "archaeology",
+        "--seed",
+        "0",
+        "--structure",
+        "desert_pyramid",
+        "--center-x",
+        "8",
+        "--center-z",
+        "-3000",
+        "--radius",
+        "0",
+        "--json",
+    )
+    require_fields(
+        archaeology,
+        {
+            "placement_candidates": 1,
+            "valid_structures": 1,
+            "archaeology_count": 6,
+        },
+        "desert pyramid archaeology scan",
+    )
+    if {block["block"] for block in archaeology["blocks"]} != {
+        "minecraft:suspicious_sand"
+    }:
+        raise AssertionError(f"unexpected archaeology blocks: {archaeology}")
+    if {block["loot_table"] for block in archaeology["blocks"]} != {
+        "minecraft:archaeology/desert_pyramid"
+    }:
+        raise AssertionError(f"unexpected archaeology loot tables: {archaeology}")
+
+    print(
+        "verified 17 structures, ancient city loot search, bastion and stronghold "
+        "containers, and desert pyramid archaeology"
+    )
 
 
 if __name__ == "__main__":

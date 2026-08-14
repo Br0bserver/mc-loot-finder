@@ -18,6 +18,8 @@ public final class StructureChestScanner {
             VanillaRuntime26_1_2 runtime
     ) {
         return scanAll(worldSeed, spec, start, runtime).stream()
+                .filter(chest -> chest.sourceKind()
+                        == ChestPrediction.LootSourceKind.CONTAINER)
                 .filter(chest -> !chest.lootTable().isEmpty())
                 .toList();
     }

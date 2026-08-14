@@ -3,6 +3,7 @@ package dev.br0b.mclootfinder.vanilla;
 import dev.br0b.mclootfinder.core.StructureSpec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -17,6 +18,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.BrushableBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.PalettedContainerFactory;
@@ -81,19 +83,31 @@ final class RecordingWorldGenLevel implements InvocationHandler {
         return level;
     }
 
-    List<RecordedContainer> containers() {
-        List<RecordedContainer> result = new ArrayList<>();
+    List<RecordedLootSource> lootSources() {
+        List<RecordedLootSource> result = new ArrayList<>();
         for (var entry : blockEntities.entrySet()) {
-            if (!(entry.getValue() instanceof RandomizableContainer container)) {
-                continue;
+            if (entry.getValue() instanceof RandomizableContainer container) {
+                ResourceKey<net.minecraft.world.level.storage.loot.LootTable> table =
+                        container.getLootTable();
+                result.add(new RecordedLootSource(
+                        entry.getKey(),
+                        table == null ? "" : table.identifier().toString(),
+                        container.getLootTableSeed(),
+                        ChestPrediction.LootSourceKind.CONTAINER,
+                        ""
+                ));
+            } else if (entry.getValue() instanceof BrushableBlockEntity brushable) {
+                var tag = brushable.saveWithFullMetadata(runtime.registries());
+                result.add(new RecordedLootSource(
+                        entry.getKey(),
+                        tag.getStringOr("LootTable", ""),
+                        tag.getLongOr("LootTableSeed", 0L),
+                        ChestPrediction.LootSourceKind.ARCHAEOLOGY,
+                        BuiltInRegistries.BLOCK.getKey(
+                                entry.getValue().getBlockState().getBlock()
+                        ).toString()
+                ));
             }
-            ResourceKey<net.minecraft.world.level.storage.loot.LootTable> table =
-                    container.getLootTable();
-            result.add(new RecordedContainer(
-                    entry.getKey(),
-                    table == null ? "" : table.identifier().toString(),
-                    container.getLootTableSeed()
-            ));
         }
         return List.copyOf(result);
     }
@@ -274,6 +288,12 @@ final class RecordingWorldGenLevel implements InvocationHandler {
         );
     }
 
-    record RecordedContainer(BlockPos pos, String lootTable, long lootSeed) {
+    record RecordedLootSource(
+            BlockPos pos,
+            String lootTable,
+            long lootSeed,
+            ChestPrediction.LootSourceKind kind,
+            String blockId
+    ) {
     }
 }

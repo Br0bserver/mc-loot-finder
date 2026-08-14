@@ -77,10 +77,14 @@ class VanillaPlacementChestScannerParityTest {
     ) {
         assertEquals(
                 expected.stream()
+                        .filter(chest -> chest.sourceKind()
+                                == ChestPrediction.LootSourceKind.CONTAINER)
                         .filter(chest -> !chest.lootTable().isEmpty())
                         .sorted(BY_POSITION)
                         .toList(),
                 actual.stream()
+                        .filter(chest -> chest.sourceKind()
+                                == ChestPrediction.LootSourceKind.CONTAINER)
                         .filter(chest -> !chest.lootTable().isEmpty())
                         .sorted(BY_POSITION)
                         .toList()

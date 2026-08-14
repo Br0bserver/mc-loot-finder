@@ -52,7 +52,10 @@ public final class Versions {
                     StructureSpec.ScannerKind.VANILLA_PLACEMENT,
                     StructureSpec.ContainerSeedShortcut.DESERT_PYRAMID,
                     java.util.List.of(new StructureSpec.SelectionEntry("minecraft:desert_pyramid", 1)),
-                    java.util.List.of("minecraft:chests/desert_pyramid"),
+                    java.util.List.of(
+                            "minecraft:chests/desert_pyramid",
+                            "minecraft:archaeology/desert_pyramid"
+                    ),
                     "minecraft:dune_armor_trim_smithing_template"
                 ),
                 new StructureSpec(
@@ -204,7 +207,9 @@ public final class Versions {
                     ),
                     java.util.List.of(
                             "minecraft:chests/underwater_ruin_big",
-                            "minecraft:chests/underwater_ruin_small"
+                            "minecraft:chests/underwater_ruin_small",
+                            "minecraft:archaeology/ocean_ruin_cold",
+                            "minecraft:archaeology/ocean_ruin_warm"
                     ),
                     "minecraft:golden_apple"
                 ),
