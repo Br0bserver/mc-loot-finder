@@ -54,6 +54,11 @@ def main() -> None:
     if not reported_modules:
         raise SystemExit("jdeps did not report any runtime modules")
     module_set = set(reported_modules.split(","))
+    # Loom's full development classpath includes server paths that the generated
+    # Worldgen runtime removes. Runtime probes confirm these modules are not loaded.
+    module_set.difference_update(
+        {"java.compiler", "java.rmi", "java.scripting", "jdk.httpserver"}
+    )
     module_set.update({"jdk.crypto.ec", "jdk.unsupported", "jdk.zipfs"})
     modules = ",".join(sorted(module_set))
 
