@@ -8,6 +8,8 @@ import dev.br0b.mclootfinder.core.structure.StructureCandidate;
 import dev.br0b.mclootfinder.engine.SearchEngine;
 import dev.br0b.mclootfinder.engine.SearchEngines;
 import dev.br0b.mclootfinder.loot.StandaloneLootOracle26_1_2;
+import dev.br0b.mclootfinder.runtime.RuntimeManager;
+import dev.br0b.mclootfinder.runtime.RuntimeStatus;
 import dev.br0b.mclootfinder.vanilla.ChestPrediction;
 import dev.br0b.mclootfinder.vanilla.StructureChestScanner;
 
@@ -51,8 +53,71 @@ public final class Main {
             case "find" -> findLoot(new Arguments(args, 1), out);
             case "loot" -> rollLoot(new Arguments(args, 1), out);
             case "explain" -> explain(new Arguments(args, 1), out);
+            case "runtime" -> runtime(args, out, err);
             default -> throw new IllegalArgumentException("Unknown command: " + args[0]);
         };
+    }
+
+    private static int runtime(String[] args, PrintStream out, PrintStream err) {
+        if (args.length < 2) {
+            throw new IllegalArgumentException("runtime requires 'status' or 'install'");
+        }
+        Arguments arguments = new Arguments(args, 2);
+        String version = arguments.text("version", "26.1.2");
+        RuntimeManager manager = RuntimeManager.createDefault(version);
+        return switch (args[1]) {
+            case "status" -> {
+                printRuntimeStatus(out, manager.status(), arguments.flag("json"));
+                yield 0;
+            }
+            case "install" -> {
+                String supplied = arguments.text("minecraft-jar", "");
+                RuntimeStatus status = manager.installSource(
+                        supplied.isEmpty() ? null : java.nio.file.Path.of(supplied),
+                        arguments.flag("offline"),
+                        err
+                );
+                printRuntimeStatus(out, status, arguments.flag("json"));
+                yield 0;
+            }
+            case "verify" -> {
+                boolean valid = manager.verifySource();
+                if (arguments.flag("json")) {
+                    out.printf("{\"version\":\"%s\",\"source_valid\":%s}%n",
+                            version, valid);
+                } else {
+                    out.println(valid ? "Runtime source is valid." : "Runtime source is invalid.");
+                }
+                yield valid ? 0 : 1;
+            }
+            default -> throw new IllegalArgumentException(
+                    "Unknown runtime command: " + args[1]
+            );
+        };
+    }
+
+    private static void printRuntimeStatus(
+            PrintStream out,
+            RuntimeStatus status,
+            boolean json
+    ) {
+        if (json) {
+            out.printf("{\"version\":\"%s\",\"recipe_version\":%d,"
+                            + "\"cache_directory\":\"%s\",\"source_ready\":%s,"
+                            + "\"generated_runtime_ready\":%s}%n",
+                    status.minecraftVersion(),
+                    status.recipeVersion(),
+                    status.cacheDirectory().toString().replace("\\", "\\\\")
+                            .replace("\"", "\\\""),
+                    status.sourceReady(),
+                    status.generatedRuntimeReady());
+            return;
+        }
+        out.printf("Minecraft Java %s runtime%n", status.minecraftVersion());
+        out.printf("Cache: %s%n", status.cacheDirectory());
+        out.printf("Official source: %s%n", status.sourceReady() ? "ready" : "missing");
+        out.printf("Generated runtime: %s%n",
+                status.generatedRuntimeReady() ? "ready" : "missing");
     }
 
     private static int candidates(Arguments arguments, PrintStream out) {
@@ -511,6 +576,9 @@ public final class Main {
         out.println();
         out.println("  explain [--structure NAME]");
         out.println("    Show defaults, supported structures, and loot tables.");
+        out.println();
+        out.println("  runtime status|install|verify [options]");
+        out.println("    Inspect or prepare the local version-pinned runtime source.");
         out.println();
         out.println("Search options:");
         out.println("  --structure NAME  --center-x X  --center-z Z");
