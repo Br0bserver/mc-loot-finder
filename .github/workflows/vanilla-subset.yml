@@ -1,0 +1,48 @@
+name: Vanilla Subset CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experimental/vanilla-subset
+  pull_request:
+    branches:
+      - experimental/vanilla-subset
+
+permissions:
+  contents: read
+
+jobs:
+  oracle-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Test oracle and provider boundary
+        run: ./gradlew test installDist --no-daemon
+      - name: Verify installed CLI
+        run: >-
+          python3 .github/scripts/verify_distribution.py
+          build/install/mc-loot-finder/bin/mc-loot-finder
+
+  windows-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build installed CLI
+        run: .\gradlew.bat installDist --no-daemon
+      - name: Verify installed CLI
+        run: >-
+          py -3 .github/scripts/verify_distribution.py
+          build/install/mc-loot-finder/bin/mc-loot-finder.bat
