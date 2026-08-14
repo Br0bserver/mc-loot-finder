@@ -80,7 +80,7 @@ def main() -> None:
     cli = Path(sys.argv[1]).resolve()
     if not cli.is_file():
         raise SystemExit(f"CLI does not exist: {cli}")
-    distribution_root = cli.parent.parent
+    distribution_root = cli.parent.parent if cli.parent.name == "bin" else cli.parent
     verify_no_bundled_mojang_runtime(distribution_root)
     for required_file in ("LICENSE", "README.md"):
         locations = (
