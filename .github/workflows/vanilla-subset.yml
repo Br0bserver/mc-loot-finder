@@ -25,15 +25,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Test oracle and provider boundary
         run: ./gradlew test installDist --no-daemon
+      - name: Build self-contained app image
+        run: >-
+          python3 .github/scripts/build_app_image.py
+          build/install/mc-loot-finder
+          build/app-image/mc-loot-finder
       - name: Verify official runtime source bootstrap
         run: >-
           python3 .github/scripts/verify_runtime_bootstrap.py
-          build/install/mc-loot-finder/bin/mc-loot-finder
+          build/app-image/mc-loot-finder/bin/mc-loot-finder
           ${{ runner.temp }}/mc-loot-finder-runtime
-      - name: Verify installed CLI
+      - name: Verify self-contained CLI
+        env:
+          JAVA_HOME: ""
         run: >-
           python3 .github/scripts/verify_distribution.py
-          build/install/mc-loot-finder/bin/mc-loot-finder
+          build/app-image/mc-loot-finder/bin/mc-loot-finder
 
   windows-smoke:
     runs-on: windows-latest
@@ -47,7 +54,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Build installed CLI
         run: .\gradlew.bat installDist --no-daemon
-      - name: Verify installed CLI
+      - name: Build self-contained app image
+        run: >-
+          py -3 .github/scripts/build_app_image.py
+          build/install/mc-loot-finder
+          build/app-image/mc-loot-finder
+      - name: Verify self-contained CLI
+        env:
+          JAVA_HOME: ""
         run: >-
           py -3 .github/scripts/verify_distribution.py
-          build/install/mc-loot-finder/bin/mc-loot-finder.bat
+          build/app-image/mc-loot-finder/mc-loot-finder.exe
