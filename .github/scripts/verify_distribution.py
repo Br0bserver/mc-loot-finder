@@ -11,6 +11,7 @@ EXPECTED_STRUCTURES = {
     "ancient_city",
     "bastion_remnant",
     "desert_pyramid",
+    "desert_well",
     "jungle_pyramid",
     "igloo",
     "end_city",
@@ -67,7 +68,7 @@ def main() -> None:
 
     catalog = run_json(cli, "explain", "--json")
     structures = {entry["name"] for entry in catalog["structures"]}
-    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 18:
+    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 19:
         raise AssertionError(f"unexpected structure catalog: {catalog}")
 
     ancient_city = run_json(
@@ -234,9 +235,70 @@ def main() -> None:
     }:
         raise AssertionError(f"unexpected trail ruins loot tables: {trail_ruins}")
 
+    desert_well = run_json(
+        cli,
+        "archaeology",
+        "--seed",
+        "0",
+        "--structure",
+        "desert_well",
+        "--center-x",
+        "-620",
+        "--center-z",
+        "-2460",
+        "--radius",
+        "32",
+        "--json",
+    )
+    require_fields(
+        desert_well,
+        {
+            "placement_candidates": 1,
+            "valid_structures": 1,
+            "archaeology_count": 2,
+        },
+        "desert well archaeology scan",
+    )
+    if [block["loot_seed"] for block in desert_well["blocks"]] != [
+        -170699190288320,
+        -170424312381377,
+    ]:
+        raise AssertionError(f"unexpected desert well archaeology: {desert_well}")
+
+    desert_well_find = run_json(
+        cli,
+        "find",
+        "--seed",
+        "0",
+        "--structure",
+        "desert_well",
+        "--center-x",
+        "-620",
+        "--center-z",
+        "-2460",
+        "--radius",
+        "32",
+        "--item",
+        "minecraft:arms_up_pottery_sherd",
+        "--json",
+    )
+    require_fields(
+        desert_well_find,
+        {
+            "checked_chests": 0,
+            "checked_archaeology": 2,
+            "hits": 1,
+        },
+        "desert well loot search",
+    )
+    if [match["loot_seed"] for match in desert_well_find["matches"]] != [
+        -170424312381377
+    ]:
+        raise AssertionError(f"unexpected desert well loot match: {desert_well_find}")
+
     print(
-        "verified 18 structures, ancient city loot search, bastion and stronghold "
-        "containers, and desert pyramid and trail ruins archaeology"
+        "verified 19 search targets, ancient city loot search, bastion and stronghold "
+        "containers, and desert pyramid, trail ruins, and desert well archaeology"
     )
 
 

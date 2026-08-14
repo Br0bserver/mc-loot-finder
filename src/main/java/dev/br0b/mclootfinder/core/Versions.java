@@ -139,6 +139,19 @@ public final class Versions {
                     "minecraft:wayfinder_armor_trim_smithing_template"
                 ),
                 new StructureSpec(
+                    "desert_well",
+                    "minecraft:desert_well",
+                    "minecraft:overworld",
+                    new VersionProfile.FeatureProfile(1_000),
+                    4,
+                    2,
+                    StructureSpec.ScannerKind.PLACED_FEATURE,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:desert_well", 1)),
+                    java.util.List.of("minecraft:archaeology/desert_well"),
+                    "minecraft:arms_up_pottery_sherd"
+                ),
+                new StructureSpec(
                     "ruined_portal",
                     "minecraft:ruined_portal",
                     "minecraft:overworld",

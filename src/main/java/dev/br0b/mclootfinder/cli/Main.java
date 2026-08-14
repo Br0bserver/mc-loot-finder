@@ -545,6 +545,11 @@ public final class Main {
                     placement.spreadType());
             return;
         }
+        if (spec.placement() instanceof VersionProfile.FeatureProfile placement) {
+            out.printf("{\"type\":\"placed_feature\",\"rarity_chance\":%d}",
+                    placement.rarityChance());
+            return;
+        }
         VersionProfile.ConcentricRingsProfile placement =
                 (VersionProfile.ConcentricRingsProfile) spec.placement();
         out.printf("{\"type\":\"concentric_rings\",\"distance\":%d,"
@@ -559,6 +564,11 @@ public final class Main {
             out.printf("  Separation: %d%n", placement.separation());
             out.printf("  Salt: %d%n", placement.salt());
             out.printf("  Spread: %s%n", placement.spreadType());
+            return;
+        }
+        if (spec.placement() instanceof VersionProfile.FeatureProfile placement) {
+            out.println("  Type: PLACED_FEATURE");
+            out.printf("  Attempts: about once every %d chunks%n", placement.rarityChance());
             return;
         }
         VersionProfile.ConcentricRingsProfile placement =

@@ -42,6 +42,7 @@ class JsonLootTableOracleParityTest {
             "minecraft:chests/stronghold_crossing",
             "minecraft:chests/stronghold_library",
             "minecraft:archaeology/desert_pyramid",
+            "minecraft:archaeology/desert_well",
             "minecraft:archaeology/ocean_ruin_cold",
             "minecraft:archaeology/ocean_ruin_warm",
             "minecraft:archaeology/trail_ruins_common",

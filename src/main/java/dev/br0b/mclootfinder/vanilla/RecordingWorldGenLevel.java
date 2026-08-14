@@ -47,6 +47,7 @@ final class RecordingWorldGenLevel implements InvocationHandler {
     private final StructureSpec spec;
     private final long worldSeed;
     private final RandomSource levelRandom;
+    private final boolean desertSurface;
     private final Map<BlockPos, BlockState> states = new HashMap<>();
     private final Map<BlockPos, BlockEntity> blockEntities = new LinkedHashMap<>();
     private final Map<Long, Integer> heightCache = new HashMap<>();
@@ -61,9 +62,27 @@ final class RecordingWorldGenLevel implements InvocationHandler {
             StructureSpec spec,
             long worldSeed
     ) {
+        this(runtime, spec, worldSeed, false);
+    }
+
+    static RecordingWorldGenLevel forDesertSurface(
+            VanillaRuntime26_1_2 runtime,
+            StructureSpec spec,
+            long worldSeed
+    ) {
+        return new RecordingWorldGenLevel(runtime, spec, worldSeed, true);
+    }
+
+    private RecordingWorldGenLevel(
+            VanillaRuntime26_1_2 runtime,
+            StructureSpec spec,
+            long worldSeed,
+            boolean desertSurface
+    ) {
         this.runtime = runtime;
         this.spec = spec;
         this.worldSeed = worldSeed;
+        this.desertSurface = desertSurface;
         this.levelRandom = RandomSource.create(worldSeed);
         this.entitySuppressingLevel = EntitySuppressingServerLevel.create(worldSeed);
         this.level = (WorldGenLevel) Proxy.newProxyInstance(
@@ -151,6 +170,15 @@ final class RecordingWorldGenLevel implements InvocationHandler {
             case "getSeaLevel" -> { return runtime.chunkGenerator(spec).getSeaLevel(); }
             case "dimensionType" -> { return runtime.dimensionType(spec); }
             case "getBiomeManager" -> { return biomeManager; }
+            case "getBiome" -> {
+                BlockPos pos = (BlockPos) args[0];
+                return runtime.noiseBiome(
+                        spec,
+                        Math.floorDiv(pos.getX(), 4),
+                        Math.floorDiv(pos.getY(), 4),
+                        Math.floorDiv(pos.getZ(), 4)
+                );
+            }
             case "getUncachedNoiseBiome" -> {
                 return runtime.noiseBiome(spec, (int) args[0], (int) args[1], (int) args[2]);
             }
@@ -264,6 +292,16 @@ final class RecordingWorldGenLevel implements InvocationHandler {
         if (placed != null) {
             return placed;
         }
+        if (desertSurface) {
+            int surfaceY = terrainHeight(pos.getX(), pos.getZ());
+            if (pos.getY() >= surfaceY) {
+                return Blocks.AIR.defaultBlockState();
+            }
+            if (pos.getY() == surfaceY - 1) {
+                return Blocks.SAND.defaultBlockState();
+            }
+            return Blocks.SANDSTONE.defaultBlockState();
+        }
         // Structure placement tests surrounding solidity much more often than
         // it needs a real column. Exact heightmap requests are handled above;
         // an untouched position otherwise uses the dimension's solid substrate.
@@ -278,7 +316,9 @@ final class RecordingWorldGenLevel implements InvocationHandler {
         long key = ChunkPos.pack(blockX, blockZ);
         return heightCache.computeIfAbsent(
                 key,
-                ignored -> runtime.motionBlockingHeight(spec, blockX, blockZ)
+                ignored -> desertSurface
+                        ? runtime.featureSurfaceHeight(spec, blockX, blockZ)
+                        : runtime.motionBlockingHeight(spec, blockX, blockZ)
         );
     }
 

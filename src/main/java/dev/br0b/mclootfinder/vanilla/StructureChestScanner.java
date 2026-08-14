@@ -44,6 +44,9 @@ public final class StructureChestScanner {
             case VANILLA_PLACEMENT -> VanillaPlacementChestScanner.scan(
                     worldSeed, spec, start, runtime
             );
+            case PLACED_FEATURE -> throw new IllegalArgumentException(
+                    spec.name() + " is a placed feature, not a StructureStart"
+            );
         };
     }
 
