@@ -47,14 +47,15 @@ tasks.named("test", Test) {
 tasks.named("startScripts") {
     doLast {
         String original = windowsScript.getText("UTF-8")
-        String shortened = original.replaceFirst(
-                /(?m)^set CLASSPATH=.*$/,
-                java.util.regex.Matcher.quoteReplacement(
-                        'set CLASSPATH=%APP_HOME%\\lib\\*'
-                )
-        )
+        String shortened = original
+                .replace('endlocal & "%JAVA_EXE%"', '"%JAVA_EXE%"')
+                .replace('  -classpath "%CLASSPATH%"', '')
         if (shortened == original) {
-            throw new GradleException("Windows launcher CLASSPATH line was not found")
+            throw new GradleException("Windows launcher command was not updated")
+        }
+        if (shortened.contains('endlocal & "%JAVA_EXE%"')
+                || shortened.contains('-classpath "%CLASSPATH%"')) {
+            throw new GradleException("Windows launcher still expands CLASSPATH on the command line")
         }
         windowsScript.setText(shortened, "UTF-8")
     }
