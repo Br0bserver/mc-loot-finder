@@ -9,6 +9,7 @@ import dev.br0b.mclootfinder.engine.SearchEngine;
 import dev.br0b.mclootfinder.engine.SearchEngines;
 import dev.br0b.mclootfinder.loot.StandaloneLootOracle26_1_2;
 import dev.br0b.mclootfinder.runtime.RuntimeManager;
+import dev.br0b.mclootfinder.runtime.RuntimeSearchEngines;
 import dev.br0b.mclootfinder.runtime.RuntimeStatus;
 import dev.br0b.mclootfinder.vanilla.ChestPrediction;
 import dev.br0b.mclootfinder.vanilla.StructureChestScanner;
@@ -237,7 +238,7 @@ public final class Main {
         }
         int validStructures = 0;
         List<ChestPrediction> predictions = new ArrayList<>();
-        try (SearchEngine engine = SearchEngines.open(version.minecraftVersion(), worldSeed)) {
+        try (SearchEngine engine = openSearchEngine(arguments, version, worldSeed)) {
             engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
@@ -310,7 +311,7 @@ public final class Main {
         int unpredictableZeroSeeds = 0;
         List<ChestPrediction> allChests = new ArrayList<>();
         List<ChestPrediction> matches = new ArrayList<>();
-        try (SearchEngine engine = SearchEngines.open(version.minecraftVersion(), worldSeed)) {
+        try (SearchEngine engine = openSearchEngine(arguments, version, worldSeed)) {
             engine.verifyProfile(spec);
             for (StructureCandidate candidate : candidates) {
                 var scan = engine.scan(spec, candidate.chunkX(), candidate.chunkZ());
@@ -511,6 +512,24 @@ public final class Main {
         return version.structure(arguments.text("structure", "ancient_city"));
     }
 
+    private static SearchEngine openSearchEngine(
+            Arguments arguments,
+            VersionProfile version,
+            long worldSeed
+    ) {
+        String selected = arguments.text(
+                "engine",
+                System.getProperty("mclootfinder.engine", "oracle")
+        );
+        return switch (selected) {
+            case "oracle" -> SearchEngines.open(version.minecraftVersion(), worldSeed);
+            case "subset" -> RuntimeSearchEngines.open(version.minecraftVersion(), worldSeed);
+            default -> throw new IllegalArgumentException(
+                    "Unsupported search engine: " + selected + "; use oracle or subset"
+            );
+        };
+    }
+
     private static void printSearchHeader(
             PrintStream out,
             VersionProfile version,
@@ -589,7 +608,7 @@ public final class Main {
         out.println();
         out.println("Search options:");
         out.println("  --structure NAME  --center-x X  --center-z Z");
-        out.println("  --radius N  --limit N");
+        out.println("  --radius N  --limit N  --engine oracle|subset");
         out.println();
         out.println("Common options:");
         out.println("  --version 26.1.2  --json");

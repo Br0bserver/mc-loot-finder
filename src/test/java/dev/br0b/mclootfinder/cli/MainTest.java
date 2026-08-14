@@ -116,6 +116,17 @@ class MainTest {
         String output = bytes.toString(StandardCharsets.UTF_8);
         assertTrue(output.contains("find --seed N"));
         assertTrue(output.contains("Use 'explain' to list supported structures"));
+        assertTrue(output.contains("--engine oracle|subset"));
+    }
+
+    @Test
+    void searchRejectsUnknownEngine() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
+                Main.run(new String[]{
+                        "chests", "--seed", "0", "--radius", "0",
+                        "--engine", "unknown", "--json"
+                }, System.out, System.err));
+        assertTrue(error.getMessage().contains("use oracle or subset"));
     }
 
     @Test
