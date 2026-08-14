@@ -12,6 +12,8 @@ repositories {
 }
 
 dependencies {
+    implementation project(":runtime-api")
+
     minecraft "com.mojang:minecraft:${minecraft_version}"
 
     implementation "org.objenesis:objenesis:3.4"
