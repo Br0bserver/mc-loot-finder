@@ -71,14 +71,6 @@ impl Scanner {
         }
     }
 
-    pub fn scan(&self, chunk_x: i32, chunk_z: i32) -> Result<Scan, String> {
-        let mut sampler = MultiNoiseSampler::generate(
-            &self.generator.base_router.multi_noise,
-            &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
-        );
-        self.scan_with_sampler(chunk_x, chunk_z, &mut sampler)
-    }
-
     pub fn scan_many(
         &self,
         chunks: impl IntoIterator<Item = (i32, i32)>,
