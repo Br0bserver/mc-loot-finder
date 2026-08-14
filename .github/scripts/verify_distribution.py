@@ -32,7 +32,12 @@ def run_json(cli: Path, *arguments: str) -> dict:
         command = ["cmd.exe", "/d", "/c", str(cli), *arguments]
     else:
         command = [str(cli), *arguments]
-    result = subprocess.run(command, check=True, text=True, capture_output=True)
+    result = subprocess.run(command, text=True, capture_output=True)
+    if result.returncode != 0:
+        raise AssertionError(
+            f"CLI exited with status {result.returncode}.\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError as error:
