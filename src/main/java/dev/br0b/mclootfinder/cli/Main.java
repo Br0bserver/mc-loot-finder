@@ -81,14 +81,21 @@ public final class Main {
                 yield 0;
             }
             case "verify" -> {
-                boolean valid = manager.verifySource();
+                boolean sourceValid = manager.verifySource();
+                boolean runtimeValid = manager.verifyRuntime();
                 if (arguments.flag("json")) {
-                    out.printf("{\"version\":\"%s\",\"source_valid\":%s}%n",
-                            version, valid);
+                    out.printf("{\"version\":\"%s\",\"source_valid\":%s,"
+                                    + "\"runtime_valid\":%s}%n",
+                            version, sourceValid, runtimeValid);
                 } else {
-                    out.println(valid ? "Runtime source is valid." : "Runtime source is invalid.");
+                    out.println(sourceValid
+                            ? "Runtime source is valid."
+                            : "Runtime source is invalid.");
+                    out.println(runtimeValid
+                            ? "Generated runtime is valid."
+                            : "Generated runtime is invalid.");
                 }
-                yield valid ? 0 : 1;
+                yield sourceValid && runtimeValid ? 0 : 1;
             }
             default -> throw new IllegalArgumentException(
                     "Unknown runtime command: " + args[1]

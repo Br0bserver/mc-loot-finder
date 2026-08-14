@@ -25,8 +25,17 @@ class RuntimeManagerTest {
     @Test
     void installsAndVerifiesASuppliedBundledServerJar() throws Exception {
         byte[] inner = "named minecraft server classes".getBytes(StandardCharsets.UTF_8);
+        byte[] library = "official runtime library".getBytes(StandardCharsets.UTF_8);
+        String libraryPath = "com/example/runtime/test-runtime.jar";
         Path outer = temporaryDirectory.resolve("server.jar");
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(outer))) {
+            zip.putNextEntry(new ZipEntry("META-INF/libraries.list"));
+            zip.write((digest(library, "SHA-256") + "\tcom.example:runtime:test\t"
+                    + libraryPath + "\n").getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("META-INF/libraries/" + libraryPath));
+            zip.write(library);
+            zip.closeEntry();
             zip.putNextEntry(new ZipEntry("META-INF/versions/test/server-test.jar"));
             zip.write(inner);
             zip.closeEntry();
@@ -54,7 +63,15 @@ class RuntimeManagerTest {
         );
 
         assertTrue(manager.status().sourceReady());
+        assertTrue(manager.status().generatedRuntimeReady());
         assertTrue(manager.verifySource());
+        assertTrue(manager.verifyRuntime());
+        assertTrue(manager.runtimeClasspath().stream().allMatch(Files::isRegularFile));
+        assertTrue(manager.runtimeClasspath().get(1).endsWith(libraryPath));
+        assertTrue(Files.mismatch(
+                manager.runtimeClasspath().get(1),
+                writeExpectedLibrary(library)
+        ) == -1);
     }
 
     @Test
@@ -78,5 +95,11 @@ class RuntimeManagerTest {
         return HexFormat.of().formatHex(
                 MessageDigest.getInstance(algorithm).digest(value)
         );
+    }
+
+    private Path writeExpectedLibrary(byte[] bytes) throws Exception {
+        Path expected = temporaryDirectory.resolve("expected-library.jar");
+        Files.write(expected, bytes);
+        return expected;
     }
 }

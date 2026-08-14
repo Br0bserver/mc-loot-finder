@@ -2,6 +2,7 @@ package dev.br0b.mclootfinder.runtime;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
@@ -15,10 +16,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -59,7 +64,7 @@ public final class RuntimeManager {
                 version.recipeVersion(),
                 versionRoot,
                 sourceStateMatches(),
-                Files.isRegularFile(versionRoot.resolve("runtime/runtime.jar"))
+                runtimeStateMatches()
         );
     }
 
@@ -77,7 +82,7 @@ public final class RuntimeManager {
                     StandardOpenOption.CREATE,
                     StandardOpenOption.WRITE
             ); FileLock ignored = channel.lock()) {
-                if (sourceStateMatches()) {
+                if (sourceStateMatches() && runtimeStateMatches()) {
                     progress.println("Minecraft Java " + version.minecraftVersion()
                             + " source is already installed.");
                     return status();
@@ -92,6 +97,7 @@ public final class RuntimeManager {
 
                 Path innerJar = sourceRoot.resolve("server-inner.jar");
                 extractBundledServer(outerJar, innerJar);
+                generateRuntime(outerJar, innerJar);
                 writeState();
                 progress.println("Prepared verified Minecraft Java "
                         + version.minecraftVersion() + " source in " + versionRoot + ".");
@@ -117,6 +123,58 @@ public final class RuntimeManager {
                 "SHA-256",
                 version.bundledServerSha256()
         );
+    }
+
+    public boolean verifyRuntime() {
+        try {
+            Path runtimeRoot = versionRoot().resolve("runtime");
+            Properties state = loadProperties(runtimeRoot.resolve("runtime.properties"));
+            if (!runtimeStateMetadataMatches(state)) {
+                return false;
+            }
+            if (!verifiedFile(
+                    runtimeRoot.resolve("server.jar"),
+                    version.bundledServerSize(),
+                    "SHA-256",
+                    version.bundledServerSha256()
+            )) {
+                return false;
+            }
+            int libraryCount = Integer.parseInt(state.getProperty("library.count", "0"));
+            for (int index = 0; index < libraryCount; index++) {
+                Path relative = safeRelativePath(
+                        state.getProperty("library." + index + ".path")
+                );
+                long size = Long.parseLong(state.getProperty("library." + index + ".size"));
+                String sha256 = state.getProperty("library." + index + ".sha256", "");
+                if (!verifiedFile(runtimeRoot.resolve("libraries").resolve(relative),
+                        size, "SHA-256", sha256)) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    public List<Path> runtimeClasspath() {
+        Path runtimeRoot = versionRoot().resolve("runtime");
+        Properties state = loadProperties(runtimeRoot.resolve("runtime.properties"));
+        if (!runtimeStateMetadataMatches(state)) {
+            throw new IllegalStateException(
+                    "Generated runtime is not installed for Minecraft Java "
+                            + version.minecraftVersion()
+            );
+        }
+        List<Path> result = new ArrayList<>();
+        result.add(runtimeRoot.resolve("server.jar"));
+        int libraryCount = Integer.parseInt(state.getProperty("library.count", "0"));
+        for (int index = 0; index < libraryCount; index++) {
+            Path relative = safeRelativePath(state.getProperty("library." + index + ".path"));
+            result.add(runtimeRoot.resolve("libraries").resolve(relative));
+        }
+        return List.copyOf(result);
     }
 
     private void acquireOuterJar(
@@ -190,6 +248,84 @@ public final class RuntimeManager {
         }
     }
 
+    private void generateRuntime(Path outerJar, Path innerJar) throws IOException {
+        Path versionRoot = versionRoot();
+        Path destination = versionRoot.resolve("runtime");
+        Path temporary = Files.createTempDirectory(versionRoot, "runtime-");
+        boolean installed = false;
+        try {
+            Files.copy(innerJar, temporary.resolve("server.jar"));
+            Properties state = new Properties();
+            state.setProperty("minecraftVersion", version.minecraftVersion());
+            state.setProperty("recipeVersion", Integer.toString(version.recipeVersion()));
+            state.setProperty("serverSha256", version.bundledServerSha256());
+            state.setProperty("serverSize", Long.toString(version.bundledServerSize()));
+
+            List<RuntimeLibrary> libraries = new ArrayList<>();
+            try (ZipFile zip = new ZipFile(outerJar.toFile())) {
+                ZipEntry listEntry = zip.getEntry("META-INF/libraries.list");
+                if (listEntry == null) {
+                    throw new IOException("Official server jar is missing META-INF/libraries.list");
+                }
+                try (var reader = new java.io.BufferedReader(new InputStreamReader(
+                        zip.getInputStream(listEntry), StandardCharsets.UTF_8
+                ))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.isBlank()) {
+                            continue;
+                        }
+                        String[] fields = line.split("\\t", 3);
+                        if (fields.length != 3) {
+                            throw new IOException("Invalid official library entry: " + line);
+                        }
+                        Path relative = safeRelativePath(fields[2]);
+                        String entryName = "META-INF/libraries/" + fields[2];
+                        ZipEntry libraryEntry = zip.getEntry(entryName);
+                        if (libraryEntry == null || libraryEntry.getSize() < 0) {
+                            throw new IOException("Official server jar is missing " + entryName);
+                        }
+                        Path target = temporary.resolve("libraries").resolve(relative);
+                        Files.createDirectories(target.getParent());
+                        try (InputStream input = zip.getInputStream(libraryEntry);
+                             OutputStream output = Files.newOutputStream(target)) {
+                            input.transferTo(output);
+                        }
+                        requireVerified(
+                                target, libraryEntry.getSize(), "SHA-256", fields[0]
+                        );
+                        libraries.add(new RuntimeLibrary(
+                                relative, libraryEntry.getSize(), fields[0]
+                        ));
+                    }
+                }
+            }
+
+            state.setProperty("library.count", Integer.toString(libraries.size()));
+            for (int index = 0; index < libraries.size(); index++) {
+                RuntimeLibrary library = libraries.get(index);
+                state.setProperty("library." + index + ".path",
+                        library.path().toString().replace('\\', '/'));
+                state.setProperty("library." + index + ".size",
+                        Long.toString(library.size()));
+                state.setProperty("library." + index + ".sha256", library.sha256());
+            }
+            try (OutputStream output = Files.newOutputStream(
+                    temporary.resolve("runtime.properties")
+            )) {
+                state.store(output, "mc-loot-finder generated runtime");
+            }
+
+            deleteRecursively(destination);
+            atomicReplace(temporary, destination);
+            installed = true;
+        } finally {
+            if (!installed) {
+                deleteRecursively(temporary);
+            }
+        }
+    }
+
     private boolean sourceStateMatches() {
         Path stateFile = sourceRoot().resolve(STATE_FILE);
         if (!Files.isRegularFile(stateFile)) {
@@ -210,6 +346,60 @@ public final class RuntimeManager {
                     == version.bundledServerSize();
         } catch (IOException | NumberFormatException exception) {
             return false;
+        }
+    }
+
+    private boolean runtimeStateMatches() {
+        Path runtimeRoot = versionRoot().resolve("runtime");
+        Properties state = loadProperties(runtimeRoot.resolve("runtime.properties"));
+        if (!runtimeStateMetadataMatches(state)) {
+            return false;
+        }
+        try {
+            if (Files.size(runtimeRoot.resolve("server.jar"))
+                    != version.bundledServerSize()) {
+                return false;
+            }
+            int libraryCount = Integer.parseInt(state.getProperty("library.count", "0"));
+            for (int index = 0; index < libraryCount; index++) {
+                Path relative = safeRelativePath(
+                        state.getProperty("library." + index + ".path")
+                );
+                long size = Long.parseLong(state.getProperty("library." + index + ".size"));
+                if (Files.size(runtimeRoot.resolve("libraries").resolve(relative)) != size) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (IOException | IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private boolean runtimeStateMetadataMatches(Properties state) {
+        try {
+            return state.getProperty("minecraftVersion", "").equals(version.minecraftVersion())
+                    && Integer.parseInt(state.getProperty("recipeVersion", "0"))
+                    == version.recipeVersion()
+                    && state.getProperty("serverSha256", "")
+                    .equals(version.bundledServerSha256())
+                    && Long.parseLong(state.getProperty("serverSize", "0"))
+                    == version.bundledServerSize();
+        } catch (NumberFormatException exception) {
+            return false;
+        }
+    }
+
+    private static Properties loadProperties(Path path) {
+        Properties properties = new Properties();
+        if (!Files.isRegularFile(path)) {
+            return properties;
+        }
+        try (InputStream input = Files.newInputStream(path)) {
+            properties.load(input);
+            return properties;
+        } catch (IOException exception) {
+            return new Properties();
         }
     }
 
@@ -284,6 +474,28 @@ public final class RuntimeManager {
         }
     }
 
+    private static Path safeRelativePath(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Runtime library path is missing");
+        }
+        Path relative = Path.of(value).normalize();
+        if (relative.isAbsolute() || relative.startsWith("..")) {
+            throw new IllegalArgumentException("Unsafe runtime library path: " + value);
+        }
+        return relative;
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            return;
+        }
+        try (var paths = Files.walk(path)) {
+            for (Path entry : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(entry);
+            }
+        }
+    }
+
     private Path versionRoot() {
         return cacheRoot.resolve(version.minecraftVersion());
     }
@@ -310,5 +522,8 @@ public final class RuntimeManager {
             }
         }
         return Path.of(System.getProperty("user.home"), ".cache", "mc-loot-finder");
+    }
+
+    private record RuntimeLibrary(Path path, long size, String sha256) {
     }
 }

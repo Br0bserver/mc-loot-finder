@@ -33,7 +33,7 @@ def main() -> None:
     cache = Path(sys.argv[2]).resolve()
 
     installed = run(cli, cache, "runtime", "install", "--json")
-    if not installed["source_ready"] or installed["generated_runtime_ready"]:
+    if not installed["source_ready"] or not installed["generated_runtime_ready"]:
         raise AssertionError(f"unexpected install status: {installed}")
 
     status = run(cli, cache, "runtime", "status", "--json")
@@ -41,7 +41,11 @@ def main() -> None:
         raise AssertionError(f"runtime status changed after installation: {status}")
 
     verified = run(cli, cache, "runtime", "verify", "--json")
-    if verified != {"version": "26.1.2", "source_valid": True}:
+    if verified != {
+        "version": "26.1.2",
+        "source_valid": True,
+        "runtime_valid": True,
+    }:
         raise AssertionError(f"unexpected verification result: {verified}")
 
     source = cache / "26.1.2" / "source"
