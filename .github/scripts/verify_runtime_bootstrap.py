@@ -108,12 +108,20 @@ def main() -> None:
     )
     if unexpected:
         raise AssertionError(f"generated runtime contains excluded libraries: {unexpected}")
+    fastutil_path = next(
+        (path for path in library_paths if "/fastutil/" in path), None
+    )
+    if fastutil_path is None:
+        raise AssertionError("generated runtime is missing FastUtil")
+    fastutil_size = (runtime / "libraries" / fastutil_path).stat().st_size
+    if fastutil_size >= 1_200_000:
+        raise AssertionError(f"generated FastUtil runtime is too large: {fastutil_size}")
     runtime_size = sum(path.stat().st_size for path in runtime.rglob("*") if path.is_file())
-    if runtime_size >= 58_000_000:
+    if runtime_size >= 34_000_000:
         raise AssertionError(f"generated runtime is unexpectedly large: {runtime_size}")
 
     print(
-        "verified official 26.1.2 download, 17-library runtime, cache, and hashes"
+        "verified official 26.1.2 download, compact runtime, cache, and hashes"
     )
 
 

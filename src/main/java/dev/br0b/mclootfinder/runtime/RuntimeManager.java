@@ -305,8 +305,15 @@ public final class RuntimeManager {
                         requireVerified(
                                 target, libraryEntry.getSize(), "SHA-256", fields[0]
                         );
+                        String compactClassList = version.compactLibraryClassLists()
+                                .get(fields[2]);
+                        if (compactClassList != null) {
+                            compactLibrary(target, compactClassList);
+                        }
                         libraries.add(new RuntimeLibrary(
-                                relative, libraryEntry.getSize(), fields[0]
+                                relative,
+                                Files.size(target),
+                                digest(target, "SHA-256")
                         ));
                     }
                 }
@@ -362,6 +369,71 @@ public final class RuntimeManager {
                 }
                 output.closeEntry();
             }
+        }
+    }
+
+    private static void compactLibrary(Path library, String classListResource)
+            throws IOException {
+        Set<String> retainedClasses = new LinkedHashSet<>();
+        try (InputStream input = RuntimeManager.class.getResourceAsStream(classListResource)) {
+            if (input == null) {
+                throw new IOException("Missing runtime class list " + classListResource);
+            }
+            try (var reader = new java.io.BufferedReader(new InputStreamReader(
+                    input, StandardCharsets.UTF_8
+            ))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String entry = line.strip();
+                    if (!entry.isEmpty() && !entry.startsWith("#")) {
+                        retainedClasses.add(entry);
+                    }
+                }
+            }
+        }
+        if (retainedClasses.isEmpty()) {
+            throw new IOException("Runtime class list is empty: " + classListResource);
+        }
+
+        Path temporary = Files.createTempFile(
+                library.getParent(), library.getFileName().toString(), ".compact"
+        );
+        Set<String> missing = new LinkedHashSet<>(retainedClasses);
+        try {
+            try (ZipFile input = new ZipFile(library.toFile());
+                 ZipOutputStream output = new ZipOutputStream(
+                         Files.newOutputStream(temporary)
+                 )) {
+                output.setLevel(9);
+                var entries = input.entries();
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    String name = entry.getName();
+                    if (entry.isDirectory() || isSignatureMetadata(name)) {
+                        continue;
+                    }
+                    if (name.endsWith(".class") && !retainedClasses.contains(name)) {
+                        continue;
+                    }
+                    missing.remove(name);
+                    ZipEntry copied = new ZipEntry(name);
+                    copied.setTime(0L);
+                    output.putNextEntry(copied);
+                    try (InputStream content = input.getInputStream(entry)) {
+                        content.transferTo(output);
+                    }
+                    output.closeEntry();
+                }
+            }
+            if (!missing.isEmpty()) {
+                throw new IOException(
+                        "Runtime class list entries are absent from " + library + ": "
+                                + String.join(", ", missing)
+                );
+            }
+            atomicReplace(temporary, library);
+        } finally {
+            Files.deleteIfExists(temporary);
         }
     }
 

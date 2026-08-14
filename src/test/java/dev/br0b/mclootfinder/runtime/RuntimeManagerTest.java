@@ -60,7 +60,8 @@ class RuntimeManagerTest {
                 inner.length,
                 digest(inner, "SHA-256"),
                 1,
-                java.util.List.of(libraryPath)
+                java.util.List.of(libraryPath),
+                java.util.Map.of()
         );
         RuntimeManager manager = new RuntimeManager(
                 version, temporaryDirectory.resolve("cache")

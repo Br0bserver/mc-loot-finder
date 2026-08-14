@@ -2,6 +2,7 @@ package dev.br0b.mclootfinder.runtime;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 /** Pinned official inputs used to construct a local search runtime. */
 public record RuntimeVersion(
@@ -14,7 +15,8 @@ public record RuntimeVersion(
         long bundledServerSize,
         String bundledServerSha256,
         int recipeVersion,
-        List<String> runtimeLibraryPaths
+        List<String> runtimeLibraryPaths,
+        Map<String, String> compactLibraryClassLists
 ) {
     public RuntimeVersion {
         if (minecraftVersion.isBlank() || javaMajorVersion <= 0 || serverSize <= 0
@@ -26,6 +28,11 @@ public record RuntimeVersion(
                 || runtimeLibraryPaths.stream().anyMatch(String::isBlank)
                 || runtimeLibraryPaths.stream().distinct().count() != runtimeLibraryPaths.size()) {
             throw new IllegalArgumentException("Invalid runtime library list");
+        }
+        compactLibraryClassLists = Map.copyOf(compactLibraryClassLists);
+        if (!runtimeLibraryPaths.containsAll(compactLibraryClassLists.keySet())
+                || compactLibraryClassLists.values().stream().anyMatch(String::isBlank)) {
+            throw new IllegalArgumentException("Invalid compact runtime library recipes");
         }
     }
 
@@ -41,7 +48,7 @@ public record RuntimeVersion(
             "META-INF/versions/26.1.2/server-26.1.2.jar",
             24_555_215L,
             "4723380bd2a0a0206719b50f2e390383afdaf82b0a76a0d573baf788e6aa3e86",
-            3,
+            4,
             List.of(
                     "com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar",
                     "com/google/guava/guava/33.5.0-jre/guava-33.5.0-jre.jar",
@@ -61,6 +68,10 @@ public record RuntimeVersion(
                             + "log4j-slf4j2-impl-2.25.2.jar",
                     "org/joml/joml/1.10.8/joml-1.10.8.jar",
                     "org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar"
+            ),
+            Map.of(
+                    "it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar",
+                    "/mclootfinder/26.1.2/fastutil-runtime-classes.txt"
             )
     );
 
