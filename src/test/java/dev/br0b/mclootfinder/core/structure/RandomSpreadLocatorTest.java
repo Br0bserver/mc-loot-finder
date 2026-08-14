@@ -1,6 +1,7 @@
 package dev.br0b.mclootfinder.core.structure;
 
 import dev.br0b.mclootfinder.core.Versions;
+import dev.br0b.mclootfinder.core.VersionProfile;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.ChunkPos;
@@ -18,12 +19,15 @@ class RandomSpreadLocatorTest {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
         for (var profile : Versions.V26_1_2.structures()) {
+            if (!(profile.placement() instanceof VersionProfile.StructureProfile placement)) {
+                continue;
+            }
             var minecraft = new RandomSpreadStructurePlacement(
-                    profile.placement().spacing(), profile.placement().separation(),
-                    profile.placement().spreadType() == dev.br0b.mclootfinder.core.VersionProfile.SpreadType.TRIANGULAR
+                    placement.spacing(), placement.separation(),
+                    placement.spreadType() == VersionProfile.SpreadType.TRIANGULAR
                             ? RandomSpreadType.TRIANGULAR
                             : RandomSpreadType.LINEAR,
-                    profile.placement().salt()
+                    placement.salt()
             );
             long[] seeds = {0L, 1L, -1L, 12_345_678_901_234L};
             for (long seed : seeds) {

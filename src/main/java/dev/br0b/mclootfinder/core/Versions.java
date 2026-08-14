@@ -103,6 +103,23 @@ public final class Versions {
                     "minecraft:spire_armor_trim_smithing_template"
                 ),
                 new StructureSpec(
+                    "stronghold",
+                    "minecraft:stronghold",
+                    "minecraft:overworld",
+                    new VersionProfile.ConcentricRingsProfile(32, 3, 128, 0),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:stronghold", 1)),
+                    java.util.List.of(
+                            "minecraft:chests/stronghold_corridor",
+                            "minecraft:chests/stronghold_crossing",
+                            "minecraft:chests/stronghold_library"
+                    ),
+                    "minecraft:eye_armor_trim_smithing_template"
+                ),
+                new StructureSpec(
                     "ruined_portal",
                     "minecraft:ruined_portal",
                     "minecraft:overworld",

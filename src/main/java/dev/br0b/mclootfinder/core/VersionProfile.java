@@ -18,12 +18,16 @@ public record VersionProfile(
         }
     }
 
+    public sealed interface PlacementProfile
+            permits StructureProfile, ConcentricRingsProfile {
+    }
+
     public record StructureProfile(
             int spacing,
             int separation,
             int salt,
             SpreadType spreadType
-    ) {
+    ) implements PlacementProfile {
         public StructureProfile(int spacing, int separation, int salt) {
             this(spacing, separation, salt, SpreadType.LINEAR);
         }
@@ -34,6 +38,25 @@ public record VersionProfile(
             }
             if (separation < 0 || separation >= spacing) {
                 throw new IllegalArgumentException("separation must be in [0, spacing)");
+            }
+        }
+    }
+
+    public record ConcentricRingsProfile(
+            int distance,
+            int spread,
+            int count,
+            int salt
+    ) implements PlacementProfile {
+        public ConcentricRingsProfile {
+            if (distance <= 0) {
+                throw new IllegalArgumentException("distance must be positive");
+            }
+            if (spread <= 0) {
+                throw new IllegalArgumentException("spread must be positive");
+            }
+            if (count <= 0) {
+                throw new IllegalArgumentException("count must be positive");
             }
         }
     }
@@ -85,6 +108,10 @@ public record VersionProfile(
 
     public StructureSpec endCity() {
         return structure("end_city");
+    }
+
+    public StructureSpec stronghold() {
+        return structure("stronghold");
     }
 
     private static String structurePath(String id) {

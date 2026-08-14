@@ -1,9 +1,14 @@
 package dev.br0b.mclootfinder.vanilla;
 
 import dev.br0b.mclootfinder.core.StructureSpec;
+import dev.br0b.mclootfinder.core.VersionProfile;
+import dev.br0b.mclootfinder.core.structure.RandomSpreadLocator;
+import dev.br0b.mclootfinder.core.structure.StructureCandidate;
 import dev.br0b.mclootfinder.engine.SearchEngine;
 import dev.br0b.mclootfinder.engine.StructureScan;
 import net.minecraft.world.level.ChunkPos;
+
+import java.util.List;
 
 public final class VanillaSearchEngine implements SearchEngine {
     private final long worldSeed;
@@ -23,6 +28,23 @@ public final class VanillaSearchEngine implements SearchEngine {
     @Override
     public void verifyProfile(StructureSpec spec) {
         runtime.verifyStructureProfile(spec);
+    }
+
+    @Override
+    public List<StructureCandidate> locateCandidates(
+            StructureSpec spec,
+            int centerBlockX,
+            int centerBlockZ,
+            int radiusBlocks
+    ) {
+        if (spec.placement() instanceof VersionProfile.StructureProfile) {
+            return RandomSpreadLocator.locate(
+                    worldSeed, centerBlockX, centerBlockZ, radiusBlocks, spec
+            );
+        }
+        return runtime.locateConcentricRingCandidates(
+                spec, centerBlockX, centerBlockZ, radiusBlocks
+        );
     }
 
     @Override

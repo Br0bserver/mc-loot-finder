@@ -14,6 +14,7 @@ EXPECTED_STRUCTURES = {
     "jungle_pyramid",
     "igloo",
     "end_city",
+    "stronghold",
     "ruined_portal",
     "ruined_portal_nether",
     "trial_chambers",
@@ -65,7 +66,7 @@ def main() -> None:
 
     catalog = run_json(cli, "explain", "--json")
     structures = {entry["name"] for entry in catalog["structures"]}
-    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 16:
+    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 17:
         raise AssertionError(f"unexpected structure catalog: {catalog}")
 
     ancient_city = run_json(
@@ -134,7 +135,38 @@ def main() -> None:
     }:
         raise AssertionError(f"unexpected bastion loot tables: {bastion}")
 
-    print("verified 16 structures, ancient city loot search, and bastion containers")
+    stronghold = run_json(
+        cli,
+        "chests",
+        "--seed",
+        "0",
+        "--structure",
+        "stronghold",
+        "--center-x",
+        "-200",
+        "--center-z",
+        "-1688",
+        "--radius",
+        "0",
+        "--json",
+    )
+    require_fields(
+        stronghold,
+        {
+            "placement_candidates": 1,
+            "valid_structures": 1,
+            "chest_count": 9,
+        },
+        "stronghold container scan",
+    )
+    if {chest["loot_table"] for chest in stronghold["chests"]} != {
+        "minecraft:chests/stronghold_corridor",
+        "minecraft:chests/stronghold_crossing",
+        "minecraft:chests/stronghold_library",
+    }:
+        raise AssertionError(f"unexpected stronghold loot tables: {stronghold}")
+
+    print("verified 17 structures, ancient city loot search, bastion, and stronghold containers")
 
 
 if __name__ == "__main__":

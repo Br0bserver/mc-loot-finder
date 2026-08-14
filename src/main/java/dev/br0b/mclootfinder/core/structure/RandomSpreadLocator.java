@@ -92,6 +92,12 @@ public final class RandomSpreadLocator {
             int radiusBlocks,
             StructureSpec spec
     ) {
-        return locate(worldSeed, centerBlockX, centerBlockZ, radiusBlocks, spec.placement());
+        return locate(
+                worldSeed,
+                centerBlockX,
+                centerBlockZ,
+                radiusBlocks,
+                spec.randomSpreadPlacement()
+        );
     }
 }

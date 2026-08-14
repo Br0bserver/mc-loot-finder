@@ -131,6 +131,18 @@ class MainTest {
     }
 
     @Test
+    void explainDescribesStrongholdConcentricRings() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        assertEquals(0, Main.run(new String[]{
+                "explain", "--structure", "stronghold", "--json"
+        }, new PrintStream(bytes, true, StandardCharsets.UTF_8), System.err));
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("\"name\":\"stronghold\""));
+        assertTrue(output.contains("\"type\":\"concentric_rings\""));
+        assertTrue(output.contains("minecraft:chests/stronghold_library"));
+    }
+
+    @Test
     void explainListsCommandDefaults() {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         assertEquals(0, Main.run(new String[]{"explain"},
