@@ -35,6 +35,13 @@ jobs:
           python3 .github/scripts/verify_runtime_bootstrap.py
           build/app-image/mc-loot-finder/bin/mc-loot-finder
           ${{ runner.temp }}/mc-loot-finder-runtime
+      - name: Verify exact parity for all structures
+        env:
+          MC_LOOT_FINDER_CACHE: ${{ runner.temp }}/mc-loot-finder-runtime
+        run: >-
+          python3 .github/scripts/verify_engine_parity.py
+          build/install/mc-loot-finder/bin/mc-loot-finder
+          build/app-image/mc-loot-finder/bin/mc-loot-finder
       - name: Verify self-contained CLI
         env:
           JAVA_HOME: ""
@@ -65,6 +72,13 @@ jobs:
           py -3 .github/scripts/verify_runtime_bootstrap.py
           build/app-image/mc-loot-finder/mc-loot-finder.exe
           ${{ runner.temp }}/mc-loot-finder-runtime
+      - name: Verify exact parity for all structures
+        env:
+          MC_LOOT_FINDER_CACHE: ${{ runner.temp }}/mc-loot-finder-runtime
+        run: >-
+          py -3 .github/scripts/verify_engine_parity.py
+          build/install/mc-loot-finder/bin/mc-loot-finder.bat
+          build/app-image/mc-loot-finder/mc-loot-finder.exe
       - name: Verify self-contained CLI
         env:
           JAVA_HOME: ""
