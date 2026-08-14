@@ -72,6 +72,54 @@ class ArchaeologyIntegrationTest {
         }
     }
 
+    @Test
+    void trailRuinsSuspiciousGravelMatchesVanillaProcessorOutput() {
+        var spec = Versions.V26_1_2.trailRuins();
+        try (VanillaRuntime26_1_2 runtime = VanillaRuntime26_1_2.load(0L)) {
+            var start = runtime.generateSelectedStructure(spec, new ChunkPos(38, -27));
+            assertTrue(start.isValid());
+            var sources = StructureChestScanner.scanAll(0L, spec, start, runtime).stream()
+                    .filter(source -> source.sourceKind()
+                            == ChestPrediction.LootSourceKind.ARCHAEOLOGY)
+                    .toList();
+            assertEquals(99, sources.size());
+            assertTrue(sources.stream().allMatch(source ->
+                    source.sourceBlock().equals("minecraft:suspicious_gravel")
+            ));
+            assertEquals(
+                    java.util.Set.of(
+                            "minecraft:archaeology/trail_ruins_common",
+                            "minecraft:archaeology/trail_ruins_rare"
+                    ),
+                    sources.stream().map(ChestPrediction::lootTable)
+                            .collect(java.util.stream.Collectors.toSet())
+            );
+            assertEquals(
+                    List.of(
+                            "608,51,-422,minecraft:archaeology/trail_ruins_common,-554345753514548585",
+                            "610,51,-424,minecraft:archaeology/trail_ruins_common,-6543980276395535317",
+                            "609,52,-425,minecraft:archaeology/trail_ruins_rare,7169779876079930898"
+                    ),
+                    sources.subList(0, 3).stream().map(source -> "%d,%d,%d,%s,%d".formatted(
+                            source.x(), source.y(), source.z(), source.lootTable(),
+                            source.lootTableSeed()
+                    )).toList()
+            );
+            assertEquals(
+                    List.of(
+                            "640,50,-434,minecraft:archaeology/trail_ruins_common,9193263046726126964",
+                            "644,47,-435,minecraft:archaeology/trail_ruins_common,-2236894430893853836",
+                            "646,47,-433,minecraft:archaeology/trail_ruins_common,-4428564151409048691"
+                    ),
+                    sources.subList(sources.size() - 3, sources.size()).stream()
+                            .map(source -> "%d,%d,%d,%s,%d".formatted(
+                                    source.x(), source.y(), source.z(), source.lootTable(),
+                                    source.lootTableSeed()
+                            )).toList()
+            );
+        }
+    }
+
     private static void assertVector(
             StructureSpec spec,
             int startChunkX,

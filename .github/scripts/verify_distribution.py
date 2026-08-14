@@ -20,6 +20,7 @@ EXPECTED_STRUCTURES = {
     "trial_chambers",
     "shipwreck",
     "ocean_ruin",
+    "trail_ruins",
     "nether_fortress",
     "village",
     "buried_treasure",
@@ -66,7 +67,7 @@ def main() -> None:
 
     catalog = run_json(cli, "explain", "--json")
     structures = {entry["name"] for entry in catalog["structures"]}
-    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 17:
+    if structures != EXPECTED_STRUCTURES or len(catalog["structures"]) != 18:
         raise AssertionError(f"unexpected structure catalog: {catalog}")
 
     ancient_city = run_json(
@@ -199,9 +200,43 @@ def main() -> None:
     }:
         raise AssertionError(f"unexpected archaeology loot tables: {archaeology}")
 
+    trail_ruins = run_json(
+        cli,
+        "archaeology",
+        "--seed",
+        "0",
+        "--structure",
+        "trail_ruins",
+        "--center-x",
+        "616",
+        "--center-z",
+        "-424",
+        "--radius",
+        "0",
+        "--json",
+    )
+    require_fields(
+        trail_ruins,
+        {
+            "placement_candidates": 1,
+            "valid_structures": 1,
+            "archaeology_count": 99,
+        },
+        "trail ruins archaeology scan",
+    )
+    if {block["block"] for block in trail_ruins["blocks"]} != {
+        "minecraft:suspicious_gravel"
+    }:
+        raise AssertionError(f"unexpected trail ruins blocks: {trail_ruins}")
+    if {block["loot_table"] for block in trail_ruins["blocks"]} != {
+        "minecraft:archaeology/trail_ruins_common",
+        "minecraft:archaeology/trail_ruins_rare",
+    }:
+        raise AssertionError(f"unexpected trail ruins loot tables: {trail_ruins}")
+
     print(
-        "verified 17 structures, ancient city loot search, bastion and stronghold "
-        "containers, and desert pyramid archaeology"
+        "verified 18 structures, ancient city loot search, bastion and stronghold "
+        "containers, and desert pyramid and trail ruins archaeology"
     )
 
 

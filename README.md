@@ -90,7 +90,7 @@ build/install/mc-loot-finder/bin/mc-loot-finder loot \
 
 当前支持：远古城市、堡垒遗迹、沙漠神殿、丛林神庙、雪屋、末地城、要塞、主世界和下界废弃传送门、试炼密室、沉船、海底废墟、下界要塞、村庄、埋藏的宝藏、掠夺者前哨站、林地府邸。
 
-考古方块目前支持沙漠神殿和冷暖海底废墟。`archaeology` 列出方块位置、类型、LootTable 和 LootTableSeed；`find` 会同时搜索结构中的普通容器和考古方块。
+考古方块目前支持沙漠神殿、冷暖海底废墟和古迹废墟。`archaeology` 列出方块位置、类型、LootTable 和 LootTableSeed；`find` 会同时搜索结构中的普通容器和考古方块。
 
 只处理方块容器，不处理箱子矿车等实体容器，因此不支持废弃矿井。只支持原版 Minecraft Java `26.1.2`，不读取自定义世界生成或战利品数据包。
 

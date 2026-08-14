@@ -123,6 +123,22 @@ public final class Versions {
                     "minecraft:eye_armor_trim_smithing_template"
                 ),
                 new StructureSpec(
+                    "trail_ruins",
+                    "minecraft:trail_ruins",
+                    "minecraft:overworld",
+                    new VersionProfile.StructureProfile(34, 8, 83_469_867),
+                    -1,
+                    -1,
+                    StructureSpec.ScannerKind.VANILLA_PLACEMENT,
+                    StructureSpec.ContainerSeedShortcut.NONE,
+                    java.util.List.of(new StructureSpec.SelectionEntry("minecraft:trail_ruins", 1)),
+                    java.util.List.of(
+                            "minecraft:archaeology/trail_ruins_common",
+                            "minecraft:archaeology/trail_ruins_rare"
+                    ),
+                    "minecraft:wayfinder_armor_trim_smithing_template"
+                ),
+                new StructureSpec(
                     "ruined_portal",
                     "minecraft:ruined_portal",
                     "minecraft:overworld",

@@ -114,6 +114,10 @@ public record VersionProfile(
         return structure("stronghold");
     }
 
+    public StructureSpec trailRuins() {
+        return structure("trail_ruins");
+    }
+
     private static String structurePath(String id) {
         int separator = id.indexOf(':');
         return separator < 0 ? id : id.substring(separator + 1);

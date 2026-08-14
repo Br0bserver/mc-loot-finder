@@ -44,6 +44,8 @@ class JsonLootTableOracleParityTest {
             "minecraft:archaeology/desert_pyramid",
             "minecraft:archaeology/ocean_ruin_cold",
             "minecraft:archaeology/ocean_ruin_warm",
+            "minecraft:archaeology/trail_ruins_common",
+            "minecraft:archaeology/trail_ruins_rare",
             "minecraft:chests/ruined_portal",
             "minecraft:chests/shipwreck_map",
             "minecraft:chests/shipwreck_supply",
