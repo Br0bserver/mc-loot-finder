@@ -71,7 +71,7 @@ def main() -> None:
 
     runtime = cache / "26.1.2" / "runtime"
     runtime_server = runtime / "server.jar"
-    if runtime_server.stat().st_size >= 24_555_215:
+    if runtime_server.stat().st_size >= 17_500_000:
         raise AssertionError("generated runtime server jar was not compacted")
     with zipfile.ZipFile(runtime_server) as server_jar:
         signature_entries = {
@@ -117,7 +117,7 @@ def main() -> None:
     if fastutil_size >= 1_200_000:
         raise AssertionError(f"generated FastUtil runtime is too large: {fastutil_size}")
     runtime_size = sum(path.stat().st_size for path in runtime.rglob("*") if path.is_file())
-    if runtime_size >= 34_000_000:
+    if runtime_size >= 28_000_000:
         raise AssertionError(f"generated runtime is unexpectedly large: {runtime_size}")
 
     print(

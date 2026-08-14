@@ -258,7 +258,9 @@ public final class RuntimeManager {
         boolean installed = false;
         try {
             Path runtimeServer = temporary.resolve("server.jar");
-            createUnsignedServerRuntime(innerJar, runtimeServer);
+            createServerRuntime(
+                    innerJar, runtimeServer, version.serverClassListResource()
+            );
             Properties state = new Properties();
             state.setProperty("minecraftVersion", version.minecraftVersion());
             state.setProperty("recipeVersion", Integer.toString(version.recipeVersion()));
@@ -350,18 +352,31 @@ public final class RuntimeManager {
         }
     }
 
-    private static void createUnsignedServerRuntime(Path source, Path destination)
-            throws IOException {
+    private static void createServerRuntime(
+            Path source,
+            Path destination,
+            String classListResource
+    ) throws IOException {
+        Set<String> retainedClasses = classListResource.isBlank()
+                ? Set.of()
+                : readRuntimeClassList(classListResource);
+        Set<String> missing = new LinkedHashSet<>(retainedClasses);
         try (ZipFile input = new ZipFile(source.toFile());
              ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(destination))) {
             output.setLevel(9);
             var entries = input.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
-                if (entry.isDirectory() || isSignatureMetadata(entry.getName())) {
+                String name = entry.getName();
+                if (entry.isDirectory() || isSignatureMetadata(name)) {
                     continue;
                 }
-                ZipEntry copied = new ZipEntry(entry.getName());
+                if (!retainedClasses.isEmpty() && name.endsWith(".class")
+                        && !retainedClasses.contains(name)) {
+                    continue;
+                }
+                missing.remove(name);
+                ZipEntry copied = new ZipEntry(name);
                 copied.setTime(0L);
                 output.putNextEntry(copied);
                 try (InputStream content = input.getInputStream(entry)) {
@@ -370,31 +385,17 @@ public final class RuntimeManager {
                 output.closeEntry();
             }
         }
+        if (!missing.isEmpty()) {
+            throw new IOException(
+                    "Runtime class list entries are absent from " + source + ": "
+                            + String.join(", ", missing)
+            );
+        }
     }
 
     private static void compactLibrary(Path library, String classListResource)
             throws IOException {
-        Set<String> retainedClasses = new LinkedHashSet<>();
-        try (InputStream input = RuntimeManager.class.getResourceAsStream(classListResource)) {
-            if (input == null) {
-                throw new IOException("Missing runtime class list " + classListResource);
-            }
-            try (var reader = new java.io.BufferedReader(new InputStreamReader(
-                    input, StandardCharsets.UTF_8
-            ))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    String entry = line.strip();
-                    if (!entry.isEmpty() && !entry.startsWith("#")) {
-                        retainedClasses.add(entry);
-                    }
-                }
-            }
-        }
-        if (retainedClasses.isEmpty()) {
-            throw new IOException("Runtime class list is empty: " + classListResource);
-        }
-
+        Set<String> retainedClasses = readRuntimeClassList(classListResource);
         Path temporary = Files.createTempFile(
                 library.getParent(), library.getFileName().toString(), ".compact"
         );
@@ -435,6 +436,31 @@ public final class RuntimeManager {
         } finally {
             Files.deleteIfExists(temporary);
         }
+    }
+
+    private static Set<String> readRuntimeClassList(String classListResource)
+            throws IOException {
+        Set<String> retainedClasses = new LinkedHashSet<>();
+        try (InputStream input = RuntimeManager.class.getResourceAsStream(classListResource)) {
+            if (input == null) {
+                throw new IOException("Missing runtime class list " + classListResource);
+            }
+            try (var reader = new java.io.BufferedReader(new InputStreamReader(
+                    input, StandardCharsets.UTF_8
+            ))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String entry = line.strip();
+                    if (!entry.isEmpty() && !entry.startsWith("#")) {
+                        retainedClasses.add(entry);
+                    }
+                }
+            }
+        }
+        if (retainedClasses.isEmpty()) {
+            throw new IOException("Runtime class list is empty: " + classListResource);
+        }
+        return retainedClasses;
     }
 
     private static boolean isSignatureMetadata(String name) {

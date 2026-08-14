@@ -15,12 +15,14 @@ public record RuntimeVersion(
         long bundledServerSize,
         String bundledServerSha256,
         int recipeVersion,
+        String serverClassListResource,
         List<String> runtimeLibraryPaths,
         Map<String, String> compactLibraryClassLists
 ) {
     public RuntimeVersion {
         if (minecraftVersion.isBlank() || javaMajorVersion <= 0 || serverSize <= 0
-                || bundledServerSize <= 0 || recipeVersion <= 0) {
+                || bundledServerSize <= 0 || recipeVersion <= 0
+                || serverClassListResource == null) {
             throw new IllegalArgumentException("Invalid runtime version metadata");
         }
         runtimeLibraryPaths = List.copyOf(runtimeLibraryPaths);
@@ -48,7 +50,8 @@ public record RuntimeVersion(
             "META-INF/versions/26.1.2/server-26.1.2.jar",
             24_555_215L,
             "4723380bd2a0a0206719b50f2e390383afdaf82b0a76a0d573baf788e6aa3e86",
-            4,
+            5,
+            "/mclootfinder/26.1.2/server-runtime-classes.txt",
             List.of(
                     "com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar",
                     "com/google/guava/guava/33.5.0-jre/guava-33.5.0-jre.jar",
