@@ -44,6 +44,22 @@ tasks.named("test", Test) {
     jvmArgs "--sun-misc-unsafe-memory-access=allow"
 }
 
+tasks.named("startScripts") {
+    doLast {
+        String original = windowsScript.getText("UTF-8")
+        String shortened = original.replaceFirst(
+                /(?m)^set CLASSPATH=.*$/,
+                java.util.regex.Matcher.quoteReplacement(
+                        'set CLASSPATH=%APP_HOME%\\lib\\*'
+                )
+        )
+        if (shortened == original) {
+            throw new GradleException("Windows launcher CLASSPATH line was not found")
+        }
+        windowsScript.setText(shortened, "UTF-8")
+    }
+}
+
 tasks.register("runCli", JavaExec) {
     group = "application"
     description = "Runs the standalone loot-finder CLI"
