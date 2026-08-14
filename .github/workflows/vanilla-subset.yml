@@ -25,6 +25,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Test oracle and provider boundary
         run: ./gradlew test installDist --no-daemon
+      - name: Verify official runtime source bootstrap
+        run: >-
+          python3 .github/scripts/verify_runtime_bootstrap.py
+          build/install/mc-loot-finder/bin/mc-loot-finder
+          ${{ runner.temp }}/mc-loot-finder-runtime
       - name: Verify installed CLI
         run: >-
           python3 .github/scripts/verify_distribution.py
