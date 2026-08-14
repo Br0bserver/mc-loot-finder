@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import zipfile
 
 
 def run(cli: Path, cache: Path, *arguments: str) -> dict:
@@ -61,17 +62,28 @@ def main() -> None:
         raise AssertionError(f"unexpected verification result: {verified}")
 
     source = cache / "26.1.2" / "source"
-    expected_sizes = {
-        "server.jar": 60_417_480,
-        "server-inner.jar": 24_555_215,
-    }
+    expected_sizes = {"server.jar": 60_417_480}
     actual_sizes = {name: (source / name).stat().st_size for name in expected_sizes}
     if actual_sizes != expected_sizes:
         raise AssertionError(f"unexpected cached source sizes: {actual_sizes}")
+    if (source / "server-inner.jar").exists():
+        raise AssertionError("cached source retains a duplicate inner server jar")
 
     runtime = cache / "26.1.2" / "runtime"
-    if (runtime / "server.jar").stat().st_size != 24_555_215:
-        raise AssertionError("generated runtime has an unexpected server jar")
+    runtime_server = runtime / "server.jar"
+    if runtime_server.stat().st_size >= 24_555_215:
+        raise AssertionError("generated runtime server jar was not compacted")
+    with zipfile.ZipFile(runtime_server) as server_jar:
+        signature_entries = {
+            name
+            for name in server_jar.namelist()
+            if name.upper() == "META-INF/MANIFEST.MF"
+            or name.upper().endswith((".SF", ".RSA", ".DSA"))
+        }
+    if signature_entries:
+        raise AssertionError(
+            f"generated runtime retains signature metadata: {sorted(signature_entries)}"
+        )
     if not any((runtime / "libraries").rglob("*.jar")):
         raise AssertionError("generated runtime contains no official server libraries")
     properties = read_properties(runtime / "runtime.properties")

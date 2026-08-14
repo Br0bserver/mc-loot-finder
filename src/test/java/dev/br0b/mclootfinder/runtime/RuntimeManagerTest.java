@@ -12,9 +12,12 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,7 +27,7 @@ class RuntimeManagerTest {
 
     @Test
     void installsAndVerifiesASuppliedBundledServerJar() throws Exception {
-        byte[] inner = "named minecraft server classes".getBytes(StandardCharsets.UTF_8);
+        byte[] inner = testInnerJar();
         byte[] library = "official runtime library".getBytes(StandardCharsets.UTF_8);
         byte[] unusedLibrary = "unused official library".getBytes(StandardCharsets.UTF_8);
         String libraryPath = "com/example/runtime/test-runtime.jar";
@@ -85,6 +88,16 @@ class RuntimeManagerTest {
                 manager.runtimeClasspath().getFirst().getParent()
                         .resolve("libraries").resolve(unusedLibraryPath)
         ));
+        assertFalse(Files.exists(
+                manager.status().cacheDirectory().resolve("source/server-inner.jar")
+        ));
+        try (ZipFile runtimeServer = new ZipFile(
+                manager.runtimeClasspath().getFirst().toFile()
+        )) {
+            assertNotNull(runtimeServer.getEntry("net/minecraft/Test.class"));
+            assertNull(runtimeServer.getEntry("META-INF/MANIFEST.MF"));
+            assertNull(runtimeServer.getEntry("META-INF/MOJANGCS.SF"));
+        }
     }
 
     @Test
@@ -108,6 +121,22 @@ class RuntimeManagerTest {
         return HexFormat.of().formatHex(
                 MessageDigest.getInstance(algorithm).digest(value)
         );
+    }
+
+    private static byte[] testInnerJar() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            zip.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zip.write("Manifest-Version: 1.0\n\n".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("META-INF/MOJANGCS.SF"));
+            zip.write("signature metadata".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("net/minecraft/Test.class"));
+            zip.write("named minecraft server classes".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+        return bytes.toByteArray();
     }
 
     private Path writeExpectedLibrary(byte[] bytes) throws Exception {

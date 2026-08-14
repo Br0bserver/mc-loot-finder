@@ -29,6 +29,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 /** Downloads, verifies, and caches the official input for local runtime extraction. */
 public final class RuntimeManager {
@@ -85,6 +86,7 @@ public final class RuntimeManager {
                     StandardOpenOption.WRITE
             ); FileLock ignored = channel.lock()) {
                 if (sourceStateMatches() && runtimeStateMatches()) {
+                    Files.deleteIfExists(sourceRoot.resolve("server-inner.jar"));
                     progress.println("Minecraft Java " + version.minecraftVersion()
                             + " source is already installed.");
                     return status();
@@ -99,7 +101,11 @@ public final class RuntimeManager {
 
                 Path innerJar = sourceRoot.resolve("server-inner.jar");
                 extractBundledServer(outerJar, innerJar);
-                generateRuntime(outerJar, innerJar);
+                try {
+                    generateRuntime(outerJar, innerJar);
+                } finally {
+                    Files.deleteIfExists(innerJar);
+                }
                 writeState();
                 progress.println("Prepared verified Minecraft Java "
                         + version.minecraftVersion() + " source in " + versionRoot + ".");
@@ -119,11 +125,6 @@ public final class RuntimeManager {
                 version.serverSize(),
                 "SHA-1",
                 version.serverSha1()
-        ) && verifiedFile(
-                sourceRoot().resolve("server-inner.jar"),
-                version.bundledServerSize(),
-                "SHA-256",
-                version.bundledServerSha256()
         );
     }
 
@@ -136,9 +137,9 @@ public final class RuntimeManager {
             }
             if (!verifiedFile(
                     runtimeRoot.resolve("server.jar"),
-                    version.bundledServerSize(),
+                    Long.parseLong(state.getProperty("serverSize", "0")),
                     "SHA-256",
-                    version.bundledServerSha256()
+                    state.getProperty("serverSha256", "")
             )) {
                 return false;
             }
@@ -256,12 +257,14 @@ public final class RuntimeManager {
         Path temporary = Files.createTempDirectory(versionRoot, "runtime-");
         boolean installed = false;
         try {
-            Files.copy(innerJar, temporary.resolve("server.jar"));
+            Path runtimeServer = temporary.resolve("server.jar");
+            createUnsignedServerRuntime(innerJar, runtimeServer);
             Properties state = new Properties();
             state.setProperty("minecraftVersion", version.minecraftVersion());
             state.setProperty("recipeVersion", Integer.toString(version.recipeVersion()));
-            state.setProperty("serverSha256", version.bundledServerSha256());
-            state.setProperty("serverSize", Long.toString(version.bundledServerSize()));
+            state.setProperty("sourceServerSha256", version.bundledServerSha256());
+            state.setProperty("serverSha256", digest(runtimeServer, "SHA-256"));
+            state.setProperty("serverSize", Long.toString(Files.size(runtimeServer)));
 
             List<RuntimeLibrary> libraries = new ArrayList<>();
             Set<String> remainingLibraries = new LinkedHashSet<>(
@@ -340,6 +343,37 @@ public final class RuntimeManager {
         }
     }
 
+    private static void createUnsignedServerRuntime(Path source, Path destination)
+            throws IOException {
+        try (ZipFile input = new ZipFile(source.toFile());
+             ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(destination))) {
+            output.setLevel(9);
+            var entries = input.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (entry.isDirectory() || isSignatureMetadata(entry.getName())) {
+                    continue;
+                }
+                ZipEntry copied = new ZipEntry(entry.getName());
+                copied.setTime(0L);
+                output.putNextEntry(copied);
+                try (InputStream content = input.getInputStream(entry)) {
+                    content.transferTo(output);
+                }
+                output.closeEntry();
+            }
+        }
+    }
+
+    private static boolean isSignatureMetadata(String name) {
+        String upper = name.toUpperCase(java.util.Locale.ROOT);
+        return upper.equals("META-INF/MANIFEST.MF")
+                || upper.startsWith("META-INF/")
+                && (upper.endsWith(".SF")
+                || upper.endsWith(".RSA")
+                || upper.endsWith(".DSA"));
+    }
+
     private boolean sourceStateMatches() {
         Path stateFile = sourceRoot().resolve(STATE_FILE);
         if (!Files.isRegularFile(stateFile)) {
@@ -355,9 +389,7 @@ public final class RuntimeManager {
                     .equals(version.bundledServerSha256())
                     && Integer.parseInt(state.getProperty("recipeVersion", "0"))
                     == version.recipeVersion()
-                    && Files.size(sourceRoot().resolve("server.jar")) == version.serverSize()
-                    && Files.size(sourceRoot().resolve("server-inner.jar"))
-                    == version.bundledServerSize();
+                    && Files.size(sourceRoot().resolve("server.jar")) == version.serverSize();
         } catch (IOException | NumberFormatException exception) {
             return false;
         }
@@ -371,7 +403,7 @@ public final class RuntimeManager {
         }
         try {
             if (Files.size(runtimeRoot.resolve("server.jar"))
-                    != version.bundledServerSize()) {
+                    != Long.parseLong(state.getProperty("serverSize", "0"))) {
                 return false;
             }
             int libraryCount = Integer.parseInt(state.getProperty("library.count", "0"));
@@ -395,11 +427,33 @@ public final class RuntimeManager {
             return state.getProperty("minecraftVersion", "").equals(version.minecraftVersion())
                     && Integer.parseInt(state.getProperty("recipeVersion", "0"))
                     == version.recipeVersion()
-                    && state.getProperty("serverSha256", "")
+                    && state.getProperty("sourceServerSha256", "")
                     .equals(version.bundledServerSha256())
+                    && state.getProperty("serverSha256", "").matches("[0-9a-f]{64}")
+                    && Long.parseLong(state.getProperty("serverSize", "0")) > 0
                     && Long.parseLong(state.getProperty("serverSize", "0"))
-                    == version.bundledServerSize();
+                    < version.bundledServerSize()
+                    && runtimeLibraryPathsMatch(state);
         } catch (NumberFormatException exception) {
+            return false;
+        }
+    }
+
+    private boolean runtimeLibraryPathsMatch(Properties state) {
+        try {
+            int count = Integer.parseInt(state.getProperty("library.count", "0"));
+            if (count != version.runtimeLibraryPaths().size()) {
+                return false;
+            }
+            Set<String> paths = new LinkedHashSet<>();
+            for (int index = 0; index < count; index++) {
+                paths.add(safeRelativePath(
+                        state.getProperty("library." + index + ".path")
+                ).toString().replace('\\', '/'));
+            }
+            return paths.size() == count
+                    && paths.equals(new LinkedHashSet<>(version.runtimeLibraryPaths()));
+        } catch (IllegalArgumentException exception) {
             return false;
         }
     }
@@ -453,6 +507,16 @@ public final class RuntimeManager {
         if (!Files.isRegularFile(path) || Files.size(path) != expectedSize) {
             throw new IllegalStateException("Unexpected file size for " + path);
         }
+        String actual = digest(path, algorithm);
+        if (!actual.equals(expectedHash)) {
+            throw new IllegalStateException(
+                    algorithm + " mismatch for " + path + ": expected "
+                            + expectedHash + ", got " + actual
+            );
+        }
+    }
+
+    private static String digest(Path path, String algorithm) throws IOException {
         MessageDigest digest;
         try {
             digest = MessageDigest.getInstance(algorithm);
@@ -466,13 +530,7 @@ public final class RuntimeManager {
                 digest.update(buffer, 0, read);
             }
         }
-        String actual = HexFormat.of().formatHex(digest.digest());
-        if (!actual.equals(expectedHash)) {
-            throw new IllegalStateException(
-                    algorithm + " mismatch for " + path + ": expected "
-                            + expectedHash + ", got " + actual
-            );
-        }
+        return HexFormat.of().formatHex(digest.digest());
     }
 
     private static void atomicReplace(Path source, Path destination) throws IOException {
