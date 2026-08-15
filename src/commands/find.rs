@@ -2,7 +2,7 @@ use crate::catalog::candidate_structure;
 use crate::cli::{FindArgs, require_identifier, require_version};
 use crate::commands::locate_and_scan;
 use crate::loot;
-use crate::output::{grouped, quantity};
+use crate::output::{FindMatch, FindOutput, grouped, print_json, quantity};
 
 pub fn run(args: FindArgs) -> Result<u8, String> {
     require_version(&args.search.common.version)?;
@@ -47,34 +47,32 @@ pub fn run(args: FindArgs) -> Result<u8, String> {
     let exit_code = if matches.is_empty() { 1 } else { 0 };
 
     if args.search.common.json {
-        print!(
-            "{{\"version\":\"26.1.2\",\"structure\":\"{}\",\"seed\":{},\"item\":\"{}\",\"placement_candidates\":{},\"valid_structures\":{},\"checked_chests\":{},\"hits\":{},\"unpredictable_zero_seeds\":{},\"matches\":[",
-            structure.name,
-            world_seed,
-            item,
-            candidates.len(),
+        let output = FindOutput {
+            version: "26.1.2",
+            structure: structure.name,
+            seed: world_seed,
+            item: item.to_owned(),
+            placement_candidates: candidates.len(),
             valid_structures,
             checked_chests,
-            matches.len(),
-            unpredictable_zero_seeds
-        );
-        for (index, (chest, item_count)) in matches.iter().take(limit as usize).enumerate() {
-            if index != 0 {
-                print!(",");
-            }
-            print!(
-                "{{\"x\":{},\"y\":{},\"z\":{},\"item_count\":{},\"loot_table\":\"{}\",\"loot_seed\":{},\"start_chunk_x\":{},\"start_chunk_z\":{}}}",
-                chest.x,
-                chest.y,
-                chest.z,
-                item_count,
-                chest.loot_table,
-                chest.loot_seed,
-                chest.structure_chunk_x,
-                chest.structure_chunk_z
-            );
-        }
-        println!("]}}");
+            hits: matches.len(),
+            unpredictable_zero_seeds,
+            matches: matches
+                .iter()
+                .take(limit as usize)
+                .map(|(chest, item_count)| FindMatch {
+                    x: chest.x,
+                    y: chest.y,
+                    z: chest.z,
+                    item_count: *item_count,
+                    loot_table: chest.loot_table.clone(),
+                    loot_seed: chest.loot_seed,
+                    start_chunk_x: chest.structure_chunk_x,
+                    start_chunk_z: chest.structure_chunk_z,
+                })
+                .collect(),
+        };
+        print_json(&output);
         return Ok(exit_code);
     }
 
@@ -102,8 +100,8 @@ pub fn run(args: FindArgs) -> Result<u8, String> {
     println!(
         "Checked: {}, {}, {}",
         quantity(candidates.len() as i64, "candidate"),
-        quantity(valid_structures, "valid structure"),
-        quantity(checked_chests, "container")
+        quantity(valid_structures as i64, "valid structure"),
+        quantity(checked_chests as i64, "container")
     );
     println!(
         "Shown: {} of {}",
@@ -113,7 +111,7 @@ pub fn run(args: FindArgs) -> Result<u8, String> {
     if unpredictable_zero_seeds != 0 {
         println!(
             "Skipped: {} with LootTableSeed 0",
-            quantity(unpredictable_zero_seeds, "container")
+            quantity(unpredictable_zero_seeds as i64, "container")
         );
     }
     Ok(exit_code)

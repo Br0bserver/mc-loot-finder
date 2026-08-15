@@ -2,28 +2,30 @@ use crate::catalog::{
     CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType, candidate_structure,
 };
 use crate::cli::{ExplainArgs, require_version};
-use crate::output::grouped;
+use crate::output::{
+    ExplainDetailOutput, ExplainListingOutput, ExplainStructureJson, PlacementJson, grouped,
+    print_json,
+};
 
 pub fn run(args: ExplainArgs) -> Result<u8, String> {
     require_version(&args.common.version)?;
     let structure_name = args.structure.as_deref().unwrap_or("");
     if structure_name.is_empty() {
         if args.common.json {
-            print!("{{\"version\":\"26.1.2\",\"structures\":[");
-            for (index, structure) in CANDIDATE_STRUCTURES.iter().enumerate() {
-                if index != 0 {
-                    print!(",");
-                }
-                print!(
-                    "{{\"name\":\"{}\",\"dimension\":\"{}\",\"full_scan\":{},\"default_item\":\"{}\",\"loot_tables\":{}}}",
-                    structure.name,
-                    structure.dimension,
-                    structure.supports_full_scan(),
-                    structure.default_item,
-                    structure.loot_tables.len()
-                );
-            }
-            println!("]}}");
+            let output = ExplainListingOutput {
+                version: "26.1.2",
+                structures: CANDIDATE_STRUCTURES
+                    .iter()
+                    .map(|structure| ExplainStructureJson {
+                        name: structure.name,
+                        dimension: structure.dimension,
+                        full_scan: structure.supports_full_scan(),
+                        default_item: structure.default_item,
+                        loot_tables: structure.loot_tables.len(),
+                    })
+                    .collect(),
+            };
+            print_json(&output);
             return Ok(0);
         }
         println!("Minecraft Java 26.1.2\n");
@@ -58,38 +60,33 @@ pub fn run(args: ExplainArgs) -> Result<u8, String> {
 
     let structure = candidate_structure(structure_name)?;
     if args.common.json {
-        let spread = match structure.placement.spread {
-            SpreadType::Linear => "LINEAR",
-            SpreadType::Triangular => "TRIANGULAR",
+        let output = ExplainDetailOutput {
+            version: "26.1.2",
+            name: structure.name,
+            structure_id: structure.structure_id,
+            dimension: structure.dimension,
+            full_scan: structure.supports_full_scan(),
+            default_item: structure.default_item,
+            placement: PlacementJson {
+                spacing: structure.placement.spacing,
+                separation: structure.placement.separation,
+                salt: structure.placement.salt,
+                spread: match structure.placement.spread {
+                    SpreadType::Linear => "LINEAR",
+                    SpreadType::Triangular => "TRIANGULAR",
+                },
+            },
+            decoration_step: structure.decoration_step,
+            decoration_index: structure.structure_index,
+            scanner: structure.scanner,
+            container_seed_shortcut: match structure.container_seed {
+                ContainerSeedShortcut::Direct => "DIRECT",
+                ContainerSeedShortcut::DesertPyramid => "DESERT_PYRAMID",
+                ContainerSeedShortcut::None => "NONE",
+            },
+            loot_tables: structure.loot_tables.to_vec(),
         };
-        let shortcut = match structure.container_seed {
-            ContainerSeedShortcut::Direct => "DIRECT",
-            ContainerSeedShortcut::DesertPyramid => "DESERT_PYRAMID",
-            ContainerSeedShortcut::None => "NONE",
-        };
-        print!(
-            "{{\"version\":\"26.1.2\",\"name\":\"{}\",\"structure_id\":\"{}\",\"dimension\":\"{}\",\"full_scan\":{},\"default_item\":\"{}\",\"placement\":{{\"spacing\":{},\"separation\":{},\"salt\":{},\"spread\":\"{}\"}},\"decoration_step\":{},\"decoration_index\":{},\"scanner\":\"{}\",\"container_seed_shortcut\":\"{}\",\"loot_tables\":[",
-            structure.name,
-            structure.structure_id,
-            structure.dimension,
-            structure.supports_full_scan(),
-            structure.default_item,
-            structure.placement.spacing,
-            structure.placement.separation,
-            structure.placement.salt,
-            spread,
-            structure.decoration_step,
-            structure.structure_index,
-            structure.scanner,
-            shortcut
-        );
-        for (index, table) in structure.loot_tables.iter().enumerate() {
-            if index != 0 {
-                print!(",");
-            }
-            print!("\"{table}\"");
-        }
-        println!("]}}");
+        print_json(&output);
         return Ok(0);
     }
 

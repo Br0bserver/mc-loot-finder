@@ -1,6 +1,8 @@
 use crate::catalog::candidate_structure;
 use crate::cli::{SearchArgs, require_version};
-use crate::output::{grouped, quantity};
+use crate::output::{
+    CandidateJson, CandidatesOutput, grouped, print_json, quantity, rounded_distance,
+};
 use crate::placement;
 
 pub fn run(args: SearchArgs) -> Result<u8, String> {
@@ -14,24 +16,24 @@ pub fn run(args: SearchArgs) -> Result<u8, String> {
     let candidates = placement::locate(seed, center_x, center_z, radius, structure.placement)?;
 
     if args.common.json {
-        print!(
-            "{{\"version\":\"26.1.2\",\"structure\":\"{}\",\"seed\":{},\"status\":\"candidate_only\",\"candidates\":[",
-            structure.name, seed
-        );
-        for (index, candidate) in candidates.iter().take(limit as usize).enumerate() {
-            if index != 0 {
-                print!(",");
-            }
-            print!(
-                "{{\"chunk_x\":{},\"chunk_z\":{},\"block_x\":{},\"block_z\":{},\"distance\":{:.3}}}",
-                candidate.chunk_x,
-                candidate.chunk_z,
-                candidate.block_x,
-                candidate.block_z,
-                (candidate.squared_distance as f64).sqrt()
-            );
-        }
-        println!("]}}");
+        let output = CandidatesOutput {
+            version: "26.1.2",
+            structure: structure.name,
+            seed,
+            status: "candidate_only",
+            candidates: candidates
+                .iter()
+                .take(limit as usize)
+                .map(|candidate| CandidateJson {
+                    chunk_x: candidate.chunk_x,
+                    chunk_z: candidate.chunk_z,
+                    block_x: candidate.block_x,
+                    block_z: candidate.block_z,
+                    distance: rounded_distance(candidate.squared_distance),
+                })
+                .collect(),
+        };
+        print_json(&output);
         return Ok(0);
     }
 

@@ -1,7 +1,7 @@
 use crate::catalog::candidate_structure;
 use crate::cli::{SearchArgs, require_version};
 use crate::commands::locate_and_scan;
-use crate::output::{grouped, quantity};
+use crate::output::{ChestJson, ChestsOutput, grouped, print_json, quantity};
 
 pub fn run(args: SearchArgs) -> Result<u8, String> {
     require_version(&args.common.version)?;
@@ -24,31 +24,29 @@ pub fn run(args: SearchArgs) -> Result<u8, String> {
     containers.retain(|chest| !chest.loot_table.is_empty());
 
     if args.common.json {
-        print!(
-            "{{\"version\":\"26.1.2\",\"structure\":\"{}\",\"seed\":{},\"placement_candidates\":{},\"valid_structures\":{},\"chest_count\":{},\"chests\":[",
-            structure.name,
-            world_seed,
-            candidates.len(),
+        let output = ChestsOutput {
+            version: "26.1.2",
+            structure: structure.name,
+            seed: world_seed,
+            placement_candidates: candidates.len(),
             valid_structures,
-            containers.len()
-        );
-        for (index, chest) in containers.iter().take(limit as usize).enumerate() {
-            if index != 0 {
-                print!(",");
-            }
-            print!(
-                "{{\"x\":{},\"y\":{},\"z\":{},\"loot_table\":\"{}\",\"loot_seed\":{},\"start_chunk_x\":{},\"start_chunk_z\":{},\"ordinal\":{}}}",
-                chest.x,
-                chest.y,
-                chest.z,
-                chest.loot_table,
-                chest.loot_seed,
-                chest.structure_chunk_x,
-                chest.structure_chunk_z,
-                chest.ordinal
-            );
-        }
-        println!("]}}\n");
+            chest_count: containers.len(),
+            chests: containers
+                .iter()
+                .take(limit as usize)
+                .map(|chest| ChestJson {
+                    x: chest.x,
+                    y: chest.y,
+                    z: chest.z,
+                    loot_table: chest.loot_table.clone(),
+                    loot_seed: chest.loot_seed,
+                    start_chunk_x: chest.structure_chunk_x,
+                    start_chunk_z: chest.structure_chunk_z,
+                    ordinal: chest.ordinal,
+                })
+                .collect(),
+        };
+        print_json(&output);
         return Ok(0);
     }
 
@@ -75,7 +73,7 @@ pub fn run(args: SearchArgs) -> Result<u8, String> {
     println!(
         "Checked: {}, {}",
         quantity(candidates.len() as i64, "candidate"),
-        quantity(valid_structures, "valid structure")
+        quantity(valid_structures as i64, "valid structure")
     );
     println!(
         "Shown: {} of {}",

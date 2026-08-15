@@ -1,6 +1,7 @@
 use crate::catalog::{ContainerSeedShortcut, candidate_structure};
 use crate::cli::{ContainerSeedArgs, require_version};
 use crate::decoration_seed::container_loot_seed;
+use crate::output::{ContainerSeedOutput, print_json};
 
 pub fn run(args: ContainerSeedArgs) -> Result<u8, String> {
     require_version(&args.common.version)?;
@@ -28,17 +29,18 @@ pub fn run(args: ContainerSeedArgs) -> Result<u8, String> {
     )?;
 
     if args.common.json {
-        println!(
-            "{{\"version\":\"26.1.2\",\"structure\":\"{}\",\"world_seed\":{},\"chunk_x\":{},\"chunk_z\":{},\"structure_index\":{},\"step\":{},\"ordinal\":{},\"loot_table_seed\":{}}}",
-            structure.name,
+        let output = ContainerSeedOutput {
+            version: "26.1.2",
+            structure: structure.name,
             world_seed,
             chunk_x,
             chunk_z,
             structure_index,
             step,
             ordinal,
-            loot_table_seed
-        );
+            loot_table_seed,
+        };
+        print_json(&output);
     } else {
         println!("Minecraft Java 26.1.2");
         println!("Structure: {}", structure.name);
