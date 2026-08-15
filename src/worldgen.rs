@@ -112,6 +112,20 @@ pub struct Scanner {
 }
 
 impl Scanner {
+    /// Build a scanner for a structure name that supports full chest scanning.
+    pub fn for_structure(structure_name: &str, world_seed: i64) -> Result<Self, String> {
+        let kind = match structure_name {
+            "ancient_city" => Kind::AncientCity,
+            "bastion_remnant" => Kind::BastionRemnant,
+            _ => {
+                return Err(format!(
+                    "Rust chests and find do not support {structure_name} yet"
+                ));
+            }
+        };
+        Ok(Self::new(world_seed, kind))
+    }
+
     #[must_use]
     pub fn new(world_seed: i64, kind: Kind) -> Self {
         let structure = kind.structure();
