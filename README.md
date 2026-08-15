@@ -49,3 +49,9 @@ mc-loot-finder chests \
 - 固定世界种子、箱子位置、LootTableSeed 和战利品结果均通过原版结果回归测试。
 
 源码使用 Rust，世界生成链路基于项目维护的 Pumpkin fork。许可证为 GPL-3.0-only。
+
+## 开发
+
+- 模块结构：`src/cli.rs` 用 clap 定义命令与参数，`src/commands/` 存放各命令处理器，`src/output.rs` 定义 JSON 输出格式，`src/catalog.rs` 登记结构目录，`src/placement.rs` / `src/worldgen.rs` / `src/decoration_seed.rs` 负责候选区块、Jigsaw 扫描和容器种子，`src/loot.rs` 重放战利品表，`src/random.rs` 实现原版随机流。
+- 本地只允许 `cargo fmt` 和 `cargo generate-lockfile`；编译、测试、clippy 全部由 GitHub Actions 验证（`.github/workflows/rust.yml`）。战利品数据位于 `resources/26.1.2/`，编译期内嵌。
+- 命令的退出码和 `--json` 输出格式是兼容性契约，改动需同步更新 CI 断言与 `src/output.rs` 中的线格式测试。
