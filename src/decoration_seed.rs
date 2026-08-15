@@ -1,5 +1,5 @@
-use super::ContainerSeedShortcut;
-use super::xoroshiro::Xoroshiro128PlusPlus;
+use crate::catalog::ContainerSeedShortcut;
+use crate::random::Xoroshiro128PlusPlus;
 
 struct DecorationRandom {
     random: Xoroshiro128PlusPlus,

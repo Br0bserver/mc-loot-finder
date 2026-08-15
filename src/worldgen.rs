@@ -1,16 +1,11 @@
 use std::collections::HashMap;
 
 use pumpkin_data::{
-    Rotation,
     dimension::Dimension,
     structures::{Structure, StructureKeys},
     tag::{RegistryKey, get_tag_ids},
 };
-use pumpkin_util::{
-    math::{block_box::BlockBox, vector3::Vector3},
-    random::RandomImpl,
-    world_seed::Seed,
-};
+use pumpkin_util::{math::vector3::Vector3, random::RandomImpl, world_seed::Seed};
 use pumpkin_world::generation::structure::structures::jigsaw::PoolElementStructurePiece;
 use pumpkin_world::{
     biome::{BiomeSupplier, MultiNoiseBiomeSupplier},
@@ -25,8 +20,8 @@ use pumpkin_world::{
     },
 };
 
-use super::ContainerSeedShortcut;
-use super::decoration_random::container_loot_seed;
+use crate::catalog::ContainerSeedShortcut;
+use crate::decoration_seed::container_loot_seed;
 
 const OVERWORLD_MIN_Y: i32 = -64;
 const NETHER_MIN_Y: i32 = 0;
@@ -352,9 +347,6 @@ fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawC
         }
     });
 }
-
-#[allow(dead_code)]
-fn _keep_block_box_in_public_api(_: BlockBox, _: Rotation) {}
 
 #[cfg(test)]
 mod tests {

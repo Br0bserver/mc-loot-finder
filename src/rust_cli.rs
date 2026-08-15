@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use crate::rust_core::candidate_structure;
-use crate::rust_core::candidates::locate;
-use crate::rust_core::decoration_random::container_loot_seed;
-use crate::rust_core::jigsaw::{self, Kind as JigsawKind};
-use crate::rust_core::loot;
-use crate::rust_core::{CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType};
+use crate::catalog::{
+    CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType, candidate_structure,
+};
+use crate::decoration_seed::container_loot_seed;
+use crate::loot;
+use crate::placement::locate;
+use crate::worldgen::{self, Kind as JigsawKind};
 
 pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
     let arguments = arguments.into_iter().collect::<Vec<_>>();
@@ -521,7 +522,7 @@ fn supports_full_scan(structure_name: &str) -> bool {
     matches!(structure_name, "ancient_city" | "bastion_remnant")
 }
 
-fn full_scanner(world_seed: i64, structure_name: &str) -> Result<jigsaw::Scanner, String> {
+fn full_scanner(world_seed: i64, structure_name: &str) -> Result<worldgen::Scanner, String> {
     let kind = match structure_name {
         "ancient_city" => JigsawKind::AncientCity,
         "bastion_remnant" => JigsawKind::BastionRemnant,
@@ -531,7 +532,7 @@ fn full_scanner(world_seed: i64, structure_name: &str) -> Result<jigsaw::Scanner
             ));
         }
     };
-    Ok(jigsaw::Scanner::new(world_seed, kind))
+    Ok(worldgen::Scanner::new(world_seed, kind))
 }
 
 fn candidates(options: &Options) -> Result<u8, String> {

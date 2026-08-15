@@ -1,5 +1,10 @@
+mod catalog;
+mod decoration_seed;
+mod loot;
+mod placement;
+mod random;
 mod rust_cli;
-mod rust_core;
+mod worldgen;
 
 use std::process::ExitCode;
 

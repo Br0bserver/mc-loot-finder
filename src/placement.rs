@@ -1,5 +1,5 @@
-use super::legacy_random::LegacyRandom48;
-use super::{Placement, SpreadType};
+use crate::catalog::{Placement, SpreadType};
+use crate::random::LegacyRandom48;
 
 const REGION_X_MULTIPLIER: i64 = 341_873_128_712;
 const REGION_Z_MULTIPLIER: i64 = 132_897_987_541;
