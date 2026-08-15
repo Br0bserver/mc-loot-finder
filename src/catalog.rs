@@ -1,3 +1,5 @@
+use crate::error::Error;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SpreadType {
     Linear,
@@ -313,19 +315,19 @@ impl CandidateStructure {
     }
 }
 
-pub fn candidate_structure(name: &str) -> Result<&'static CandidateStructure, String> {
+pub fn candidate_structure(name: &str) -> Result<&'static CandidateStructure, Error> {
     let normalized = name.strip_prefix("minecraft:").unwrap_or(name);
     CANDIDATE_STRUCTURES
         .iter()
         .find(|structure| structure.name == normalized || structure.structure_path == normalized)
         .ok_or_else(|| {
-            format!(
+            Error::Structure(format!(
                 "unsupported structure: {name}; supported: {}",
                 CANDIDATE_STRUCTURES
                     .iter()
                     .map(|structure| structure.name)
                     .collect::<Vec<_>>()
                     .join(", ")
-            )
+            ))
         })
 }

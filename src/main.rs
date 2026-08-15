@@ -2,6 +2,7 @@ mod catalog;
 mod cli;
 mod commands;
 mod decoration_seed;
+mod error;
 mod loot;
 mod output;
 mod placement;

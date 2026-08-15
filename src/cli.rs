@@ -1,3 +1,4 @@
+use crate::error::Error;
 use clap::{Args, Parser, Subcommand};
 
 use crate::commands;
@@ -117,7 +118,7 @@ pub struct ExplainArgs {
     pub structure: Option<String>,
 }
 
-pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
+pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, Error> {
     let arguments = arguments.into_iter().collect::<Vec<_>>();
     if arguments.is_empty() {
         print_help();
@@ -154,19 +155,21 @@ pub fn run(arguments: impl IntoIterator<Item = String>) -> Result<u8, String> {
     }
 }
 
-pub(crate) fn require_version(version: &str) -> Result<(), String> {
+pub(crate) fn require_version(version: &str) -> Result<(), Error> {
     if version == "26.1.2" {
         Ok(())
     } else {
-        Err(format!(
+        Err(Error::Usage(format!(
             "unsupported Minecraft version: {version}; supported: 26.1.2"
-        ))
+        )))
     }
 }
 
-pub(crate) fn require_identifier(value: &str, option: &str) -> Result<(), String> {
+pub(crate) fn require_identifier(value: &str, option: &str) -> Result<(), Error> {
     let Some((namespace, path)) = value.split_once(':') else {
-        return Err(format!("{option} must be a namespaced Minecraft id"));
+        return Err(Error::Usage(format!(
+            "{option} must be a namespaced Minecraft id"
+        )));
     };
     let valid_namespace = !namespace.is_empty()
         && namespace.bytes().all(|byte| {
@@ -179,7 +182,9 @@ pub(crate) fn require_identifier(value: &str, option: &str) -> Result<(), String
     if valid_namespace && valid_path {
         Ok(())
     } else {
-        Err(format!("{option} must be a namespaced Minecraft id"))
+        Err(Error::Usage(format!(
+            "{option} must be a namespaced Minecraft id"
+        )))
     }
 }
 

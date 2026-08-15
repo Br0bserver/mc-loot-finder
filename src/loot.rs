@@ -3,13 +3,14 @@ use std::sync::LazyLock;
 
 use serde_json::Value;
 
+use crate::error::Error;
 use crate::random::LegacyRandom48;
 
 const LOOT_RUNTIME: &str = include_str!("../resources/26.1.2/loot-runtime.json");
 const LOOT_TABLES: &str = include_str!("../resources/26.1.2/loot-tables.json");
 
-static DATA: LazyLock<Result<LootData, String>> = LazyLock::new(load_data);
-static TABLES: LazyLock<Result<HashMap<String, Table>, String>> = LazyLock::new(load_tables);
+static DATA: LazyLock<Result<LootData, Error>> = LazyLock::new(load_data);
+static TABLES: LazyLock<Result<HashMap<String, Table>, Error>> = LazyLock::new(load_tables);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LootStack {
@@ -17,9 +18,11 @@ pub struct LootStack {
     pub count: i32,
 }
 
-pub fn roll(loot_table: &str, seed: i64) -> Result<Vec<LootStack>, String> {
+pub fn roll(loot_table: &str, seed: i64) -> Result<Vec<LootStack>, Error> {
     if seed == 0 {
-        return Err("LootTableSeed 0 is vanilla's unseeded sentinel".to_owned());
+        return Err(Error::Usage(
+            "LootTableSeed 0 is vanilla's unseeded sentinel".to_owned(),
+        ));
     }
     let data = DATA.as_ref().map_err(Clone::clone)?;
     let tables = TABLES.as_ref().map_err(Clone::clone)?;
@@ -35,10 +38,10 @@ fn roll_into(
     data: &LootData,
     random: &mut LegacyRandom48,
     result: &mut Vec<LootStack>,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let table = tables
         .get(table_id)
-        .ok_or_else(|| format!("vanilla loot table not found: {table_id}"))?;
+        .ok_or_else(|| Error::Loot(format!("vanilla loot table not found: {table_id}")))?;
     for pool in &table.pools {
         if pool
             .random_chance
@@ -86,7 +89,7 @@ fn apply(
     stack: &mut MutableStack,
     data: &LootData,
     random: &mut LegacyRandom48,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     match function.kind.as_str() {
         "minecraft:set_count" => {
             stack.count = function.number()?.next_int(random);
@@ -126,7 +129,11 @@ fn apply(
             let selected = random.next_int(function.alternatives.len() as i32) as usize;
             function.alternatives[selected].consume_float(random);
         }
-        kind => return Err(format!("unsupported 26.1.2 loot function: {kind}")),
+        kind => {
+            return Err(Error::Loot(format!(
+                "unsupported 26.1.2 loot function: {kind}"
+            )));
+        }
     }
     Ok(())
 }
@@ -137,7 +144,7 @@ fn enchant_randomly(
     data: &LootData,
     options: &[String],
     only_compatible: bool,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let choices = enchantments(data, options)?
         .into_iter()
         .filter(|enchantment| {
@@ -163,7 +170,7 @@ fn enchant_with_levels(
     data: &LootData,
     mut level: i32,
     options: &[String],
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let item = data.item(&stack.item)?;
     if item.enchantability == 0 {
         return Ok(());
@@ -230,7 +237,7 @@ fn choose_weighted<'a>(
     available: &[AvailableEnchantment<'a>],
     random: &mut LegacyRandom48,
     selected: &mut Vec<AvailableEnchantment<'a>>,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let total_weight = available.iter().map(|value| value.enchantment.weight).sum();
     let mut choice = random.next_int(total_weight);
     for value in available {
@@ -240,7 +247,9 @@ fn choose_weighted<'a>(
             return Ok(());
         }
     }
-    Err("enchantment weights are inconsistent".to_owned())
+    Err(Error::Data(
+        "enchantment weights are inconsistent".to_owned(),
+    ))
 }
 
 fn compatible(data: &LootData, first: &str, second: &str) -> bool {
@@ -259,7 +268,7 @@ fn compatible(data: &LootData, first: &str, second: &str) -> bool {
 fn enchantments<'a>(
     data: &'a LootData,
     options: &[String],
-) -> Result<Vec<&'a EnchantmentSpec>, String> {
+) -> Result<Vec<&'a EnchantmentSpec>, Error> {
     let ids = if options == ["#minecraft:on_random_loot"] {
         &data.on_random_loot
     } else {
@@ -269,12 +278,12 @@ fn enchantments<'a>(
         .map(|id| {
             data.enchantments
                 .get(id)
-                .ok_or_else(|| format!("unknown 26.1.2 enchantment: {id}"))
+                .ok_or_else(|| Error::Data(format!("unknown 26.1.2 enchantment: {id}")))
         })
         .collect()
 }
 
-fn select<'a>(entries: &'a [Entry], random: &mut LegacyRandom48) -> Result<&'a Entry, String> {
+fn select<'a>(entries: &'a [Entry], random: &mut LegacyRandom48) -> Result<&'a Entry, Error> {
     if entries.len() == 1 {
         return Ok(&entries[0]);
     }
@@ -286,21 +295,25 @@ fn select<'a>(entries: &'a [Entry], random: &mut LegacyRandom48) -> Result<&'a E
             return Ok(entry);
         }
     }
-    Err("loot entry weights are inconsistent".to_owned())
+    Err(Error::Data(
+        "loot entry weights are inconsistent".to_owned(),
+    ))
 }
 
-fn load_tables() -> Result<HashMap<String, Table>, String> {
+fn load_tables() -> Result<HashMap<String, Table>, Error> {
     let roots: HashMap<String, Value> =
-        serde_json::from_str(LOOT_TABLES).map_err(|error| error.to_string())?;
+        serde_json::from_str(LOOT_TABLES).map_err(|error| Error::Data(error.to_string()))?;
     roots
         .into_iter()
         .map(|(id, value)| parse_table(&id, &value).map(|table| (id, table)))
         .collect()
 }
 
-fn parse_table(id: &str, root: &Value) -> Result<Table, String> {
+fn parse_table(id: &str, root: &Value) -> Result<Table, Error> {
     if root.get("functions").is_some() {
-        return Err(format!("table-level functions are unsupported: {id}"));
+        return Err(Error::Data(format!(
+            "table-level functions are unsupported: {id}"
+        )));
     }
     let pools = array(root, "pools")?
         .iter()
@@ -316,26 +329,30 @@ fn parse_table(id: &str, root: &Value) -> Result<Table, String> {
                 random_chance: parse_random_chance(id, pool)?,
             })
         })
-        .collect::<Result<Vec<_>, String>>()?;
+        .collect::<Result<Vec<_>, Error>>()?;
     Ok(Table { pools })
 }
 
-fn parse_entry(table: &str, entry: &Value) -> Result<Entry, String> {
+fn parse_entry(table: &str, entry: &Value) -> Result<Entry, Error> {
     let kind = string(entry, "type")?;
     if !matches!(
         kind,
         "minecraft:item" | "minecraft:empty" | "minecraft:loot_table"
     ) {
-        return Err(format!("unsupported loot entry in {table}: {kind}"));
+        return Err(Error::Data(format!(
+            "unsupported loot entry in {table}: {kind}"
+        )));
     }
     if entry.get("quality").is_some() {
-        return Err(format!("quality entries are unsupported: {table}"));
+        return Err(Error::Data(format!(
+            "quality entries are unsupported: {table}"
+        )));
     }
     let functions = parse_functions(entry)?;
     if kind == "minecraft:loot_table" && !functions.is_empty() {
-        return Err(format!(
+        return Err(Error::Data(format!(
             "functions on nested loot tables are unsupported: {table}"
-        ));
+        )));
     }
     Ok(Entry {
         item: (kind == "minecraft:item")
@@ -350,19 +367,19 @@ fn parse_entry(table: &str, entry: &Value) -> Result<Entry, String> {
     })
 }
 
-fn parse_functions(owner: &Value) -> Result<Vec<Function>, String> {
+fn parse_functions(owner: &Value) -> Result<Vec<Function>, Error> {
     let Some(functions) = owner.get("functions") else {
         return Ok(Vec::new());
     };
     functions
         .as_array()
-        .ok_or_else(|| "loot functions must be an array".to_owned())?
+        .ok_or_else(|| Error::Data("loot functions must be an array".to_owned()))?
         .iter()
         .map(parse_function)
         .collect()
 }
 
-fn parse_function(value: &Value) -> Result<Function, String> {
+fn parse_function(value: &Value) -> Result<Function, Error> {
     let kind = string(value, "function")?.to_owned();
     let mut function = Function {
         kind: kind.clone(),
@@ -398,12 +415,12 @@ fn parse_function(value: &Value) -> Result<Function, String> {
                 .map(|effect| parse_number(required(effect, "duration")?))
                 .collect::<Result<Vec<_>, _>>()?;
         }
-        _ => return Err(format!("unsupported loot function: {kind}")),
+        _ => return Err(Error::Data(format!("unsupported loot function: {kind}"))),
     }
     Ok(function)
 }
 
-fn parse_number(value: &Value) -> Result<NumberSpec, String> {
+fn parse_number(value: &Value) -> Result<NumberSpec, Error> {
     if let Some(number) = value.as_f64() {
         let number = number as f32;
         return Ok(NumberSpec {
@@ -412,7 +429,7 @@ fn parse_number(value: &Value) -> Result<NumberSpec, String> {
         });
     }
     if string(value, "type")? != "minecraft:uniform" {
-        return Err(format!("unsupported number provider: {value}"));
+        return Err(Error::Data(format!("unsupported number provider: {value}")));
     }
     Ok(NumberSpec {
         min: number(value, "min")? as f32,
@@ -420,42 +437,45 @@ fn parse_number(value: &Value) -> Result<NumberSpec, String> {
     })
 }
 
-fn parse_options(value: &Value) -> Result<Vec<String>, String> {
+fn parse_options(value: &Value) -> Result<Vec<String>, Error> {
     if let Some(option) = value.as_str() {
         return Ok(vec![option.to_owned()]);
     }
     let options = value
         .as_array()
-        .ok_or_else(|| "enchantment options must be a string or array".to_owned())?
+        .ok_or_else(|| Error::Data("enchantment options must be a string or array".to_owned()))?
         .iter()
         .map(|option| {
             option
                 .as_str()
                 .map(str::to_owned)
-                .ok_or_else(|| "enchantment option must be a string".to_owned())
+                .ok_or_else(|| Error::Data("enchantment option must be a string".to_owned()))
         })
         .collect::<Result<Vec<_>, _>>()?;
     if options.is_empty() {
-        return Err("enchantment options must not be empty".to_owned());
+        return Err(Error::Data(
+            "enchantment options must not be empty".to_owned(),
+        ));
     }
     Ok(options)
 }
 
-fn parse_random_chance(table: &str, value: &Value) -> Result<Option<f64>, String> {
+fn parse_random_chance(table: &str, value: &Value) -> Result<Option<f64>, Error> {
     let Some(conditions) = value.get("conditions") else {
         return Ok(None);
     };
     let conditions = conditions
         .as_array()
-        .ok_or_else(|| format!("unsupported loot condition: {table}"))?;
+        .ok_or_else(|| Error::Data(format!("unsupported loot condition: {table}")))?;
     if conditions.len() != 1 || string(&conditions[0], "condition")? != "minecraft:random_chance" {
-        return Err(format!("unsupported loot condition: {table}"));
+        return Err(Error::Data(format!("unsupported loot condition: {table}")));
     }
     Ok(Some(number(&conditions[0], "chance")?))
 }
 
-fn load_data() -> Result<LootData, String> {
-    let root: Value = serde_json::from_str(LOOT_RUNTIME).map_err(|error| error.to_string())?;
+fn load_data() -> Result<LootData, Error> {
+    let root: Value =
+        serde_json::from_str(LOOT_RUNTIME).map_err(|error| Error::Data(error.to_string()))?;
     let enchantments = array(&root, "enchantments")?
         .iter()
         .map(|value| {
@@ -473,10 +493,10 @@ fn load_data() -> Result<LootData, String> {
             };
             Ok((enchantment.id.clone(), enchantment))
         })
-        .collect::<Result<HashMap<_, _>, String>>()?;
+        .collect::<Result<HashMap<_, _>, Error>>()?;
     let items = required(&root, "items")?
         .as_object()
-        .ok_or_else(|| "items must be an object".to_owned())?
+        .ok_or_else(|| Error::Data("items must be an object".to_owned()))?
         .iter()
         .map(|(id, value)| {
             Ok((
@@ -487,7 +507,7 @@ fn load_data() -> Result<LootData, String> {
                 },
             ))
         })
-        .collect::<Result<HashMap<_, _>, String>>()?;
+        .collect::<Result<HashMap<_, _>, Error>>()?;
     Ok(LootData {
         enchantments,
         on_random_loot: string_vec(required(&root, "on_random_loot")?)?,
@@ -496,57 +516,59 @@ fn load_data() -> Result<LootData, String> {
     })
 }
 
-fn required<'a>(value: &'a Value, key: &str) -> Result<&'a Value, String> {
-    value.get(key).ok_or_else(|| format!("missing {key}"))
+fn required<'a>(value: &'a Value, key: &str) -> Result<&'a Value, Error> {
+    value
+        .get(key)
+        .ok_or_else(|| Error::Data(format!("missing {key}")))
 }
 
-fn array<'a>(value: &'a Value, key: &str) -> Result<&'a [Value], String> {
+fn array<'a>(value: &'a Value, key: &str) -> Result<&'a [Value], Error> {
     required(value, key)?
         .as_array()
         .map(Vec::as_slice)
-        .ok_or_else(|| format!("{key} must be an array"))
+        .ok_or_else(|| Error::Data(format!("{key} must be an array")))
 }
 
-fn string<'a>(value: &'a Value, key: &str) -> Result<&'a str, String> {
+fn string<'a>(value: &'a Value, key: &str) -> Result<&'a str, Error> {
     required(value, key)?
         .as_str()
-        .ok_or_else(|| format!("{key} must be a string"))
+        .ok_or_else(|| Error::Data(format!("{key} must be a string")))
 }
 
-fn number(value: &Value, key: &str) -> Result<f64, String> {
+fn number(value: &Value, key: &str) -> Result<f64, Error> {
     required(value, key)?
         .as_f64()
-        .ok_or_else(|| format!("{key} must be a number"))
+        .ok_or_else(|| Error::Data(format!("{key} must be a number")))
 }
 
-fn integer(value: &Value, key: &str) -> Result<i32, String> {
+fn integer(value: &Value, key: &str) -> Result<i32, Error> {
     required(value, key)?
         .as_i64()
         .map(|number| number as i32)
-        .ok_or_else(|| format!("{key} must be an integer"))
+        .ok_or_else(|| Error::Data(format!("{key} must be an integer")))
 }
 
-fn boolean(value: &Value, key: &str) -> Result<bool, String> {
+fn boolean(value: &Value, key: &str) -> Result<bool, Error> {
     required(value, key)?
         .as_bool()
-        .ok_or_else(|| format!("{key} must be a boolean"))
+        .ok_or_else(|| Error::Data(format!("{key} must be a boolean")))
 }
 
-fn string_vec(value: &Value) -> Result<Vec<String>, String> {
+fn string_vec(value: &Value) -> Result<Vec<String>, Error> {
     value
         .as_array()
-        .ok_or_else(|| "value must be an array".to_owned())?
+        .ok_or_else(|| Error::Data("value must be an array".to_owned()))?
         .iter()
         .map(|value| {
             value
                 .as_str()
                 .map(str::to_owned)
-                .ok_or_else(|| "array value must be a string".to_owned())
+                .ok_or_else(|| Error::Data("array value must be a string".to_owned()))
         })
         .collect()
 }
 
-fn string_set(value: &Value) -> Result<HashSet<String>, String> {
+fn string_set(value: &Value) -> Result<HashSet<String>, Error> {
     Ok(string_vec(value)?.into_iter().collect())
 }
 
@@ -590,9 +612,9 @@ struct Function {
 }
 
 impl Function {
-    fn number(&self) -> Result<NumberSpec, String> {
+    fn number(&self) -> Result<NumberSpec, Error> {
         self.number
-            .ok_or_else(|| format!("{} requires a number", self.kind))
+            .ok_or_else(|| Error::Loot(format!("{} requires a number", self.kind)))
     }
 }
 
@@ -656,10 +678,10 @@ struct LootData {
 }
 
 impl LootData {
-    fn item(&self, id: &str) -> Result<&ItemSpec, String> {
+    fn item(&self, id: &str) -> Result<&ItemSpec, Error> {
         self.items
             .get(id)
-            .ok_or_else(|| format!("unknown 26.1.2 item: {id}"))
+            .ok_or_else(|| Error::Data(format!("unknown 26.1.2 item: {id}")))
     }
 }
 

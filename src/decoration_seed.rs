@@ -1,8 +1,15 @@
 use crate::catalog::ContainerSeedShortcut;
+use crate::error::Error;
 use crate::random::Xoroshiro128PlusPlus;
 
 struct DecorationRandom {
     random: Xoroshiro128PlusPlus,
+}
+
+impl Default for DecorationRandom {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DecorationRandom {
@@ -65,12 +72,16 @@ pub fn container_loot_seed(
     decoration_step: i32,
     ordinal: i32,
     shortcut: ContainerSeedShortcut,
-) -> Result<i64, String> {
+) -> Result<i64, Error> {
     if ordinal < 0 {
-        return Err("container ordinal must be non-negative".to_owned());
+        return Err(Error::Usage(
+            "container ordinal must be non-negative".to_owned(),
+        ));
     }
     if shortcut == ContainerSeedShortcut::None {
-        return Err("container seed shortcut is unavailable".to_owned());
+        return Err(Error::Usage(
+            "container seed shortcut is unavailable".to_owned(),
+        ));
     }
 
     let mut random = DecorationRandom::new();

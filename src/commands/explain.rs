@@ -2,12 +2,13 @@ use crate::catalog::{
     CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType, candidate_structure,
 };
 use crate::cli::{ExplainArgs, require_version};
+use crate::error::Error;
 use crate::output::{
     ExplainDetailOutput, ExplainListingOutput, ExplainStructureJson, PlacementJson, grouped,
     print_json,
 };
 
-pub fn run(args: ExplainArgs) -> Result<u8, String> {
+pub fn run(args: ExplainArgs) -> Result<u8, Error> {
     require_version(&args.common.version)?;
     let structure_name = args.structure.as_deref().unwrap_or("");
     if structure_name.is_empty() {

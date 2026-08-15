@@ -1,3 +1,4 @@
+use crate::error::Error;
 pub mod candidates;
 pub mod chests;
 pub mod container_seed;
@@ -16,7 +17,7 @@ pub(crate) fn locate_and_scan(
     center_x: i32,
     center_z: i32,
     radius: i32,
-) -> Result<(Vec<Candidate>, Vec<Scan>), String> {
+) -> Result<(Vec<Candidate>, Vec<Scan>), Error> {
     let scanner = worldgen::Scanner::for_structure(structure.name, world_seed)?;
     let candidates =
         placement::locate(world_seed, center_x, center_z, radius, structure.placement)?;

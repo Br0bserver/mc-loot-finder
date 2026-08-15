@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use crate::catalog::ContainerSeedShortcut;
+use crate::decoration_seed::container_loot_seed;
+use crate::error::Error;
 use pumpkin_data::{
     dimension::Dimension,
     structures::{Structure, StructureKeys},
@@ -19,9 +22,6 @@ use pumpkin_world::{
         },
     },
 };
-
-use crate::catalog::ContainerSeedShortcut;
-use crate::decoration_seed::container_loot_seed;
 
 const OVERWORLD_MIN_Y: i32 = -64;
 const NETHER_MIN_Y: i32 = 0;
@@ -113,14 +113,14 @@ pub struct Scanner {
 
 impl Scanner {
     /// Build a scanner for a structure name that supports full chest scanning.
-    pub fn for_structure(structure_name: &str, world_seed: i64) -> Result<Self, String> {
+    pub fn for_structure(structure_name: &str, world_seed: i64) -> Result<Self, Error> {
         let kind = match structure_name {
             "ancient_city" => Kind::AncientCity,
             "bastion_remnant" => Kind::BastionRemnant,
             _ => {
-                return Err(format!(
+                return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
-                ));
+                )));
             }
         };
         Ok(Self::new(world_seed, kind))
@@ -145,7 +145,7 @@ impl Scanner {
     pub fn scan_many(
         &self,
         chunks: impl IntoIterator<Item = (i32, i32)>,
-    ) -> Result<Vec<Scan>, String> {
+    ) -> Result<Vec<Scan>, Error> {
         let mut sampler = MultiNoiseSampler::generate(
             &self.generator.base_router.multi_noise,
             &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
@@ -161,7 +161,7 @@ impl Scanner {
         chunk_x: i32,
         chunk_z: i32,
         sampler: &mut MultiNoiseSampler<'_>,
-    ) -> Result<Scan, String> {
+    ) -> Result<Scan, Error> {
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
         {
@@ -189,12 +189,14 @@ impl Scanner {
             &structure,
             self.context(chunk_x, chunk_z),
         )
-        .ok_or_else(|| "validated jigsaw structure failed full placement".to_owned())?;
+        .ok_or_else(|| {
+            Error::Worldgen("validated jigsaw structure failed full placement".to_owned())
+        })?;
 
         let collector = position
             .collector
             .lock()
-            .map_err(|_| "jigsaw piece collector was poisoned".to_owned())?;
+            .map_err(|_| Error::Worldgen("jigsaw piece collector was poisoned".to_owned()))?;
         let mut raw = Vec::new();
         for piece in &collector.pieces {
             let Some(piece) = piece.as_any().downcast_ref::<PoolElementStructurePiece>() else {
@@ -267,19 +269,19 @@ impl Scanner {
         chunk_x: i32,
         chunk_z: i32,
         sampler: &mut MultiNoiseSampler<'_>,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, Error> {
         let mut selection_random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
         let bastion_selected_first = selection_random.next_bounded_i32(5) >= 2;
         if bastion_selected_first {
             return Ok(true);
         }
 
-        let block_x = chunk_x
-            .checked_mul(16)
-            .ok_or_else(|| "fortress biome probe x coordinate overflowed".to_owned())?;
-        let block_z = chunk_z
-            .checked_mul(16)
-            .ok_or_else(|| "fortress biome probe z coordinate overflowed".to_owned())?;
+        let block_x = chunk_x.checked_mul(16).ok_or_else(|| {
+            Error::Worldgen("fortress biome probe x coordinate overflowed".to_owned())
+        })?;
+        let block_z = chunk_z.checked_mul(16).ok_or_else(|| {
+            Error::Worldgen("fortress biome probe z coordinate overflowed".to_owned())
+        })?;
         let fortress_start = Vector3::new(block_x, 64, block_z);
         Ok(!self.biome_is_valid(fortress_start, self.fortress_biomes, sampler))
     }

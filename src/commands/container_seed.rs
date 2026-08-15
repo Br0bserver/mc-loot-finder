@@ -1,16 +1,17 @@
 use crate::catalog::{ContainerSeedShortcut, candidate_structure};
 use crate::cli::{ContainerSeedArgs, require_version};
 use crate::decoration_seed::container_loot_seed;
+use crate::error::Error;
 use crate::output::{ContainerSeedOutput, print_json};
 
-pub fn run(args: ContainerSeedArgs) -> Result<u8, String> {
+pub fn run(args: ContainerSeedArgs) -> Result<u8, Error> {
     require_version(&args.common.version)?;
     let structure = candidate_structure(&args.structure)?;
     if structure.container_seed == ContainerSeedShortcut::None {
-        return Err(format!(
+        return Err(Error::Usage(format!(
             "container-seed is not available for {}; use 'chests' to execute vanilla placement",
             structure.name
-        ));
+        )));
     }
     let world_seed = args.seed;
     let chunk_x = args.chunk_x;

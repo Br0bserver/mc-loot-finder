@@ -1,11 +1,12 @@
 use crate::catalog::candidate_structure;
 use crate::cli::{SearchArgs, require_version};
+use crate::error::Error;
 use crate::output::{
     CandidateJson, CandidatesOutput, grouped, print_json, quantity, rounded_distance,
 };
 use crate::placement;
 
-pub fn run(args: SearchArgs) -> Result<u8, String> {
+pub fn run(args: SearchArgs) -> Result<u8, Error> {
     require_version(&args.common.version)?;
     let structure = candidate_structure(&args.structure)?;
     let seed = args.seed;

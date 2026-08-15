@@ -1,4 +1,5 @@
 use crate::catalog::{Placement, SpreadType};
+use crate::error::Error;
 use crate::random::LegacyRandom48;
 
 const REGION_X_MULTIPLIER: i64 = 341_873_128_712;
@@ -19,9 +20,9 @@ pub fn locate(
     center_z: i32,
     radius: i32,
     placement: Placement,
-) -> Result<Vec<Candidate>, String> {
+) -> Result<Vec<Candidate>, Error> {
     if radius < 0 {
-        return Err("radius must be non-negative".to_owned());
+        return Err(Error::Placement("radius must be non-negative".to_owned()));
     }
 
     let min_block_x = i64::from(center_x) - i64::from(radius);
@@ -33,7 +34,9 @@ pub fn locate(
         || min_block_z < i64::from(i32::MIN)
         || max_block_z > i64::from(i32::MAX)
     {
-        return Err("search area exceeds the supported block coordinate range".to_owned());
+        return Err(Error::Placement(
+            "search area exceeds the supported block coordinate range".to_owned(),
+        ));
     }
 
     let min_chunk_x = min_block_x.div_euclid(16) as i32;
@@ -127,6 +130,6 @@ mod tests {
             },
         )
         .unwrap_err();
-        assert!(error.contains("coordinate range"));
+        assert!(error.to_string().contains("coordinate range"));
     }
 }

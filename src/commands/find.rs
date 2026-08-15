@@ -1,10 +1,11 @@
 use crate::catalog::candidate_structure;
 use crate::cli::{FindArgs, require_identifier, require_version};
 use crate::commands::locate_and_scan;
+use crate::error::Error;
 use crate::loot;
 use crate::output::{FindMatch, FindOutput, grouped, print_json, quantity};
 
-pub fn run(args: FindArgs) -> Result<u8, String> {
+pub fn run(args: FindArgs) -> Result<u8, Error> {
     require_version(&args.search.common.version)?;
     let structure = candidate_structure(&args.search.structure)?;
     let world_seed = args.search.seed;
