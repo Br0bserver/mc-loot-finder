@@ -26,13 +26,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.97.1
-          components: rustfmt
+          components: rustfmt, clippy
           targets: x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
       - name: Check formatting
         run: cargo fmt --check
+      - name: Lint with clippy
+        run: cargo clippy --all-targets -- -D warnings
       - name: Check Rust CLI
         run: cargo check --locked
       - name: Test Rust CLI
