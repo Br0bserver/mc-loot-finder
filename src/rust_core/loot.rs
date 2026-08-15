@@ -5,8 +5,8 @@ use serde_json::Value;
 
 use super::legacy_random::LegacyRandom48;
 
-const LOOT_RUNTIME: &str = include_str!("../main/resources/mclootfinder/26.1.2/loot-runtime.json");
-const LOOT_TABLES: &str = include_str!("../main/resources/mclootfinder/26.1.2/loot-tables.json");
+const LOOT_RUNTIME: &str = include_str!("../../resources/26.1.2/loot-runtime.json");
+const LOOT_TABLES: &str = include_str!("../../resources/26.1.2/loot-tables.json");
 
 static DATA: LazyLock<Result<LootData, String>> = LazyLock::new(load_data);
 static TABLES: LazyLock<Result<HashMap<String, Table>, String>> = LazyLock::new(load_tables);
