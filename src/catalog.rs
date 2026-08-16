@@ -311,7 +311,10 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
 impl CandidateStructure {
     /// Whether `chests` and `find` are fully supported for this structure.
     pub fn supports_full_scan(&self) -> bool {
-        matches!(self.name, "ancient_city" | "bastion_remnant")
+        matches!(
+            self.name,
+            "ancient_city" | "bastion_remnant" | "desert_pyramid"
+        )
     }
 }
 

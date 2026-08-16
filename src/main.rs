@@ -7,6 +7,7 @@ mod loot;
 mod output;
 mod placement;
 mod random;
+mod surface_height;
 mod worldgen;
 
 use std::process::ExitCode;

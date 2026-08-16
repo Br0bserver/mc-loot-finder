@@ -98,6 +98,52 @@ jobs:
             status=$?
             test "$status" -eq 1
           fi
+      - name: Run desert pyramid smoke test
+        run: |
+          result=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder chests \
+            --seed 0 \
+            --structure desert_pyramid \
+            --radius 5000 \
+            --limit 1000 \
+            --json)
+          python3 - "$result" <<'PY'
+          import json
+          import sys
+
+          result = json.loads(sys.argv[1])
+          expected = {
+              "placement_candidates": 307,
+              "valid_structures": 3,
+              "chest_count": 12,
+          }
+          actual = {key: result[key] for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected desert pyramid chests result: {result}")
+          PY
+      - name: Run desert pyramid find smoke test
+        run: |
+          result=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
+            --seed 0 \
+            --structure desert_pyramid \
+            --item minecraft:dune_armor_trim_smithing_template \
+            --radius 5000 \
+            --limit 20 \
+            --json)
+          python3 - "$result" <<'PY'
+          import json
+          import sys
+
+          result = json.loads(sys.argv[1])
+          expected = {
+              "placement_candidates": 307,
+              "valid_structures": 3,
+              "checked_chests": 12,
+              "hits": 5,
+          }
+          actual = {key: result[key] for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected desert pyramid find result: {result}")
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: ancient-city-chests

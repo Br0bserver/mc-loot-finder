@@ -3,13 +3,21 @@ use std::collections::HashMap;
 use crate::catalog::ContainerSeedShortcut;
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
+use crate::surface_height::ColumnHeightSampler;
 use pumpkin_data::{
     dimension::Dimension,
     structures::{Structure, StructureKeys},
     tag::{RegistryKey, get_tag_ids},
 };
-use pumpkin_util::{math::vector3::Vector3, random::RandomImpl, world_seed::Seed};
-use pumpkin_world::generation::structure::structures::jigsaw::PoolElementStructurePiece;
+use pumpkin_util::{
+    BlockDirection,
+    math::{block_box::BlockBox, vector3::Vector3},
+    random::RandomImpl,
+    world_seed::Seed,
+};
+use pumpkin_world::generation::structure::structures::{
+    StructurePieceBase, desert_pyramid::DesertPyramidPiece, jigsaw::PoolElementStructurePiece,
+};
 use pumpkin_world::{
     biome::{BiomeSupplier, MultiNoiseBiomeSupplier},
     generation::{
@@ -23,6 +31,10 @@ use pumpkin_world::{
     },
 };
 
+const DESERT_PYRAMID_WIDTH: i32 = 21;
+const DESERT_PYRAMID_HEIGHT: i32 = 15;
+const DESERT_PYRAMID_DEPTH: i32 = 21;
+
 const OVERWORLD_MIN_Y: i32 = -64;
 const NETHER_MIN_Y: i32 = 0;
 const OVERWORLD_SEA_LEVEL: i32 = 63;
@@ -32,6 +44,7 @@ const NETHER_SEA_LEVEL: i32 = 32;
 pub enum Kind {
     AncientCity,
     BastionRemnant,
+    DesertPyramid,
 }
 
 impl Kind {
@@ -39,6 +52,7 @@ impl Kind {
         match self {
             Self::AncientCity => Structure::ANCIENT_CITY,
             Self::BastionRemnant => Structure::BASTION_REMNANT,
+            Self::DesertPyramid => Structure::DESERT_PYRAMID,
         }
     }
 
@@ -46,26 +60,27 @@ impl Kind {
         match self {
             Self::AncientCity => StructureKeys::AncientCity,
             Self::BastionRemnant => StructureKeys::BastionRemnant,
+            Self::DesertPyramid => StructureKeys::DesertPyramid,
         }
     }
 
     const fn dimension(self) -> Dimension {
         match self {
-            Self::AncientCity => Dimension::OVERWORLD,
+            Self::AncientCity | Self::DesertPyramid => Dimension::OVERWORLD,
             Self::BastionRemnant => Dimension::THE_NETHER,
         }
     }
 
     const fn min_y(self) -> i32 {
         match self {
-            Self::AncientCity => OVERWORLD_MIN_Y,
+            Self::AncientCity | Self::DesertPyramid => OVERWORLD_MIN_Y,
             Self::BastionRemnant => NETHER_MIN_Y,
         }
     }
 
     const fn sea_level(self) -> i32 {
         match self {
-            Self::AncientCity => OVERWORLD_SEA_LEVEL,
+            Self::AncientCity | Self::DesertPyramid => OVERWORLD_SEA_LEVEL,
             Self::BastionRemnant => NETHER_SEA_LEVEL,
         }
     }
@@ -74,12 +89,13 @@ impl Kind {
         match self {
             Self::AncientCity => (7, 0),
             Self::BastionRemnant => (4, 0),
+            Self::DesertPyramid => (1, 4),
         }
     }
 
     const fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
         match self {
-            Self::AncientCity => MultiNoiseBiomeSupplier::OVERWORLD,
+            Self::AncientCity | Self::DesertPyramid => MultiNoiseBiomeSupplier::OVERWORLD,
             Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
         }
     }
@@ -117,6 +133,7 @@ impl Scanner {
         let kind = match structure_name {
             "ancient_city" => Kind::AncientCity,
             "bastion_remnant" => Kind::BastionRemnant,
+            "desert_pyramid" => Kind::DesertPyramid,
             _ => {
                 return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
@@ -162,6 +179,9 @@ impl Scanner {
         chunk_z: i32,
         sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
+        if self.kind == Kind::DesertPyramid {
+            return self.scan_desert_pyramid(chunk_x, chunk_z, sampler);
+        }
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
         {
@@ -251,6 +271,139 @@ impl Scanner {
         })
     }
 
+    /// Scans a desert pyramid candidate chunk.
+    ///
+    /// Mirrors vanilla 26.1.2 `SinglePieceStructure.findGenerationPoint` +
+    /// `DesertPyramidPiece`:
+    /// 1. the lowest `WORLD_SURFACE_WG` height at the four bounding box corners
+    ///    must be at least the sea level;
+    /// 2. the biome at the chunk center block, sampled at the world surface
+    ///    height, must be in the structure's biome tag;
+    /// 3. the piece is anchored at `(minBlockX, 64, minBlockZ)` with a
+    ///    horizontal facing drawn from the placement random;
+    /// 4. `postProcess` draws `nextInt(3)` and shifts the piece so its base sits
+    ///    at the lowest `MOTION_BLOCKING_NO_LEAVES` height in the 21x21 area plus
+    ///    the (non-positive) ground offset;
+    /// 5. four chests are placed in NORTH/EAST/SOUTH/WEST order at local
+    ///    `(10 +- 2, -11, 10 +- 2)`; each consumes one `nextLong` from the
+    ///    decoration random, which is exactly the
+    ///    `ContainerSeedShortcut::DesertPyramid` shortcut.
+    fn scan_desert_pyramid(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        let min_x = chunk_x
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("desert pyramid chunk x overflowed".to_owned()))?;
+        let min_z = chunk_z
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("desert pyramid chunk z overflowed".to_owned()))?;
+        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+
+        let corner_lowest = [
+            (min_x, min_z),
+            (min_x, min_z + DESERT_PYRAMID_DEPTH),
+            (min_x + DESERT_PYRAMID_WIDTH, min_z),
+            (min_x + DESERT_PYRAMID_WIDTH, min_z + DESERT_PYRAMID_DEPTH),
+        ]
+        .into_iter()
+        .map(|(x, z)| heights.inclusive_top(x, z))
+        .min()
+        .ok_or_else(|| Error::Worldgen("desert pyramid corner list was empty".to_owned()))?;
+        if corner_lowest < self.kind.sea_level() {
+            return Ok(invalid_scan());
+        }
+
+        let mid_x = min_x + 8;
+        let mid_z = min_z + 8;
+        let mid_y = heights.inclusive_top(mid_x, mid_z);
+        if !self.biome_is_valid(
+            Vector3::new(mid_x, mid_y, mid_z),
+            self.valid_biomes,
+            sampler,
+        ) {
+            return Ok(invalid_scan());
+        }
+
+        let structure = self.kind.structure();
+        let position = generate_structure_position(
+            &self.kind.structure_key(),
+            &structure,
+            self.context(chunk_x, chunk_z),
+        )
+        .ok_or_else(|| Error::Worldgen("desert pyramid failed full placement".to_owned()))?;
+
+        let collector = position.collector.lock().map_err(|_| {
+            Error::Worldgen("desert pyramid piece collector was poisoned".to_owned())
+        })?;
+        let piece = collector
+            .pieces
+            .iter()
+            .find_map(|piece| piece.as_any().downcast_ref::<DesertPyramidPiece>())
+            .ok_or_else(|| Error::Worldgen("desert pyramid piece is missing".to_owned()))?;
+        let structure_piece = piece.get_structure_piece();
+        let facing = structure_piece
+            .facing
+            .ok_or_else(|| Error::Worldgen("desert pyramid piece has no facing".to_owned()))?;
+        let bounding_box = structure_piece.bounding_box;
+
+        // The placement random draws the horizontal facing (nextInt(4)) and then
+        // the ground offset (nextInt(3)); only the latter value is needed here.
+        let mut random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
+        random.next_bounded_i32(4);
+        let ground_offset = -random.next_bounded_i32(3);
+
+        let mut lowest = i32::MAX;
+        for x in min_x..=min_x + DESERT_PYRAMID_WIDTH - 1 {
+            for z in min_z..=min_z + DESERT_PYRAMID_DEPTH - 1 {
+                lowest = lowest.min(heights.inclusive_top(x, z));
+            }
+        }
+        let base_y = lowest + ground_offset;
+        let adjusted_box = BlockBox {
+            min: Vector3::new(bounding_box.min.x, base_y, bounding_box.min.z),
+            max: Vector3::new(
+                bounding_box.max.x,
+                base_y + DESERT_PYRAMID_HEIGHT - 1,
+                bounding_box.max.z,
+            ),
+        };
+
+        let (structure_index, decoration_step) = self.kind.decoration_coordinates();
+        let mut chests = Vec::with_capacity(4);
+        for (ordinal, (local_x, local_z)) in [(10, 8), (12, 10), (10, 12), (8, 10)]
+            .into_iter()
+            .enumerate()
+        {
+            let loot_seed = container_loot_seed(
+                self.world_seed,
+                chunk_x,
+                chunk_z,
+                structure_index,
+                decoration_step,
+                ordinal as i32,
+                ContainerSeedShortcut::DesertPyramid,
+            )?;
+            chests.push(Chest {
+                structure_chunk_x: chunk_x,
+                structure_chunk_z: chunk_z,
+                x: chest_world_x(facing, &adjusted_box, local_x, local_z),
+                y: base_y - 11,
+                z: chest_world_z(facing, &adjusted_box, local_x, local_z),
+                loot_table: "minecraft:chests/desert_pyramid".to_owned(),
+                ordinal: ordinal as i32,
+                loot_seed,
+            });
+        }
+
+        Ok(Scan {
+            valid_structure: true,
+            chests,
+        })
+    }
+
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {
         StructureGeneratorContext {
             seed: self.world_seed,
@@ -315,6 +468,24 @@ const fn invalid_scan() -> Scan {
     Scan {
         valid_structure: false,
         chests: Vec::new(),
+    }
+}
+
+/// Vanilla `StructurePiece.getWorldX`: local XZ rotated by the piece facing.
+fn chest_world_x(facing: BlockDirection, box_: &BlockBox, local_x: i32, local_z: i32) -> i32 {
+    match facing {
+        BlockDirection::North | BlockDirection::South => box_.min.x + local_x,
+        BlockDirection::West => box_.max.x - local_z,
+        BlockDirection::East => box_.min.x + local_z,
+    }
+}
+
+/// Vanilla `StructurePiece.getWorldZ`: local XZ rotated by the piece facing.
+fn chest_world_z(facing: BlockDirection, box_: &BlockBox, local_x: i32, local_z: i32) -> i32 {
+    match facing {
+        BlockDirection::North => box_.max.z - local_z,
+        BlockDirection::South => box_.min.z + local_z,
+        BlockDirection::West | BlockDirection::East => box_.min.z + local_x,
     }
 }
 
@@ -465,5 +636,61 @@ mod tests {
                 "minecraft:chests/bastion_treasure",
             ])
         );
+    }
+
+    #[test]
+    fn scans_known_26_1_2_desert_pyramids() {
+        let scanner = Scanner::new(0, Kind::DesertPyramid);
+        let scans = scanner
+            .scan_many([(0, -188), (77, -213), (81, -254)])
+            .expect("scan known desert pyramids");
+        let expected = [
+            (
+                "minecraft:chests/desert_pyramid",
+                [
+                    (10, 59, -2996, -5_568_029_752_813_165_272),
+                    (12, 59, -2998, 8_612_763_612_274_328_067),
+                    (10, 59, -3000, 410_913_108_922_281_890),
+                    (8, 59, -2998, -6_529_954_051_122_263_735),
+                ],
+            ),
+            (
+                "minecraft:chests/desert_pyramid",
+                [
+                    (1244, 60, -3398, 192_079_748_099_134_926),
+                    (1242, 60, -3396, -369_207_723_137_014_054),
+                    (1240, 60, -3398, 1_366_626_509_293_417_282),
+                    (1242, 60, -3400, 2_864_047_697_517_889_560),
+                ],
+            ),
+            (
+                "minecraft:chests/desert_pyramid",
+                [
+                    (1304, 52, -4054, 8_475_396_442_896_426_591),
+                    (1306, 52, -4052, -164_227_586_464_969_558),
+                    (1308, 52, -4054, -6_884_729_539_475_924_943),
+                    (1306, 52, -4056, 5_000_275_533_034_043_386),
+                ],
+            ),
+        ];
+        assert_eq!(scans.len(), expected.len());
+        for (scan, (loot_table, chests)) in scans.iter().zip(expected) {
+            assert!(scan.valid_structure);
+            let actual = scan
+                .chests
+                .iter()
+                .map(|chest| {
+                    (
+                        chest.loot_table.as_str(),
+                        (chest.x, chest.y, chest.z, chest.loot_seed),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let wanted = chests
+                .iter()
+                .map(|(x, y, z, seed)| (loot_table, (*x, *y, *z, *seed)))
+                .collect::<Vec<_>>();
+            assert_eq!(actual, wanted);
+        }
     }
 }
