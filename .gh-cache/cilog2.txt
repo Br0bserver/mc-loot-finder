@@ -1,0 +1,71 @@
+check	Lint with clippy	﻿2026-08-16T15:33:08.3309368Z ##[group]Run cargo clippy --all-targets -- -D warnings
+check	Lint with clippy	2026-08-16T15:33:08.3309982Z ^[[36;1mcargo clippy --all-targets -- -D warnings^[[0m
+check	Lint with clippy	2026-08-16T15:33:08.3350859Z shell: /usr/bin/bash -e {0}
+check	Lint with clippy	2026-08-16T15:33:08.3351256Z env:
+check	Lint with clippy	2026-08-16T15:33:08.3351563Z   CARGO_NET_GIT_FETCH_WITH_CLI: true
+check	Lint with clippy	2026-08-16T15:33:08.3352035Z   CARGO_HOME: /home/runner/.cargo
+check	Lint with clippy	2026-08-16T15:33:08.3352421Z   CARGO_INCREMENTAL: 0
+check	Lint with clippy	2026-08-16T15:33:08.3352908Z   CARGO_TERM_COLOR: always
+check	Lint with clippy	2026-08-16T15:33:08.3353271Z   CACHE_ON_FAILURE: true
+check	Lint with clippy	2026-08-16T15:33:08.3353592Z ##[endgroup]
+check	Lint with clippy	2026-08-16T15:33:08.4365276Z ^[[1m^[[92m    Updating^[[0m crates.io index
+check	Lint with clippy	2026-08-16T15:33:10.2475541Z ^[[1m^[[92m    Checking^[[0m mc-loot-finder v0.1.1 (/home/runner/work/mc-loot-finder/mc-loot-finder)
+check	Lint with clippy	2026-08-16T15:33:10.5371574Z ^[[1m^[[91merror[E0308]^[[0m^[[1m: mismatched types^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5373051Z    ^[[1m^[[94m--> ^[[0msrc/worldgen.rs:590:37
+check	Lint with clippy	2026-08-16T15:33:10.5374093Z     ^[[1m^[[94m|^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5375322Z ^[[1m^[[94m590^[[0m ^[[1m^[[94m|^[[0m             if !self.biome_is_valid(probe.start_pos, biomes, sampler) {
+check	Lint with clippy	2026-08-16T15:33:10.5376828Z     ^[[1m^[[94m|^[[0m                      ^[[1m^[[94m--------------^[[0m ^[[1m^[[91m^^^^^^^^^^^^^^^^[[0m ^[[1m^[[91mexpected `Vector3<i32>`, found `BlockPos`^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5377973Z     ^[[1m^[[94m|^[[0m                      ^[[1m^[[94m|^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5378794Z     ^[[1m^[[94m|^[[0m                      ^[[1m^[[94marguments to this method are incorrect^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5379623Z     ^[[1m^[[94m|^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5387799Z     ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: expected struct `pumpkin_util::math::^[[1m^[[35mvector3::Vector3<i32>^[[0m`
+check	Lint with clippy	2026-08-16T15:33:10.5389107Z                found struct `pumpkin_util::math::^[[1m^[[35mposition::BlockPos^[[0m`
+check	Lint with clippy	2026-08-16T15:33:10.5390022Z ^[[1m^[[92mnote^[[0m: method defined here
+check	Lint with clippy	2026-08-16T15:33:10.5390695Z    ^[[1m^[[94m--> ^[[0msrc/worldgen.rs:709:8
+check	Lint with clippy	2026-08-16T15:33:10.5391373Z     ^[[1m^[[94m|^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5391966Z ^[[1m^[[94m709^[[0m ^[[1m^[[94m|^[[0m     fn biome_is_valid(
+check	Lint with clippy	2026-08-16T15:33:10.5392713Z     ^[[1m^[[94m|^[[0m        ^[[1m^[[92m^^^^^^^^^^^^^^^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5393433Z ^[[1m^[[94m710^[[0m ^[[1m^[[94m|^[[0m         &self,
+check	Lint with clippy	2026-08-16T15:33:10.5394158Z ^[[1m^[[94m711^[[0m ^[[1m^[[94m|^[[0m         position: Vector3<i32>,
+check	Lint with clippy	2026-08-16T15:33:10.5395092Z     ^[[1m^[[94m|^[[0m         ^[[1m^[[94m----------------------^[[0m
+check	Lint with clippy	2026-08-16T15:33:10.5395613Z 
+check	Lint with clippy	2026-08-16T15:33:11.1136274Z ^[[1mFor more information about this error, try `rustc --explain E0308`.^[[0m
+check	Lint with clippy	2026-08-16T15:33:11.1183500Z ^[[1m^[[91merror^[[0m: could not compile `mc-loot-finder` (bin "mc-loot-finder") due to 1 previous error
+check	Lint with clippy	2026-08-16T15:33:11.1184479Z ^[[1m^[[33mwarning^[[0m: build failed, waiting for other jobs to finish...
+check	Lint with clippy	2026-08-16T15:33:11.1749965Z ^[[1m^[[91merror^[[0m: could not compile `mc-loot-finder` (bin "mc-loot-finder" test) due to 1 previous error
+check	Lint with clippy	2026-08-16T15:33:11.1938209Z ##[error]Process completed with exit code 101.
+windows-x86_64	Build release binary	﻿2026-08-16T15:33:30.0839671Z ##[group]Run cargo build --release --locked
+windows-x86_64	Build release binary	2026-08-16T15:33:30.0840086Z ^[[36;1mcargo build --release --locked^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1484821Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1485287Z env:
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1485519Z   CARGO_NET_GIT_FETCH_WITH_CLI: true
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1485882Z   RUSTFLAGS: -C target-feature=+crt-static
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1486242Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1486565Z   CARGO_INCREMENTAL: 0
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1486821Z   CARGO_TERM_COLOR: always
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1487091Z   CACHE_ON_FAILURE: true
+windows-x86_64	Build release binary	2026-08-16T15:33:30.1487359Z ##[endgroup]
+windows-x86_64	Build release binary	2026-08-16T15:33:30.5763792Z ^[[1m^[[92m    Updating^[[0m crates.io index
+windows-x86_64	Build release binary	2026-08-16T15:33:38.6257745Z ^[[1m^[[92m   Compiling^[[0m mc-loot-finder v0.1.1 (D:\a\mc-loot-finder\mc-loot-finder)
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0850663Z ^[[1m^[[91merror[E0308]^[[0m^[[1m^[[97m: mismatched types^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0851493Z    ^[[1m^[[96m--> ^[[0msrc\worldgen.rs:590:37
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0852087Z     ^[[1m^[[96m|^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0852805Z ^[[1m^[[96m590^[[0m ^[[1m^[[96m|^[[0m             if !self.biome_is_valid(probe.start_pos, biomes, sampler) {
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0854035Z     ^[[1m^[[96m|^[[0m                      ^[[1m^[[96m--------------^[[0m ^[[1m^[[91m^^^^^^^^^^^^^^^^[[0m ^[[1m^[[91mexpected `Vector3<i32>`, found `BlockPos`^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0854978Z     ^[[1m^[[96m|^[[0m                      ^[[1m^[[96m|^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0855711Z     ^[[1m^[[96m|^[[0m                      ^[[1m^[[96marguments to this method are incorrect^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0856333Z     ^[[1m^[[96m|^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0856919Z     ^[[1m^[[96m= ^[[0m^[[1m^[[97mnote^[[0m: expected struct `^[[1m^[[35mVector3<i32>^[[0m`
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0857685Z                found struct `^[[1m^[[35mBlockPos^[[0m`
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0858271Z ^[[1m^[[92mnote^[[0m: method defined here
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0858799Z    ^[[1m^[[96m--> ^[[0msrc\worldgen.rs:709:8
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0859271Z     ^[[1m^[[96m|^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0859738Z ^[[1m^[[96m709^[[0m ^[[1m^[[96m|^[[0m     fn biome_is_valid(
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0860344Z     ^[[1m^[[96m|^[[0m        ^[[1m^[[92m^^^^^^^^^^^^^^^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0860904Z ^[[1m^[[96m710^[[0m ^[[1m^[[96m|^[[0m         &self,
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0861525Z ^[[1m^[[96m711^[[0m ^[[1m^[[96m|^[[0m         position: Vector3<i32>,
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0862209Z     ^[[1m^[[96m|^[[0m         ^[[1m^[[96m----------------------^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.0862574Z 
+windows-x86_64	Build release binary	2026-08-16T15:33:39.8775937Z ^[[1m^[[97mFor more information about this error, try `rustc --explain E0308`.^[[0m
+windows-x86_64	Build release binary	2026-08-16T15:33:39.8914264Z ^[[1m^[[91merror^[[0m: could not compile `mc-loot-finder` (bin "mc-loot-finder") due to 1 previous error
+windows-x86_64	Build release binary	2026-08-16T15:33:40.0345927Z ##[error]Process completed with exit code 1.

@@ -1108,7 +1108,7 @@ mod debug_village {
                 "piece type={:?} box={:?} facing={:?}",
                 p.get_structure_piece().r#type,
                 p.get_structure_piece().bounding_box,
-                p.get_structure_piece().facing,
+                p.get_structure_piece().facing.map(|d| d as i32),
             ));
         }
         panic!("{}", lines.join("\n"));
