@@ -40,6 +40,20 @@ use pumpkin_world::generation::structure::structures::{
 };
 use pumpkin_world::generation::structure::template::get_template;
 
+/// Temporary debug hook: records every bounded draw as (bound, value).
+pub static DEBUG_DRAWS: std::sync::Mutex<Vec<(i32, i32)>> = std::sync::Mutex::new(Vec::new());
+
+#[macro_export]
+macro_rules! dbg_draw {
+    ($random:expr, $bound:expr) => {{
+        let __v = $random.next_bounded_i32($bound);
+        if let Ok(mut g) = $crate::village_jigsaw::DEBUG_DRAWS.lock() {
+            g.push(($bound, __v));
+        }
+        __v
+    }};
+}
+
 /// Maximum build height above `min_y` used for world-limit checks.
 const WORLD_HEIGHT: i32 = 320;
 
@@ -121,7 +135,7 @@ struct CollisionSpace {
 fn shuffled_templates(pool: &TemplatePool, random: &mut impl RandomImpl) -> Vec<PoolElement> {
     let mut elements = pool.elements.clone();
     for index in (1..elements.len()).rev() {
-        let other = random.next_bounded_i32(index as i32 + 1) as usize;
+        let other = crate::dbg_draw!(random, index as i32 + 1) as usize;
         elements.swap(index, other);
     }
     elements
@@ -304,8 +318,20 @@ pub fn generate_village_position(
 ) -> Option<StructurePosition> {
     let max_depth = size.clamp(0, 20);
     let pool = TemplatePool::discover(start_pool)?;
-    let rotation = Rotation::from_index(context.random.next_bounded_i32(4) as u8);
-    let element = pool.get_random_element(&mut context.random).clone();
+    let rotation = Rotation::from_index(crate::dbg_draw!(&mut context.random, 4) as u8);
+    let element = {
+        let total_weight: u32 = pool.elements.iter().map(|e| e.weight).sum();
+        let mut r = crate::dbg_draw!(&mut context.random, total_weight as i32) as u32;
+        let mut picked = &pool.elements[0];
+        for element in &pool.elements {
+            if r < element.weight {
+                picked = element;
+                break;
+            }
+            r -= element.weight;
+        }
+        picked.clone()
+    };
     let template = element.first_template()?;
 
     let position = BlockPos::new(
@@ -397,7 +423,7 @@ pub fn generate_village_position(
             let mut source_jigsaws = std::mem::take(&mut pieces[source_piece_idx].jigsaw_blocks);
 
             for i in (1..source_jigsaws.len()).rev() {
-                let j = context.random.next_bounded_i32(i as i32 + 1) as usize;
+                let j = crate::dbg_draw!(&mut context.random, i as i32 + 1) as usize;
                 source_jigsaws.swap(i, j);
             }
             source_jigsaws.sort_by_key(|j| std::cmp::Reverse(j.selection_priority));
@@ -456,7 +482,7 @@ pub fn generate_village_position(
 
                         let mut target_jigsaws_shuffled = target_jigsaws.clone();
                         for i in (1..target_jigsaws_shuffled.len()).rev() {
-                            let j = context.random.next_bounded_i32(i as i32 + 1) as usize;
+                            let j = crate::dbg_draw!(&mut context.random, i as i32 + 1) as usize;
                             target_jigsaws_shuffled.swap(i, j);
                         }
                         target_jigsaws_shuffled
