@@ -856,7 +856,7 @@ mod tests {
             assert!(scan.valid_structure);
             assert_eq!(scan.chests.len(), 1);
             let chest = &scan.chests[0];
-            assert_eq!((chest.x, chest.y, chest.z), (*x, *y, *z));
+            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
             assert_eq!(chest.loot_seed, seed);
             assert_eq!(chest.loot_table, "minecraft:chests/igloo_chest");
             assert_eq!(chest.ordinal, 0);
