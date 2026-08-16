@@ -23,6 +23,30 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
+/// Optional verbose trace of the jigsaw placement, enabled by
+/// `trace_enable` for the debug test only. Kept out of the hot path.
+static TRACE: Mutex<Option<Vec<String>>> = Mutex::new(None);
+
+pub fn trace_enable() {
+    *TRACE.lock().unwrap() = Some(Vec::new());
+}
+
+pub fn trace_take() -> Vec<String> {
+    TRACE.lock().unwrap().take().unwrap_or_default()
+}
+
+fn trace(line: String) {
+    if let Some(buf) = TRACE.lock().unwrap().as_mut() {
+        buf.push(line);
+    }
+}
+
+fn display_name(element: &PoolElement) -> String {
+    let mut ids = Vec::new();
+    element.for_each_template(|id, _, _, _| ids.push(id.to_string()));
+    ids.first().cloned().unwrap_or_else(|| "?".to_string())
+}
+
 use pumpkin_data::Mirror;
 use pumpkin_data::Rotation;
 use pumpkin_util::math::block_box::BlockBox;
@@ -436,6 +460,30 @@ pub fn generate_village_position(
             let source_collision_box = piece_collision_boxes[source_piece_idx];
             let source_projection = piece_projections[source_piece_idx];
             let source_rigid = source_projection == JigsawProjection::Rigid;
+            trace(format!(
+                "[p{source_piece_idx} d{depth}] proc {} pos=({},{},{}) box=({},{},{})-({},{},{}) col=({},{},{})-({},{},{}) srcJigs={}",
+                display_name(&pieces[source_piece_idx].element),
+                pieces[source_piece_idx].pos.0.x,
+                pieces[source_piece_idx].pos.0.y,
+                pieces[source_piece_idx].pos.0.z,
+                source_box.min.x,
+                source_box.min.y,
+                source_box.min.z,
+                source_box.max.x,
+                source_box.max.y,
+                source_box.max.z,
+                source_collision_box.min.x,
+                source_collision_box.min.y,
+                source_collision_box.min.z,
+                source_collision_box.max.x,
+                source_collision_box.max.y,
+                source_collision_box.max.z,
+                source_jigsaws
+                    .iter()
+                    .map(|j| format!("{}:{:?}", j.pos.0, j.facing))
+                    .collect::<Vec<_>>()
+                    .join(","),
+            ));
             let mut interior_collision_space = None;
 
             'jigsaw_loop: for source_jigsaw in &source_jigsaws {
@@ -447,6 +495,18 @@ pub fn generate_village_position(
                 let Some(target_pool) = TemplatePool::discover(raw_pool_id) else {
                     continue;
                 };
+                trace(format!(
+                    "[p{source_piece_idx} d{depth}] srcJig pos=({},{},{}) face={:?} name={} tgt={} prio={} pool={} -> {} elems",
+                    source_jigsaw.pos.0.x,
+                    source_jigsaw.pos.0.y,
+                    source_jigsaw.pos.0.z,
+                    source_jigsaw.facing,
+                    source_jigsaw.name,
+                    source_jigsaw.target,
+                    source_jigsaw.placement_priority,
+                    raw_pool_id,
+                    target_pool.elements.len(),
+                ));
 
                 let mut target_elements = Vec::new();
                 if depth < max_depth {
@@ -457,6 +517,14 @@ pub fn generate_village_position(
                 if let Some(fallback_pool) = TemplatePool::discover(&fallback_pool_id) {
                     target_elements.extend(shuffled_templates(&fallback_pool, &mut context.random));
                 }
+                trace(format!(
+                    "[p{source_piece_idx} d{depth}]   candidates: {}",
+                    target_elements
+                        .iter()
+                        .map(display_name)
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ));
 
                 for element in target_elements {
                     if element.is_empty() {
@@ -494,6 +562,14 @@ pub fn generate_village_position(
 
                         for target_jigsaw in target_jigsaws_shuffled {
                             if !can_attach(source_jigsaw, &target_jigsaw, target_rotation) {
+                                trace(format!(
+                                    "[p{source_piece_idx} d{depth}]   cand {} rot {:?} jig ({},{},{}) : no-attach",
+                                    display_name(&element),
+                                    target_rotation,
+                                    target_jigsaw.pos.0.x,
+                                    target_jigsaw.pos.0.y,
+                                    target_jigsaw.pos.0.z,
+                                ));
                                 continue;
                             }
 
@@ -607,6 +683,27 @@ pub fn generate_village_position(
                                     .occupied
                                     .iter()
                                     .any(|box_| boxes_intersect(box_, &target_collision_box));
+                            trace(format!(
+                                "[p{source_piece_idx} d{depth}]   cand {} rot {:?} jig ({},{},{}) tgtPos ({},{},{}) yBase={} expand={} space#{} tgtBox=({},{},{})-({},{},{}) -> {}",
+                                display_name(&element),
+                                target_rotation,
+                                target_jigsaw.pos.0.x,
+                                target_jigsaw.pos.0.y,
+                                target_jigsaw.pos.0.z,
+                                target_pos.0.x,
+                                target_pos.0.y,
+                                target_pos.0.z,
+                                target_box_y,
+                                expand_to,
+                                collision_space,
+                                target_collision_box.min.x,
+                                target_collision_box.min.y,
+                                target_collision_box.min.z,
+                                target_collision_box.max.x,
+                                target_collision_box.max.y,
+                                target_collision_box.max.z,
+                                if can_place { "ACCEPT" } else { "reject" },
+                            ));
 
                             if can_place {
                                 collision_spaces[collision_space]

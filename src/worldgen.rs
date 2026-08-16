@@ -1081,6 +1081,7 @@ mod tests {
         let min_z = chunk_z * 16;
         let mut heights = ColumnHeightSampler::new(&scanner.generator, min_x, min_z);
         let structure = Structure::VILLAGE_SNOWY;
+        village_jigsaw::trace_enable();
         let position = village_jigsaw::generate_village_position(
             structure.start_pool.expect("pool"),
             structure.size.expect("size"),
@@ -1133,6 +1134,8 @@ mod tests {
             }
         }
         lines.push(format!("total chests: {chests}"));
+        lines.push("== jigsaw trace ==".to_string());
+        lines.extend(village_jigsaw::trace_take());
         panic!("{}", lines.join("\n"));
     }
 
