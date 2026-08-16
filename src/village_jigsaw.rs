@@ -36,8 +36,7 @@ use pumpkin_world::generation::structure::structures::jigsaw::{
     TemplatePool,
 };
 use pumpkin_world::generation::structure::structures::{
-    StructureGeneratorContext, StructurePiece, StructurePieceBase, StructurePiecesCollector,
-    StructurePosition,
+    StructureGeneratorContext, StructurePiece, StructurePiecesCollector, StructurePosition,
 };
 use pumpkin_world::generation::structure::template::get_template;
 
@@ -48,7 +47,6 @@ const WORLD_HEIGHT: i32 = 320;
 struct PieceState {
     piece_idx: usize,
     depth: i32,
-    priority: i32,
     collision_space: usize,
 }
 
@@ -110,10 +108,6 @@ impl PriorityQueue {
                 .max()
                 .unwrap_or(i32::MIN);
         }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.queues.values().all(VecDeque::is_empty)
     }
 }
 
@@ -391,7 +385,6 @@ pub fn generate_village_position(
         states.push(PieceState {
             piece_idx: 0,
             depth: 0,
-            priority: 0,
             collision_space: 0,
         });
         placing.add(0, 0);
@@ -669,7 +662,6 @@ pub fn generate_village_position(
                                     states.push(PieceState {
                                         piece_idx: target_piece_idx,
                                         depth: depth + 1,
-                                        priority: source_jigsaw.placement_priority,
                                         collision_space,
                                     });
                                     placing.add(source_jigsaw.placement_priority, child_state_idx);
