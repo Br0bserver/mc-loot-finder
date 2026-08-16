@@ -8,7 +8,7 @@ use crate::village_jigsaw;
 use pumpkin_data::{
     dimension::Dimension,
     structures::{Structure, StructureKeys},
-    tag::{RegistryKey, get_tag_ids},
+    tag::{RegistryKey, get_tag_values},
 };
 use pumpkin_util::{
     BlockDirection,
@@ -142,8 +142,8 @@ pub struct Scanner {
     world_seed: i64,
     kind: Kind,
     generator: VanillaGenerator,
-    valid_biomes: &'static [u16],
-    fortress_biomes: &'static [u16],
+    valid_biomes: &'static [&'static str],
+    fortress_biomes: &'static [&'static str],
 }
 
 impl Scanner {
@@ -543,7 +543,7 @@ impl Scanner {
             .ok_or_else(|| Error::Worldgen("village chunk z overflowed".to_owned()))?;
 
         let mut random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
-        let mut remaining: Vec<(Structure, StructureKeys, i32, &'static [u16])> = vec![
+        let mut remaining: Vec<(Structure, StructureKeys, i32, &'static [&'static str])> = vec![
             (
                 Structure::VILLAGE_DESERT,
                 StructureKeys::VillageDesert,
@@ -741,7 +741,7 @@ impl Scanner {
     fn biome_is_valid(
         &self,
         position: Vector3<i32>,
-        valid_biomes: &[u16],
+        valid_biomes: &[&str],
         sampler: &mut MultiNoiseSampler<'_>,
     ) -> bool {
         let biome = self.kind.biome_supplier().biome(
@@ -750,16 +750,19 @@ impl Scanner {
             biome_coords::from_block(position.z),
             sampler,
         );
-        valid_biomes.contains(&(biome.id as u16))
+        // Compare registry ids, not numeric ids: the fork's generated tag
+        // table carries off-by-one biome ids for a few tags (e.g. taiga is
+        // listed as 56 while its enum index is 55).
+        valid_biomes.contains(&biome.registry_id)
     }
 }
 
-fn structure_biomes(structure: &Structure) -> &'static [u16] {
+fn structure_biomes(structure: &Structure) -> &'static [&'static str] {
     let biome_tag = structure
         .biomes
         .strip_prefix('#')
         .unwrap_or(structure.biomes);
-    get_tag_ids(RegistryKey::WorldgenBiome, biome_tag)
+    get_tag_values(RegistryKey::WorldgenBiome, biome_tag)
         .expect("vanilla structure biome tag must exist")
 }
 
@@ -1068,68 +1071,6 @@ mod tests {
                 "igloo without basement must have no chests"
             );
         }
-    }
-
-    #[test]
-    fn debug_variant_chunks() {
-        let scanner = Scanner::new(0, Kind::Village);
-        let mut lines = vec![];
-        for (chunk_x, chunk_z) in [(-272, 16), (-45, 260), (1, 186), (38, 45)] {
-            let mut random = create_chunk_random(0, chunk_x, chunk_z);
-            for (structure, key) in [
-                (Structure::VILLAGE_DESERT, StructureKeys::VillageDesert),
-                (Structure::VILLAGE_PLAINS, StructureKeys::VillagePlains),
-                (Structure::VILLAGE_SAVANNA, StructureKeys::VillageSavanna),
-                (Structure::VILLAGE_SNOWY, StructureKeys::VillageSnowy),
-                (Structure::VILLAGE_TAIGA, StructureKeys::VillageTaiga),
-            ] {
-                let choice = random.next_bounded_i32(5);
-                let _ = choice;
-                let mut heights =
-                    ColumnHeightSampler::new(&scanner.generator, chunk_x * 16, chunk_z * 16);
-                let result = village_jigsaw::generate_village_position(
-                    structure.start_pool.expect("pool"),
-                    0,
-                    i32::from(structure.start_height.unwrap_or(63)),
-                    structure.project_start_to_heightmap.is_some(),
-                    structure.max_distance_from_center.unwrap_or(80),
-                    &mut StructureGeneratorContext {
-                        seed: 0,
-                        chunk_x,
-                        chunk_z,
-                        random: create_chunk_random(0, chunk_x, chunk_z),
-                        sea_level: 63,
-                        min_y: -64,
-                        height_sampler: Some(&mut heights),
-                        structure_key: Some(key),
-                    },
-                );
-                let start = result.map(|p| p.start_pos.0);
-                let probe_ok = start.is_some();
-                let mut biome_info = String::new();
-                if let Some(pos) = start {
-                    let sampler = &mut MultiNoiseSampler::generate(
-                        &scanner.generator.base_router.multi_noise,
-                        &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
-                    );
-                    let biome = scanner.kind.biome_supplier().biome(
-                        biome_coords::from_block(pos.x),
-                        biome_coords::from_block(pos.y),
-                        biome_coords::from_block(pos.z),
-                        sampler,
-                    );
-                    biome_info = format!(
-                        "biome={} valid={}",
-                        biome.id,
-                        scanner.biome_is_valid(pos, structure_biomes(&structure), sampler)
-                    );
-                }
-                lines.push(format!(
-                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={probe_ok} start={start:?} {biome_info}",
-                ));
-            }
-        }
-        panic!("{}", lines.join("\n"));
     }
 
     #[test]
