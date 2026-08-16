@@ -1105,16 +1105,27 @@ mod tests {
                     },
                 );
                 let start = result.map(|p| p.start_pos.0);
-                let biome_ok = start.map_or(false, |pos| {
+                let probe_ok = start.is_some();
+                let mut biome_info = String::new();
+                if let Some(pos) = start {
                     let sampler = &mut MultiNoiseSampler::generate(
                         &scanner.generator.base_router.multi_noise,
                         &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
                     );
-                    scanner.biome_is_valid(pos, structure_biomes(&structure), sampler)
-                });
-                let probe_ok = start.is_some();
+                    let biome = scanner.kind.biome_supplier().biome(
+                        biome_coords::from_block(pos.x),
+                        biome_coords::from_block(pos.y),
+                        biome_coords::from_block(pos.z),
+                        sampler,
+                    );
+                    biome_info = format!(
+                        "biome={} valid={}",
+                        biome.id,
+                        scanner.biome_is_valid(pos, structure_biomes(&structure), sampler)
+                    );
+                }
                 lines.push(format!(
-                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={probe_ok} start={start:?} biome={biome_ok}",
+                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={probe_ok} start={start:?} {biome_info}",
                 ));
             }
         }
