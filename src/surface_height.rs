@@ -3,17 +3,18 @@
 //! Replicates `pumpkin_world::generation::structure::height_sampler::NoiseHeightSampler`
 //! (which is `pub(crate)` inside the Pumpkin fork) so the scanner can resolve
 //! vanilla `ChunkGenerator` height queries for structures such as the desert
-//! pyramid without building any chunks.
+//! pyramid and the igloo without building any chunks.
 //!
 //! The fork's sampler output (top non-air Y + 1) equals vanilla
 //! `getBaseHeight`; vanilla `getFirstOccupiedHeight` is `getBaseHeight - 1`.
 //! Both accessors are exposed so callers can mirror the exact vanilla query
 //! (desert pyramid: `getFirstOccupiedHeight` for the corner sea-level check and
-//! the biome position, the heightmap value for the piece base height).
+//! the biome position, the heightmap value for the piece base height; igloo:
+//! `MOTION_BLOCKING_NO_LEAVES` for the piece sink height).
 
 use std::collections::HashMap;
 
-use pumpkin_data::Block;
+use pumpkin_data::{Block, BlockId, block_properties::blocks_movement, tag};
 use pumpkin_util::math::floor_div;
 use pumpkin_world::generation::{
     biome_coords,
@@ -31,7 +32,10 @@ use pumpkin_world::generation::{
 pub struct ColumnHeightSampler<'a> {
     generator: &'a VanillaGenerator,
     preliminary: SurfaceHeightEstimateSampler<'a>,
+    /// Top non-air Y + 1 per column (vanilla `getBaseHeight`).
     heights: HashMap<(i32, i32), i32>,
+    /// Top `MOTION_BLOCKING_NO_LEAVES` Y + 1 per column.
+    motion_blocking_no_leaves: HashMap<(i32, i32), i32>,
 }
 
 impl<'a> ColumnHeightSampler<'a> {
@@ -53,6 +57,7 @@ impl<'a> ColumnHeightSampler<'a> {
             generator,
             preliminary,
             heights: HashMap::new(),
+            motion_blocking_no_leaves: HashMap::new(),
         }
     }
 
@@ -62,26 +67,45 @@ impl<'a> ColumnHeightSampler<'a> {
     /// The fork's exclusive sampler output (top non-air Y + 1) equals this
     /// value exactly; locked by the 26.1.2 desert pyramid chest vectors.
     pub fn base_height(&mut self, x: i32, z: i32) -> i32 {
-        self.estimate_height(x, z)
+        self.estimate_height(x, z).0
+    }
+
+    /// Vanilla `MOTION_BLOCKING_NO_LEAVES` heightmap value: one above the top
+    /// block that blocks movement (or is liquid) and is not a leaf. Igloo
+    /// pieces sink relative to this height, which excludes snow layers.
+    pub fn motion_blocking_no_leaves_height(&mut self, x: i32, z: i32) -> i32 {
+        let key = (x, z);
+        if let Some(height) = self.motion_blocking_no_leaves.get(&key) {
+            return *height;
+        }
+        let height = self.estimate_height(x, z).1;
+        self.motion_blocking_no_leaves.insert(key, height);
+        height
     }
 
     /// Vanilla `ChunkGenerator.getFirstOccupiedHeight`: `getBaseHeight - 1`,
     /// i.e. the Y of the top block matching the heightmap predicate.
     pub fn first_occupied_height(&mut self, x: i32, z: i32) -> i32 {
-        self.estimate_height(x, z) - 1
+        self.estimate_height(x, z).0 - 1
     }
 
-    fn estimate_height(&mut self, x: i32, z: i32) -> i32 {
+    fn estimate_height(&mut self, x: i32, z: i32) -> (i32, i32) {
         let key = (x, z);
         if let Some(height) = self.heights.get(&key) {
-            return *height;
+            let mbl = self
+                .motion_blocking_no_leaves
+                .get(&key)
+                .copied()
+                .unwrap_or(height);
+            return (*height, mbl);
         }
-        let height = self.sample_column(x, z);
+        let (height, mbl) = self.sample_column(x, z);
         self.heights.insert(key, height);
-        height
+        self.motion_blocking_no_leaves.insert(key, mbl);
+        (height, mbl)
     }
 
-    fn sample_column(&mut self, x: i32, z: i32) -> i32 {
+    fn sample_column(&mut self, x: i32, z: i32) -> (i32, i32) {
         let settings = self.generator.settings;
         let shape = &settings.shape;
         let horizontal = i32::from(shape.horizontal_cell_block_count());
@@ -116,6 +140,8 @@ impl<'a> ColumnHeightSampler<'a> {
         noise.sample_end_density(0);
         let minimum_cell_y = floor_div(i32::from(noise.min_y()), vertical);
         let cell_count = i32::from(noise.height()) / vertical;
+        let mut top_non_air = None;
+        let mut top_motion_blocking_no_leaves = None;
         for cell_y in (0..cell_count).rev() {
             noise.on_sampled_cell_corners(0, cell_y, 0);
             let sample_start_y = (minimum_cell_y + cell_y) * vertical;
@@ -136,12 +162,22 @@ impl<'a> ColumnHeightSampler<'a> {
                         &mut self.preliminary,
                     )
                     .unwrap_or(self.generator.default_block);
-                if !state.is_air() {
-                    return y + 1;
+                if !state.is_air() && top_non_air.is_none() {
+                    top_non_air = Some(y + 1);
+                }
+                let block_id = BlockId::from_state_id(state.id);
+                if top_motion_blocking_no_leaves.is_none()
+                    && (blocks_movement(state, block_id) || state.is_liquid())
+                    && !block_id.has_tag(tag::Block::MINECRAFT_LEAVES)
+                {
+                    top_motion_blocking_no_leaves = Some(y + 1);
                 }
             }
         }
 
-        i32::from(shape.min_y)
+        (
+            top_non_air.unwrap_or_else(|| i32::from(shape.min_y)),
+            top_motion_blocking_no_leaves.unwrap_or_else(|| i32::from(shape.min_y)),
+        )
     }
 }
