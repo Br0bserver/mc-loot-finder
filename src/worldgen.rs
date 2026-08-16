@@ -1129,8 +1129,8 @@ mod tests {
                 .expect("pool piece");
             for (i, j) in piece.jigsaw_blocks.iter().enumerate() {
                 lines.push(format!(
-                    "startjig[{i}] name={} pool={} pos=({},{},{}) facing={:?}",
-                    j.name, j.pool, j.pos.0.x, j.pos.0.y, j.pos.0.z, j.facing
+                    "startjig[{i}] name={} pool={} pos=({},{},{}) facing={}",
+                    j.name, j.pool, j.pos.0.x, j.pos.0.y, j.pos.0.z, j.facing as i32
                 ));
             }
         }
