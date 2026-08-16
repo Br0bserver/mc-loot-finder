@@ -1141,6 +1141,8 @@ mod tests {
                 piece.rotation
             ));
         }
+        panic!("{}", lines.join("\n"));
+        #[allow(unreachable_code)]
         for (scan, chests) in scans.iter().zip(expected) {
             assert!(scan.valid_structure);
             let actual = scan
@@ -1150,6 +1152,5 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(actual, chests);
         }
-        panic!("{}", lines.join("\n"));
     }
 }
