@@ -96,7 +96,7 @@ impl<'a> ColumnHeightSampler<'a> {
                 .motion_blocking_no_leaves
                 .get(&key)
                 .copied()
-                .unwrap_or(height);
+                .unwrap_or(*height);
             return (*height, mbl);
         }
         let (height, mbl) = self.sample_column(x, z);
