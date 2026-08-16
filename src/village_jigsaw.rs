@@ -417,12 +417,16 @@ pub fn generate_village_position(
     // isStartTooCloseToWorldHeightLimits returns false without checking.
 
     let center_y = bottom_y;
+    // Vanilla builds the initial free space from the start position plus
+    // `maxDistance` in every axis (horizontal and vertical share the same
+    // value), not the ancient-city ±384 extent; a ravine candidate at y24
+    // falls outside the village's ±80 Y window and is rejected.
     let global_bounding_box = BlockBox::new(
         center_x - max_distance_from_center,
-        (center_y - 384).max(context.min_y),
+        (center_y - max_distance_from_center).max(context.min_y),
         center_z - max_distance_from_center,
         center_x + max_distance_from_center,
-        (center_y + 384 + 1).min(context.min_y + WORLD_HEIGHT),
+        (center_y + max_distance_from_center + 1).min(context.min_y + WORLD_HEIGHT),
         center_z + max_distance_from_center,
     );
 
