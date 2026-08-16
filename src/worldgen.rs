@@ -643,6 +643,41 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "temporary debug probe"]
+    fn debug_desert_pyramid_corner_heights() {
+        let scanner = Scanner::new(0, Kind::DesertPyramid);
+        let chunks = [
+            (22, -146),
+            (-30, -160),
+            (-10, -178),
+            (98, -155),
+            (102, -224),
+            (105, -246),
+            (0, -188),
+            (77, -213),
+            (81, -254),
+        ];
+        let mut lines = Vec::new();
+        for (chunk_x, chunk_z) in chunks {
+            let min_x = chunk_x * 16;
+            let min_z = chunk_z * 16;
+            let mut heights = ColumnHeightSampler::new(&scanner.generator, min_x, min_z);
+            let corners = [
+                (min_x, min_z),
+                (min_x, min_z + 21),
+                (min_x + 21, min_z),
+                (min_x + 21, min_z + 21),
+            ]
+            .map(|(x, z)| heights.first_occupied_height(x, z));
+            let center = heights.first_occupied_height(min_x + 8, min_z + 8);
+            lines.push(format!(
+                "chunk ({chunk_x},{chunk_z}) corners={corners:?} center={center}"
+            ));
+        }
+        panic!("DEBUG HEIGHTS\n{}", lines.join("\n"));
+    }
+
+    #[test]
     fn scans_known_26_1_2_desert_pyramids() {
         let scanner = Scanner::new(0, Kind::DesertPyramid);
         let scans = scanner
