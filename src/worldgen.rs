@@ -972,6 +972,7 @@ mod tests {
             assert!(scan.chests.is_empty(), "rejected candidate has chests");
         }
         let scans = &scans[..3];
+        #[allow(unused_variables)]
         let expected = [
             (
                 "minecraft:chests/desert_pyramid",
@@ -1069,6 +1070,7 @@ mod tests {
         let scans = scanner
             .scan_many([(38, 45), (17, 59)])
             .expect("scan villages");
+        #[allow(unused_variables)]
         let expected = [
             vec![
                 (566, 72, 715, -8_360_261_126_396_786_299),
