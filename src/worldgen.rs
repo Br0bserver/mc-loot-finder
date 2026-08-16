@@ -477,6 +477,8 @@ fn chest_world_x(facing: BlockDirection, box_: &BlockBox, local_x: i32, local_z:
         BlockDirection::North | BlockDirection::South => box_.min.x + local_x,
         BlockDirection::West => box_.max.x - local_z,
         BlockDirection::East => box_.min.x + local_z,
+        // Vanilla's switch default: the desert pyramid facing is always horizontal.
+        BlockDirection::Down | BlockDirection::Up => local_x,
     }
 }
 
@@ -486,6 +488,8 @@ fn chest_world_z(facing: BlockDirection, box_: &BlockBox, local_x: i32, local_z:
         BlockDirection::North => box_.max.z - local_z,
         BlockDirection::South => box_.min.z + local_z,
         BlockDirection::West | BlockDirection::East => box_.min.z + local_x,
+        // Vanilla's switch default: the desert pyramid facing is always horizontal.
+        BlockDirection::Down | BlockDirection::Up => local_z,
     }
 }
 
