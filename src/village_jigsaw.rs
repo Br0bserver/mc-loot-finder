@@ -366,9 +366,8 @@ pub fn generate_village_position(
     let mut piece_pos = position;
     piece_pos.0.y += y_offset;
 
-    if box_.min.y < context.min_y || box_.max.y > context.min_y + WORLD_HEIGHT {
-        return None;
-    }
+    // Villages use ZERO dimension padding, so vanilla's
+    // isStartTooCloseToWorldHeightLimits returns false without checking.
 
     let center_y = bottom_y;
     let global_bounding_box = BlockBox::new(

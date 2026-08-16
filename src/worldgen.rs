@@ -1071,6 +1071,26 @@ mod tests {
     }
 
     #[test]
+    fn debug_variant_chunks() {
+        let scanner = Scanner::new(0, Kind::Village);
+        let scans = scanner
+            .scan_many([(-272, 16), (-45, 260), (1, 186), (38, 45), (17, 59)])
+            .expect("scan");
+        let mut lines = vec![];
+        for (chunk, scan) in [(-272, 16), (-45, 260), (1, 186), (38, 45), (17, 59)]
+            .iter()
+            .zip(&scans)
+        {
+            lines.push(format!(
+                "chunk {chunk:?} valid={} chests={}",
+                scan.valid_structure,
+                scan.chests.len()
+            ));
+        }
+        panic!("{}", lines.join("\n"));
+    }
+
+    #[test]
     fn scans_known_26_1_2_villages() {
         let scanner = Scanner::new(0, Kind::Village);
         // Seed 0: a savanna village at (38,45) with five chests and a plains
