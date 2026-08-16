@@ -26,7 +26,8 @@ use std::sync::{Arc, Mutex};
 /// Optional verbose trace of the jigsaw placement, enabled by
 /// `trace_enable` for the debug test only. Kept out of the hot path.
 /// Keyed by thread so parallel tests cannot interleave into the buffer.
-static TRACE: Mutex<HashMap<std::thread::ThreadId, Vec<String>>> = Mutex::new(HashMap::new());
+static TRACE: std::sync::LazyLock<Mutex<HashMap<std::thread::ThreadId, Vec<String>>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[allow(dead_code)] // only used by the debug test target
 pub fn trace_enable() {
