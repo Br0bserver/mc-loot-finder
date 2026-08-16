@@ -30,13 +30,14 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::random::RandomImpl;
 use pumpkin_world::generation::structure::piece::StructurePieceType;
+use pumpkin_world::generation::structure::structures::jigsaw::PoolElementStructurePiece;
 use pumpkin_world::generation::structure::structures::jigsaw::{
     JigsawBlock, JigsawJointType, JigsawJunction, JigsawProjection, PoolElement, PoolElementKind,
     TemplatePool,
 };
 use pumpkin_world::generation::structure::structures::{
-    PoolElementStructurePiece, StructureGeneratorContext, StructurePiece, StructurePieceBase,
-    StructurePiecesCollector, StructurePosition,
+    StructureGeneratorContext, StructurePiece, StructurePieceBase, StructurePiecesCollector,
+    StructurePosition,
 };
 use pumpkin_world::generation::structure::template::get_template;
 
@@ -337,7 +338,8 @@ pub fn generate_village_position(
     let ground_level_delta = 1;
     let y_offset = bottom_y - (box_.min.y + ground_level_delta);
     box_.move_pos(0, y_offset, 0);
-    let piece_pos = BlockPos(position.0.add(0, y_offset, 0));
+    let mut piece_pos = position;
+    piece_pos.0.y += y_offset;
 
     if box_.min.y < context.min_y || box_.max.y > context.min_y + WORLD_HEIGHT {
         return None;
@@ -662,7 +664,7 @@ pub fn generate_village_position(
                                     projection: source_projection,
                                 });
 
-                                if depth + 1 <= max_depth {
+                                if depth < max_depth {
                                     placing.add(source_jigsaw.placement_priority, target_piece_idx);
                                     states.push(PieceState {
                                         piece_idx: target_piece_idx,

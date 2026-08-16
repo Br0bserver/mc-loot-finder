@@ -4,6 +4,7 @@ use crate::catalog::ContainerSeedShortcut;
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::surface_height::ColumnHeightSampler;
+use crate::village_jigsaw;
 use pumpkin_data::{
     dimension::Dimension,
     structures::{Structure, StructureKeys},
