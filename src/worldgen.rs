@@ -1103,6 +1103,7 @@ mod debug_village {
         };
         let collector = position.collector.lock().unwrap();
         let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
+        let mut raw = Vec::new();
         for p in &collector.pieces {
             lines.push(format!(
                 "piece type={:?} box={:?} facing={:?}",
@@ -1110,6 +1111,13 @@ mod debug_village {
                 p.get_structure_piece().bounding_box,
                 p.get_structure_piece().facing.map(|d| d as i32),
             ));
+            if let Some(piece) = p.as_any().downcast_ref::<PoolElementStructurePiece>() {
+                collect_piece_chests(piece, &mut raw);
+            }
+        }
+        lines.push(format!("collected chests: {}", raw.len()));
+        for c in &raw {
+            lines.push(format!("chest at ({},{},{}) {}", c.x, c.y, c.z, c.loot_table));
         }
         panic!("{}", lines.join("\n"));
     }
