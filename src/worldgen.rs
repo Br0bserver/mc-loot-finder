@@ -1112,10 +1112,9 @@ mod tests {
                     );
                     scanner.biome_is_valid(pos, structure_biomes(&structure), sampler)
                 });
+                let probe_ok = start.is_some();
                 lines.push(format!(
-                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={} start={:?} biome={biome_ok}",
-                    result.is_some(),
-                    start.map(|p| (p.x, p.y, p.z))
+                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={probe_ok} start={start:?} biome={biome_ok}",
                 ));
             }
         }
