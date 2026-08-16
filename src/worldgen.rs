@@ -1117,7 +1117,10 @@ mod debug_village {
         }
         lines.push(format!("collected chests: {}", raw.len()));
         for c in &raw {
-            lines.push(format!("chest at ({},{},{}) {}", c.x, c.y, c.z, c.loot_table));
+            lines.push(format!(
+                "chest at ({},{},{}) {}",
+                c.x, c.y, c.z, c.loot_table
+            ));
         }
         panic!("{}", lines.join("\n"));
     }
