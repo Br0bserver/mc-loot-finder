@@ -25,20 +25,28 @@ use std::sync::{Arc, Mutex};
 
 /// Optional verbose trace of the jigsaw placement, enabled by
 /// `trace_enable` for the debug test only. Kept out of the hot path.
-static TRACE: Mutex<Option<Vec<String>>> = Mutex::new(None);
+/// Keyed by thread so parallel tests cannot interleave into the buffer.
+static TRACE: Mutex<HashMap<std::thread::ThreadId, Vec<String>>> = Mutex::new(HashMap::new());
 
 #[allow(dead_code)] // only used by the debug test target
 pub fn trace_enable() {
-    *TRACE.lock().unwrap() = Some(Vec::new());
+    TRACE
+        .lock()
+        .unwrap()
+        .insert(std::thread::current().id(), Vec::new());
 }
 
 #[allow(dead_code)] // only used by the debug test target
 pub fn trace_take() -> Vec<String> {
-    TRACE.lock().unwrap().take().unwrap_or_default()
+    TRACE
+        .lock()
+        .unwrap()
+        .remove(&std::thread::current().id())
+        .unwrap_or_default()
 }
 
 fn trace(line: String) {
-    if let Some(buf) = TRACE.lock().unwrap().as_mut() {
+    if let Some(buf) = TRACE.lock().unwrap().get_mut(&std::thread::current().id()) {
         buf.push(line);
     }
 }
