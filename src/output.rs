@@ -252,4 +252,111 @@ mod tests {
         assert_eq!(rounded_distance(207_936), 456.0);
         assert_eq!(rounded_distance(0), 0.0);
     }
+
+    #[test]
+    fn candidates_output_keeps_wire_format() {
+        let output = CandidatesOutput {
+            version: "26.1.2",
+            structure: "ancient_city",
+            seed: 0,
+            status: "candidate_only",
+            candidates: vec![CandidateJson {
+                chunk_x: 9,
+                chunk_z: 7,
+                block_x: 152,
+                block_z: 120,
+                distance: 196.5,
+            }],
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert_eq!(
+            json,
+            r#"{"version":"26.1.2","structure":"ancient_city","seed":0,"status":"candidate_only","candidates":[{"chunk_x":9,"chunk_z":7,"block_x":152,"block_z":120,"distance":196.5}]}"#
+        );
+    }
+
+    #[test]
+    fn loot_output_keeps_wire_format() {
+        let output = LootOutput {
+            version: "26.1.2",
+            loot_table: "minecraft:chests/ancient_city".to_owned(),
+            loot_seed: 40,
+            items: vec![LootStackJson {
+                item: "minecraft:potion".to_owned(),
+                count: 3,
+            }],
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert_eq!(
+            json,
+            r#"{"version":"26.1.2","loot_table":"minecraft:chests/ancient_city","loot_seed":40,"items":[{"item":"minecraft:potion","count":3}]}"#
+        );
+    }
+
+    #[test]
+    fn container_seed_output_keeps_wire_format() {
+        let output = ContainerSeedOutput {
+            version: "26.1.2",
+            structure: "desert_pyramid",
+            world_seed: 0,
+            chunk_x: -188,
+            chunk_z: 0,
+            structure_index: 1,
+            step: 4,
+            ordinal: 2,
+            loot_table_seed: 3_899_282_274_470_656_331,
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert_eq!(
+            json,
+            r#"{"version":"26.1.2","structure":"desert_pyramid","world_seed":0,"chunk_x":-188,"chunk_z":0,"structure_index":1,"step":4,"ordinal":2,"loot_table_seed":3899282274470656331}"#
+        );
+    }
+
+    #[test]
+    fn explain_listing_keeps_wire_format() {
+        let output = ExplainListingOutput {
+            version: "26.1.2",
+            structures: vec![ExplainStructureJson {
+                name: "ancient_city",
+                dimension: "minecraft:overworld",
+                full_scan: true,
+                default_item: "minecraft:silence_armor_trim_smithing_template",
+                loot_tables: 1,
+            }],
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert_eq!(
+            json,
+            r#"{"version":"26.1.2","structures":[{"name":"ancient_city","dimension":"minecraft:overworld","full_scan":true,"default_item":"minecraft:silence_armor_trim_smithing_template","loot_tables":1}]}"#
+        );
+    }
+
+    #[test]
+    fn explain_detail_keeps_wire_format() {
+        let output = ExplainDetailOutput {
+            version: "26.1.2",
+            name: "ancient_city",
+            structure_id: "minecraft:ancient_city",
+            dimension: "minecraft:overworld",
+            full_scan: true,
+            default_item: "minecraft:silence_armor_trim_smithing_template",
+            placement: PlacementJson {
+                spacing: 24,
+                separation: 8,
+                salt: 20_083_232,
+                spread: "LINEAR",
+            },
+            decoration_step: 7,
+            decoration_index: 0,
+            scanner: "JIGSAW_FAST",
+            container_seed_shortcut: "DIRECT",
+            loot_tables: vec!["minecraft:chests/ancient_city"],
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert_eq!(
+            json,
+            r#"{"version":"26.1.2","name":"ancient_city","structure_id":"minecraft:ancient_city","dimension":"minecraft:overworld","full_scan":true,"default_item":"minecraft:silence_armor_trim_smithing_template","placement":{"spacing":24,"separation":8,"salt":20083232,"spread":"LINEAR"},"decoration_step":7,"decoration_index":0,"scanner":"JIGSAW_FAST","container_seed_shortcut":"DIRECT","loot_tables":["minecraft:chests/ancient_city"]}"#
+        );
+    }
 }
