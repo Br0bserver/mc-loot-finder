@@ -972,7 +972,6 @@ mod tests {
             assert!(scan.chests.is_empty(), "rejected candidate has chests");
         }
         let scans = &scans[..3];
-        #[allow(unused_variables)]
         let expected = [
             (
                 "minecraft:chests/desert_pyramid",
@@ -1070,7 +1069,6 @@ mod tests {
         let scans = scanner
             .scan_many([(38, 45), (17, 59)])
             .expect("scan villages");
-        #[allow(unused_variables)]
         let expected = [
             vec![
                 (566, 72, 715, -8_360_261_126_396_786_299),
@@ -1084,88 +1082,6 @@ mod tests {
                 (290, 75, 900, -8_102_066_785_630_644_298),
             ],
         ];
-        let scan = &scans[0];
-        let mut lines = vec![format!(
-            "valid={} chests={}",
-            scan.valid_structure,
-            scan.chests.len()
-        )];
-        for c in &scan.chests {
-            lines.push(format!(
-                "chest ({},{},{}) {} seed={}",
-                c.x, c.y, c.z, c.loot_table, c.loot_seed
-            ));
-        }
-        crate::village_jigsaw::DEBUG_DRAWS.lock().unwrap().clear();
-        let scanner2 = Scanner::new(0, Kind::Village);
-        let min_x = 38 * 16;
-        let min_z = 45 * 16;
-        let mut heights = ColumnHeightSampler::new(&scanner2.generator, min_x, min_z);
-        let structure = Structure::VILLAGE_SAVANNA;
-        let position = village_jigsaw::generate_village_position(
-            structure.start_pool.expect("pool"),
-            structure.size.expect("size"),
-            i32::from(structure.start_height.unwrap_or(63)),
-            structure.project_start_to_heightmap.is_some(),
-            structure.max_distance_from_center.unwrap_or(80),
-            &mut StructureGeneratorContext {
-                seed: 0,
-                chunk_x: 38,
-                chunk_z: 45,
-                random: create_chunk_random(0, 38, 45),
-                sea_level: 63,
-                min_y: -64,
-                height_sampler: Some(&mut heights),
-                structure_key: Some(StructureKeys::VillageSavanna),
-            },
-        )
-        .expect("position");
-        let collector = position.collector.lock().unwrap();
-        lines.push(format!("pieces: {}", collector.pieces.len()));
-        {
-            let start = &collector.pieces[0];
-            let piece = start
-                .as_any()
-                .downcast_ref::<PoolElementStructurePiece>()
-                .expect("pool piece");
-            for (i, j) in piece.jigsaw_blocks.iter().enumerate() {
-                lines.push(format!(
-                    "startjig[{i}] name={} pool={} pos=({},{},{}) facing={}",
-                    j.name, j.pool, j.pos.0.x, j.pos.0.y, j.pos.0.z, j.facing as i32
-                ));
-            }
-        }
-        {
-            let draws = crate::village_jigsaw::DEBUG_DRAWS.lock().unwrap();
-            lines.push(format!("draws: {}", draws.len()));
-            for (i, (b, v)) in draws.iter().take(60).enumerate() {
-                lines.push(format!("draw[{i}] bound={b} value={v}"));
-            }
-        }
-        for p in &collector.pieces {
-            let piece = p
-                .as_any()
-                .downcast_ref::<PoolElementStructurePiece>()
-                .expect("pool piece");
-            let mut ids = Vec::new();
-            piece.element.for_each_template(|id, _, _, t| {
-                ids.push(format!("{id} {}x{}x{}", t.size.x, t.size.y, t.size.z));
-            });
-            let b = &piece.piece.bounding_box;
-            lines.push(format!(
-                "piece {} box=({},{},{})-({},{},{}) rot={:?}",
-                ids.first().map_or("?", String::as_str),
-                b.min.x,
-                b.min.y,
-                b.min.z,
-                b.max.x,
-                b.max.y,
-                b.max.z,
-                piece.rotation
-            ));
-        }
-        panic!("{}", lines.join("\n"));
-        #[allow(unreachable_code)]
         for (scan, chests) in scans.iter().zip(expected) {
             assert!(scan.valid_structure);
             let actual = scan
