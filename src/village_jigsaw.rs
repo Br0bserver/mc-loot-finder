@@ -715,7 +715,7 @@ pub fn generate_village_position(
     }
 
     Some(StructurePosition {
-        start_pos: piece_pos,
+        start_pos: BlockPos::new(center_x, center_y, center_z),
         collector: Arc::new(Mutex::new(collector)),
     })
 }
