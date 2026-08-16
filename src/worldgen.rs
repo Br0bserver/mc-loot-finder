@@ -45,6 +45,7 @@ pub enum Kind {
     AncientCity,
     BastionRemnant,
     DesertPyramid,
+    Igloo,
 }
 
 impl Kind {
@@ -53,6 +54,7 @@ impl Kind {
             Self::AncientCity => Structure::ANCIENT_CITY,
             Self::BastionRemnant => Structure::BASTION_REMNANT,
             Self::DesertPyramid => Structure::DESERT_PYRAMID,
+            Self::Igloo => Structure::IGLOO,
         }
     }
 
@@ -61,26 +63,27 @@ impl Kind {
             Self::AncientCity => StructureKeys::AncientCity,
             Self::BastionRemnant => StructureKeys::BastionRemnant,
             Self::DesertPyramid => StructureKeys::DesertPyramid,
+            Self::Igloo => StructureKeys::Igloo,
         }
     }
 
     const fn dimension(self) -> Dimension {
         match self {
-            Self::AncientCity | Self::DesertPyramid => Dimension::OVERWORLD,
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo => Dimension::OVERWORLD,
             Self::BastionRemnant => Dimension::THE_NETHER,
         }
     }
 
     const fn min_y(self) -> i32 {
         match self {
-            Self::AncientCity | Self::DesertPyramid => OVERWORLD_MIN_Y,
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo => OVERWORLD_MIN_Y,
             Self::BastionRemnant => NETHER_MIN_Y,
         }
     }
 
     const fn sea_level(self) -> i32 {
         match self {
-            Self::AncientCity | Self::DesertPyramid => OVERWORLD_SEA_LEVEL,
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo => OVERWORLD_SEA_LEVEL,
             Self::BastionRemnant => NETHER_SEA_LEVEL,
         }
     }
@@ -90,12 +93,15 @@ impl Kind {
             Self::AncientCity => (7, 0),
             Self::BastionRemnant => (4, 0),
             Self::DesertPyramid => (1, 4),
+            Self::Igloo => (3, 4),
         }
     }
 
     const fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
         match self {
-            Self::AncientCity | Self::DesertPyramid => MultiNoiseBiomeSupplier::OVERWORLD,
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo => {
+                MultiNoiseBiomeSupplier::OVERWORLD
+            }
             Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
         }
     }
@@ -134,6 +140,7 @@ impl Scanner {
             "ancient_city" => Kind::AncientCity,
             "bastion_remnant" => Kind::BastionRemnant,
             "desert_pyramid" => Kind::DesertPyramid,
+            "igloo" => Kind::Igloo,
             _ => {
                 return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
@@ -181,6 +188,9 @@ impl Scanner {
     ) -> Result<Scan, Error> {
         if self.kind == Kind::DesertPyramid {
             return self.scan_desert_pyramid(chunk_x, chunk_z, sampler);
+        }
+        if self.kind == Kind::Igloo {
+            return self.scan_igloo(chunk_x, chunk_z, sampler);
         }
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
@@ -406,6 +416,93 @@ impl Scanner {
         })
     }
 
+    /// Scans an igloo candidate chunk.
+    ///
+    /// Mirrors vanilla 26.1.2 `IglooStructure` + `IglooPieces`:
+    /// 1. the biome at the chunk center block, sampled at
+    ///    `getFirstOccupiedHeight(WORLD_SURFACE_WG)`, must be in the biome tag;
+    /// 2. the placement random draws the template rotation (`nextInt(4)`), the
+    ///    basement chance (`nextDouble() < 0.5`) and the ladder segment count
+    ///    (`nextInt(8) + 4`);
+    /// 3. with a basement, the bottom template's reference column
+    ///    (`getHeight(WORLD_SURFACE_WG)`) anchors the piece so the chest sits at
+    ///    template local (1, 1, 6) rotated around the bottom pivot XZ (3, 7),
+    ///    offset from the chunk by `OFFSETS[bottom] = (0, -3, -2)`;
+    /// 4. the chest loot seed is the second `nextLong` of the decoration stream
+    ///    after `setFeatureSeed` (the first is consumed by template placement),
+    ///    which is `ContainerSeedShortcut::Direct` with ordinal 1.
+    fn scan_igloo(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        let min_x = chunk_x
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("igloo chunk x overflowed".to_owned()))?;
+        let min_z = chunk_z
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("igloo chunk z overflowed".to_owned()))?;
+        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+
+        let mid_x = min_x + 8;
+        let mid_z = min_z + 8;
+        let mid_y = heights.first_occupied_height(mid_x, mid_z);
+        if !self.biome_is_valid(
+            Vector3::new(mid_x, mid_y, mid_z),
+            self.valid_biomes,
+            sampler,
+        ) {
+            return Ok(invalid_scan());
+        }
+
+        // The placement random draws the template rotation, the basement chance
+        // and the ladder segment count, in that order.
+        let mut random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
+        let rotation_index = random.next_bounded_i32(4);
+        if random.next_f64() >= 0.5 {
+            return Ok(Scan {
+                valid_structure: true,
+                chests: Vec::new(),
+            });
+        }
+        let ladder_segments = random.next_bounded_i32(8) + 4;
+
+        // Bottom template: `OFFSETS[bottom] = (0, -3, -2)`, pivot XZ (3, 7).
+        // The sink reference is template local (3, 0, 2); the chest is at
+        // template local (1, 1, 6) and ends up `ladder_segments * 3` blocks
+        // below the reference column surface height.
+        let (ref_x, ref_z) = rotate_around_pivot(rotation_index, 3, 2, 3, 7);
+        let surface_y = heights.base_height(min_x + ref_x, min_z - 2 + ref_z);
+        let chest_y = surface_y - ladder_segments * 3;
+        let (chest_rel_x, chest_rel_z) = rotate_around_pivot(rotation_index, 1, 6, 3, 7);
+
+        let (structure_index, decoration_step) = self.kind.decoration_coordinates();
+        let loot_seed = container_loot_seed(
+            self.world_seed,
+            chunk_x,
+            chunk_z,
+            structure_index,
+            decoration_step,
+            1,
+            ContainerSeedShortcut::Direct,
+        )?;
+
+        Ok(Scan {
+            valid_structure: true,
+            chests: vec![Chest {
+                structure_chunk_x: chunk_x,
+                structure_chunk_z: chunk_z,
+                x: min_x + chest_rel_x,
+                y: chest_y,
+                z: min_z - 2 + chest_rel_z,
+                loot_table: "minecraft:chests/igloo_chest".to_owned(),
+                ordinal: 0,
+                loot_seed,
+            }],
+        })
+    }
+
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {
         StructureGeneratorContext {
             seed: self.world_seed,
@@ -492,6 +589,24 @@ fn chest_world_z(facing: BlockDirection, box_: &BlockBox, local_x: i32, local_z:
         BlockDirection::West | BlockDirection::East => box_.min.z + local_x,
         // Vanilla's switch default: the desert pyramid facing is always horizontal.
         BlockDirection::Down | BlockDirection::Up => local_z,
+    }
+}
+
+/// Vanilla `StructureTemplate.transform` rotation of an XZ offset around a
+/// pivot. Rotation indexes follow the vanilla enum order: 0 = NONE,
+/// 1 = CLOCKWISE_90, 2 = CLOCKWISE_180, 3 = COUNTERCLOCKWISE_90.
+fn rotate_around_pivot(
+    rotation_index: i32,
+    x: i32,
+    z: i32,
+    pivot_x: i32,
+    pivot_z: i32,
+) -> (i32, i32) {
+    match rotation_index {
+        0 => (x, z),
+        1 => (pivot_x - z + pivot_z, pivot_z + x - pivot_x),
+        2 => (2 * pivot_x - x, 2 * pivot_z - z),
+        _ => (pivot_x + z - pivot_z, pivot_z - x + pivot_x),
     }
 }
 
@@ -714,6 +829,44 @@ mod tests {
                 .map(|(x, y, z, seed)| (loot_table, (*x, *y, *z, *seed)))
                 .collect::<Vec<_>>();
             assert_eq!(actual, wanted);
+        }
+    }
+
+    #[test]
+    fn scans_known_26_1_2_igloos() {
+        let scanner = Scanner::new(0, Kind::Igloo);
+        // Seed 0: three igloos with basements (chest vectors from the vanilla
+        // 26.1.2 placement run) and three valid igloos without a basement.
+        let scans = scanner
+            .scan_many([
+                (98, 192),
+                (238, -29),
+                (-110, 246),
+                (-12, 231),
+                (-46, 242),
+                (-214, 141),
+            ])
+            .expect("scan igloo candidates");
+        let expected_chests = [
+            ((1569, 122, 3076), -7_862_992_963_971_781_551),
+            ((3813, 48, -458), -3_865_222_752_920_655_871),
+            ((-1755, 50, 3942), 1_861_016_387_536_410_190),
+        ];
+        for (scan, ((x, y, z), seed)) in scans.iter().take(3).zip(expected_chests) {
+            assert!(scan.valid_structure);
+            assert_eq!(scan.chests.len(), 1);
+            let chest = &scan.chests[0];
+            assert_eq!((chest.x, chest.y, chest.z), (*x, *y, *z));
+            assert_eq!(chest.loot_seed, seed);
+            assert_eq!(chest.loot_table, "minecraft:chests/igloo_chest");
+            assert_eq!(chest.ordinal, 0);
+        }
+        for scan in &scans[3..] {
+            assert!(scan.valid_structure);
+            assert!(
+                scan.chests.is_empty(),
+                "igloo without basement must have no chests"
+            );
         }
     }
 }

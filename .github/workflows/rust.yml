@@ -168,6 +168,50 @@ jobs:
           if actual != expected:
               raise SystemExit(f"unexpected desert pyramid find result: {result}")
           PY
+      - name: Run igloo smoke test
+        run: |
+          result=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder chests \
+            --seed 0 \
+            --structure igloo \
+            --radius 5000 \
+            --limit 1000 \
+            --json)
+          python3 - "$result" <<'PY'
+          import json
+          import sys
+
+          result = json.loads(sys.argv[1])
+          expected = {
+              "placement_candidates": 299,
+              "valid_structures": 26,
+              "chest_count": 14,
+          }
+          actual = {key: result[key] for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected igloo chests result: {result}")
+          PY
+          result=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
+            --seed 0 \
+            --structure igloo \
+            --item minecraft:golden_apple \
+            --radius 5000 \
+            --limit 20 \
+            --json)
+          python3 - "$result" <<'PY'
+          import json
+          import sys
+
+          result = json.loads(sys.argv[1])
+          expected = {
+              "placement_candidates": 299,
+              "valid_structures": 26,
+              "checked_chests": 14,
+              "hits": 14,
+          }
+          actual = {key: result[key] for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected igloo find result: {result}")
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: ancient-city-chests
@@ -265,6 +309,41 @@ jobs:
               $result.checked_chests -ne 12 -or
               $result.hits -ne 5) {
             throw "unexpected desert pyramid find result: $json"
+          }
+      - name: Run igloo smoke test
+        shell: pwsh
+        run: |
+          $json = & target\release\mc-loot-finder.exe chests `
+            --seed 0 `
+            --structure igloo `
+            --radius 5000 `
+            --limit 1000 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "chests exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 299 -or
+              $result.valid_structures -ne 26 -or
+              $result.chest_count -ne 14) {
+            throw "unexpected igloo chests result: $json"
+          }
+          $json = & target\release\mc-loot-finder.exe find `
+            --seed 0 `
+            --structure igloo `
+            --item minecraft:golden_apple `
+            --radius 5000 `
+            --limit 20 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "find exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 299 -or
+              $result.valid_structures -ne 26 -or
+              $result.checked_chests -ne 14 -or
+              $result.hits -ne 14) {
+            throw "unexpected igloo find result: $json"
           }
       - name: Prepare Windows binary
         shell: pwsh
