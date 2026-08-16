@@ -643,7 +643,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "temporary debug probe"]
     fn debug_desert_pyramid_corner_heights() {
         let scanner = Scanner::new(0, Kind::DesertPyramid);
         let chunks = [
