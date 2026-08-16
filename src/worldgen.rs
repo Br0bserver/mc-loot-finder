@@ -1096,6 +1096,7 @@ mod tests {
                 c.x, c.y, c.z, c.loot_table, c.loot_seed
             ));
         }
+        crate::village_jigsaw::DEBUG_DRAWS.lock().unwrap().clear();
         let scanner2 = Scanner::new(0, Kind::Village);
         let min_x = 38 * 16;
         let min_z = 45 * 16;
