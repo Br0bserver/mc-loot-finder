@@ -27,10 +27,12 @@ use std::sync::{Arc, Mutex};
 /// `trace_enable` for the debug test only. Kept out of the hot path.
 static TRACE: Mutex<Option<Vec<String>>> = Mutex::new(None);
 
+#[allow(dead_code)] // only used by the debug test target
 pub fn trace_enable() {
     *TRACE.lock().unwrap() = Some(Vec::new());
 }
 
+#[allow(dead_code)] // only used by the debug test target
 pub fn trace_take() -> Vec<String> {
     TRACE.lock().unwrap().take().unwrap_or_default()
 }
