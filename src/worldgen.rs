@@ -1074,6 +1074,69 @@ mod tests {
     }
 
     #[test]
+    fn debug_snowy_chunk() {
+        let scanner = Scanner::new(0, Kind::Village);
+        let (chunk_x, chunk_z) = (-114i32, 290i32);
+        let min_x = chunk_x * 16;
+        let min_z = chunk_z * 16;
+        let mut heights = ColumnHeightSampler::new(&scanner.generator, min_x, min_z);
+        let structure = Structure::VILLAGE_SNOWY;
+        let position = village_jigsaw::generate_village_position(
+            structure.start_pool.expect("pool"),
+            structure.size.expect("size"),
+            i32::from(structure.start_height.unwrap_or(63)),
+            structure.project_start_to_heightmap.is_some(),
+            structure.max_distance_from_center.unwrap_or(80),
+            &mut StructureGeneratorContext {
+                seed: 0,
+                chunk_x,
+                chunk_z,
+                random: create_chunk_random(0, chunk_x, chunk_z),
+                sea_level: 63,
+                min_y: -64,
+                height_sampler: Some(&mut heights),
+                structure_key: Some(StructureKeys::VillageSnowy),
+            },
+        )
+        .expect("position");
+        let collector = position.collector.lock().unwrap();
+        let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
+        let mut chests = 0usize;
+        for p in &collector.pieces {
+            let piece = p
+                .as_any()
+                .downcast_ref::<PoolElementStructurePiece>()
+                .expect("pool piece");
+            let mut ids = Vec::new();
+            piece.element.for_each_template(|id, _, _, t| {
+                ids.push(format!("{id} {}x{}x{}", t.size.x, t.size.y, t.size.z));
+            });
+            let b = &piece.piece.bounding_box;
+            lines.push(format!(
+                "piece {} box=({},{},{})-({},{},{})",
+                ids.first().map_or("?", String::as_str),
+                b.min.x,
+                b.min.y,
+                b.min.z,
+                b.max.x,
+                b.max.y,
+                b.max.z
+            ));
+            let mut raw = Vec::new();
+            collect_piece_chests(piece, &mut raw);
+            chests += raw.len();
+            for c in raw {
+                lines.push(format!(
+                    "  chest ({},{},{}) {}",
+                    c.x, c.y, c.z, c.loot_table
+                ));
+            }
+        }
+        lines.push(format!("total chests: {chests}"));
+        panic!("{}", lines.join("\n"));
+    }
+
+    #[test]
     fn scans_known_26_1_2_villages() {
         let scanner = Scanner::new(0, Kind::Village);
         // Seed 0: a savanna village at (38,45) with five chests and a plains
