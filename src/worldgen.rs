@@ -1074,69 +1074,41 @@ mod tests {
     }
 
     #[test]
-    fn debug_snowy_chunk() {
+    fn scans_known_26_1_2_snowy_village() {
+        // Chunk (-114,290): a snowy village on a ravine edge. The free-space
+        // region must use the village's max-distance (80) Y extent so ravine
+        // candidates at y24 are rejected; the interior-expansion house
+        // snowy_small_house_6 (y72-80) then attaches and its chest appears.
         let scanner = Scanner::new(0, Kind::Village);
-        let (chunk_x, chunk_z) = (-114i32, 290i32);
-        let min_x = chunk_x * 16;
-        let min_z = chunk_z * 16;
-        let mut heights = ColumnHeightSampler::new(&scanner.generator, min_x, min_z);
-        let structure = Structure::VILLAGE_SNOWY;
-        village_jigsaw::trace_enable();
-        let position = village_jigsaw::generate_village_position(
-            structure.start_pool.expect("pool"),
-            structure.size.expect("size"),
-            i32::from(structure.start_height.unwrap_or(63)),
-            structure.project_start_to_heightmap.is_some(),
-            structure.max_distance_from_center.unwrap_or(80),
-            &mut StructureGeneratorContext {
-                seed: 0,
-                chunk_x,
-                chunk_z,
-                random: create_chunk_random(0, chunk_x, chunk_z),
-                sea_level: 63,
-                min_y: -64,
-                height_sampler: Some(&mut heights),
-                structure_key: Some(StructureKeys::VillageSnowy),
-            },
-        )
-        .expect("position");
-        let collector = position.collector.lock().unwrap();
-        let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
-        let mut chests = 0usize;
-        for p in &collector.pieces {
-            let piece = p
-                .as_any()
-                .downcast_ref::<PoolElementStructurePiece>()
-                .expect("pool piece");
-            let mut ids = Vec::new();
-            piece.element.for_each_template(|id, _, _, t| {
-                ids.push(format!("{id} {}x{}x{}", t.size.x, t.size.y, t.size.z));
-            });
-            let b = &piece.piece.bounding_box;
-            lines.push(format!(
-                "piece {} box=({},{},{})-({},{},{})",
-                ids.first().map_or("?", String::as_str),
-                b.min.x,
-                b.min.y,
-                b.min.z,
-                b.max.x,
-                b.max.y,
-                b.max.z
-            ));
-            let mut raw = Vec::new();
-            collect_piece_chests(piece, &mut raw);
-            chests += raw.len();
-            for c in raw {
-                lines.push(format!(
-                    "  chest ({},{},{}) {}",
-                    c.x, c.y, c.z, c.loot_table
-                ));
-            }
+        let scans = scanner
+            .scan_many([(-114i32, 290i32)])
+            .expect("scan village");
+        assert_eq!(scans.len(), 1);
+        assert!(scans[0].valid_structure);
+        // Chest order follows the vanilla piece/block scan order.
+        let expected_positions = [
+            (-1823, 133, 4655),
+            (-1803, 131, 4655),
+            (-1787, 131, 4681),
+            (-1845, 73, 4613),
+        ];
+        let known_seeds = [
+            8_698_000_211_807_766_173,
+            -6_504_443_412_966_562_273,
+            2_903_910_160_224_306_417,
+        ];
+        assert_eq!(scans[0].chests.len(), expected_positions.len());
+        for (chest, (x, y, z)) in scans[0].chests.iter().zip(expected_positions) {
+            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
+            assert_eq!(
+                chest.loot_table,
+                "minecraft:chests/village/village_snowy_house"
+            );
+            assert_eq!(chest.ordinal, 0);
         }
-        lines.push(format!("total chests: {chests}"));
-        lines.push("== jigsaw trace ==".to_string());
-        lines.extend(village_jigsaw::trace_take());
-        panic!("{}", lines.join("\n"));
+        for (chest, seed) in scans[0].chests.iter().zip(known_seeds) {
+            assert_eq!(chest.loot_seed, seed);
+        }
     }
 
     #[test]
