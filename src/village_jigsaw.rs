@@ -47,6 +47,19 @@ fn display_name(element: &PoolElement) -> String {
     ids.first().cloned().unwrap_or_else(|| "?".to_string())
 }
 
+fn dir_str(dir: pumpkin_util::BlockDirection) -> &'static str {
+    use pumpkin_util::BlockDirection;
+    match dir {
+        BlockDirection::North => "N",
+        BlockDirection::South => "S",
+        BlockDirection::East => "E",
+        BlockDirection::West => "W",
+        BlockDirection::Up => "U",
+        BlockDirection::Down => "D",
+        _ => "?",
+    }
+}
+
 use pumpkin_data::Mirror;
 use pumpkin_data::Rotation;
 use pumpkin_util::math::block_box::BlockBox;
@@ -480,7 +493,13 @@ pub fn generate_village_position(
                 source_collision_box.max.z,
                 source_jigsaws
                     .iter()
-                    .map(|j| format!("{}:{:?}", j.pos.0, j.facing))
+                    .map(|j| format!(
+                        "({},{},{}):{}",
+                        j.pos.0.x,
+                        j.pos.0.y,
+                        j.pos.0.z,
+                        dir_str(j.facing)
+                    ))
                     .collect::<Vec<_>>()
                     .join(","),
             ));
@@ -496,11 +515,11 @@ pub fn generate_village_position(
                     continue;
                 };
                 trace(format!(
-                    "[p{source_piece_idx} d{depth}] srcJig pos=({},{},{}) face={:?} name={} tgt={} prio={} pool={} -> {} elems",
+                    "[p{source_piece_idx} d{depth}] srcJig pos=({},{},{}) face={} name={} tgt={} prio={} pool={} -> {} elems",
                     source_jigsaw.pos.0.x,
                     source_jigsaw.pos.0.y,
                     source_jigsaw.pos.0.z,
-                    source_jigsaw.facing,
+                    dir_str(source_jigsaw.facing),
                     source_jigsaw.name,
                     source_jigsaw.target,
                     source_jigsaw.placement_priority,
