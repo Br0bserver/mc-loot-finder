@@ -1073,19 +1073,43 @@ mod tests {
     #[test]
     fn debug_variant_chunks() {
         let scanner = Scanner::new(0, Kind::Village);
-        let scans = scanner
-            .scan_many([(-272, 16), (-45, 260), (1, 186), (38, 45), (17, 59)])
-            .expect("scan");
         let mut lines = vec![];
-        for (chunk, scan) in [(-272, 16), (-45, 260), (1, 186), (38, 45), (17, 59)]
-            .iter()
-            .zip(&scans)
-        {
-            lines.push(format!(
-                "chunk {chunk:?} valid={} chests={}",
-                scan.valid_structure,
-                scan.chests.len()
-            ));
+        for (chunk_x, chunk_z) in [(-272, 16), (-45, 260), (1, 186), (38, 45)] {
+            let mut random = create_chunk_random(0, chunk_x, chunk_z);
+            for (structure, key) in [
+                (Structure::VILLAGE_DESERT, StructureKeys::VillageDesert),
+                (Structure::VILLAGE_PLAINS, StructureKeys::VillagePlains),
+                (Structure::VILLAGE_SAVANNA, StructureKeys::VillageSavanna),
+                (Structure::VILLAGE_SNOWY, StructureKeys::VillageSnowy),
+                (Structure::VILLAGE_TAIGA, StructureKeys::VillageTaiga),
+            ] {
+                let choice = random.next_bounded_i32(5);
+                let _ = choice;
+                let mut heights =
+                    ColumnHeightSampler::new(&scanner.generator, chunk_x * 16, chunk_z * 16);
+                let result = village_jigsaw::generate_village_position(
+                    structure.start_pool.expect("pool"),
+                    0,
+                    i32::from(structure.start_height.unwrap_or(63)),
+                    structure.project_start_to_heightmap.is_some(),
+                    structure.max_distance_from_center.unwrap_or(80),
+                    &mut StructureGeneratorContext {
+                        seed: 0,
+                        chunk_x,
+                        chunk_z,
+                        random: create_chunk_random(0, chunk_x, chunk_z),
+                        sea_level: 63,
+                        min_y: -64,
+                        height_sampler: Some(&mut heights),
+                        structure_key: Some(key),
+                    },
+                );
+                lines.push(format!(
+                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={} start={:?}",
+                    result.is_some(),
+                    result.map(|p| (p.start_pos.0.x, p.start_pos.0.y, p.start_pos.0.z))
+                ));
+            }
         }
         panic!("{}", lines.join("\n"));
     }
