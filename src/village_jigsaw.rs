@@ -58,7 +58,6 @@ fn dir_str(dir: pumpkin_util::BlockDirection) -> &'static str {
         BlockDirection::West => "W",
         BlockDirection::Up => "U",
         BlockDirection::Down => "D",
-        _ => "?",
     }
 }
 
