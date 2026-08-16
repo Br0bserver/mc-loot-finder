@@ -1104,10 +1104,18 @@ mod tests {
                         structure_key: Some(key),
                     },
                 );
+                let start = result.map(|p| p.start_pos.0);
+                let biome_ok = start.map_or(false, |pos| {
+                    let sampler = &mut MultiNoiseSampler::generate(
+                        &scanner.generator.base_router.multi_noise,
+                        &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
+                    );
+                    scanner.biome_is_valid(pos, structure_biomes(&structure), sampler)
+                });
                 lines.push(format!(
-                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={} start={:?}",
+                    "chunk ({chunk_x},{chunk_z}) {key:?} probe={} start={:?} biome={biome_ok}",
                     result.is_some(),
-                    result.map(|p| (p.start_pos.0.x, p.start_pos.0.y, p.start_pos.0.z))
+                    start.map(|p| (p.x, p.y, p.z))
                 ));
             }
         }
