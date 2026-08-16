@@ -130,10 +130,15 @@ struct CollisionSpace {
     occupied: Vec<BlockBox>,
 }
 
-/// Vanilla `WeightedPicker.shuffle`: Fisher-Yates over the element list
-/// (one entry per element, weights untouched).
+/// Vanilla 26.1.2 `StructureTemplatePool.getShuffledTemplates`: the pool's
+/// templates are pre-expanded by weight at load time and
+/// `Util.shuffledCopy` runs Fisher-Yates over that expanded list.
 fn shuffled_templates(pool: &TemplatePool, random: &mut impl RandomImpl) -> Vec<PoolElement> {
-    let mut elements = pool.elements.clone();
+    let mut elements = pool
+        .elements
+        .iter()
+        .flat_map(|element| std::iter::repeat_n(element.clone(), element.weight as usize))
+        .collect::<Vec<_>>();
     for index in (1..elements.len()).rev() {
         let other = crate::dbg_draw!(random, index as i32 + 1) as usize;
         elements.swap(index, other);
