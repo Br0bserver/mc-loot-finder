@@ -587,7 +587,7 @@ impl Scanner {
             else {
                 continue;
             };
-            if !self.biome_is_valid(probe.start_pos, biomes, sampler) {
+            if !self.biome_is_valid(probe.start_pos.0, biomes, sampler) {
                 continue;
             }
             selected = Some((structure, key, index));
