@@ -1134,6 +1134,13 @@ mod tests {
                 ));
             }
         }
+        {
+            let draws = crate::village_jigsaw::DEBUG_DRAWS.lock().unwrap();
+            lines.push(format!("draws: {}", draws.len()));
+            for (i, (b, v)) in draws.iter().take(60).enumerate() {
+                lines.push(format!("draw[{i}] bound={b} value={v}"));
+            }
+        }
         for p in &collector.pieces {
             let piece = p
                 .as_any()
