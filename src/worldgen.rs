@@ -1071,3 +1071,46 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod debug_village {
+    use super::*;
+    use crate::surface_height::ColumnHeightSampler;
+
+    #[test]
+    fn debug_village_pieces() {
+        let scanner = Scanner::new(0, Kind::Village);
+        let min_x = 38 * 16;
+        let min_z = 45 * 16;
+        let mut heights = ColumnHeightSampler::new(&scanner.generator, min_x, min_z);
+        let context = StructureGeneratorContext {
+            seed: 0,
+            chunk_x: 38,
+            chunk_z: 45,
+            random: create_chunk_random(0, 38, 45),
+            sea_level: 63,
+            min_y: -64,
+            height_sampler: Some(&mut heights),
+            structure_key: Some(StructureKeys::VillageSavanna),
+        };
+        let position = generate_structure_position(
+            &StructureKeys::VillageSavanna,
+            &Structure::VILLAGE_SAVANNA,
+            context,
+        );
+        let Some(position) = position else {
+            panic!("no position");
+        };
+        let collector = position.collector.lock().unwrap();
+        let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
+        for p in &collector.pieces {
+            lines.push(format!(
+                "piece type={:?} box={:?} facing={:?}",
+                p.get_structure_piece().r#type,
+                p.get_structure_piece().bounding_box,
+                p.get_structure_piece().facing,
+            ));
+        }
+        panic!("{}", lines.join("\n"));
+    }
+}
