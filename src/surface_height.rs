@@ -166,9 +166,15 @@ impl<'a> ColumnHeightSampler<'a> {
                     top_non_air = Some(y + 1);
                 }
                 let block_id = BlockId::from_state_id(state.id);
+                // Vanilla `blocksMotion`: snow layers and powder snow do not
+                // block movement, but the fork's `blocks_movement` predicate
+                // derives from its redstone-oriented `is_solid` flag, which
+                // marks snow layers solid; exclude them explicitly.
                 if top_motion_blocking_no_leaves.is_none()
                     && (blocks_movement(state, block_id) || state.is_liquid())
                     && !block_id.has_tag(tag::Block::MINECRAFT_LEAVES)
+                    && block_id != BlockId::SNOW
+                    && block_id != BlockId::POWDER_SNOW
                 {
                     top_motion_blocking_no_leaves = Some(y + 1);
                 }
