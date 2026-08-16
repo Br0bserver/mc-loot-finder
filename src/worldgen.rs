@@ -471,11 +471,12 @@ impl Scanner {
         // Bottom template: `OFFSETS[bottom] = (0, -3, -2)`, pivot XZ (3, 7).
         // The sink reference is template local (3, 0, 2); the chest is at
         // template local (1, 1, 6) and ends up `ladder_segments * 3` blocks
-        // below the reference column `MOTION_BLOCKING_NO_LEAVES` height
-        // (snow layers excluded, matching the vanilla recording world).
+        // below the reference column `MOTION_BLOCKING_NO_LEAVES` height, plus
+        // the OFFSETS Y component (-3) of the bottom template anchor
+        // (template position starts at 90 - 3 - ladder_segments * 3).
         let (ref_x, ref_z) = rotate_around_pivot(rotation_index, 3, 2, 3, 7);
         let surface_y = heights.motion_blocking_no_leaves_height(min_x + ref_x, min_z - 2 + ref_z);
-        let chest_y = surface_y - ladder_segments * 3;
+        let chest_y = surface_y - ladder_segments * 3 - 3;
         let (chest_rel_x, chest_rel_z) = rotate_around_pivot(rotation_index, 1, 6, 3, 7);
 
         let (structure_index, decoration_step) = self.kind.decoration_coordinates();
