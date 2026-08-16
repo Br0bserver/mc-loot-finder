@@ -582,9 +582,21 @@ impl Scanner {
                 size: Some(0),
                 ..structure
             };
-            let Some(probe) =
-                generate_structure_position(&key, &probe_structure, self.context(chunk_x, chunk_z))
-            else {
+            let mut probe_context = self.context(chunk_x, chunk_z);
+            let Some(probe) = village_jigsaw::generate_village_position(
+                probe_structure
+                    .start_pool
+                    .expect("village structures have a start pool"),
+                0,
+                i32::from(
+                    probe_structure
+                        .start_height
+                        .unwrap_or(self.kind.sea_level() as i16),
+                ),
+                probe_structure.project_start_to_heightmap.is_some(),
+                probe_structure.max_distance_from_center.unwrap_or(80),
+                &mut probe_context,
+            ) else {
                 continue;
             };
             if !self.biome_is_valid(probe.start_pos.0, biomes, sampler) {
@@ -598,10 +610,19 @@ impl Scanner {
         };
 
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
-        let position = generate_structure_position(
-            &key,
-            &structure,
-            StructureGeneratorContext {
+        let position = village_jigsaw::generate_village_position(
+            structure
+                .start_pool
+                .expect("village structures have a start pool"),
+            structure.size.expect("village structures have a size"),
+            i32::from(
+                structure
+                    .start_height
+                    .unwrap_or(self.kind.sea_level() as i16),
+            ),
+            structure.project_start_to_heightmap.is_some(),
+            structure.max_distance_from_center.unwrap_or(80),
+            &mut StructureGeneratorContext {
                 seed: self.world_seed,
                 chunk_x,
                 chunk_z,
@@ -1069,64 +1090,5 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(actual, chests);
         }
-    }
-}
-
-#[cfg(test)]
-mod debug_village {
-    use super::*;
-    use crate::surface_height::ColumnHeightSampler;
-
-    #[test]
-    fn debug_village_pieces() {
-        let scanner = Scanner::new(0, Kind::Village);
-        let min_x = 38 * 16;
-        let min_z = 45 * 16;
-        let mut heights = ColumnHeightSampler::new(&scanner.generator, min_x, min_z);
-        let context = StructureGeneratorContext {
-            seed: 0,
-            chunk_x: 38,
-            chunk_z: 45,
-            random: create_chunk_random(0, 38, 45),
-            sea_level: 63,
-            min_y: -64,
-            height_sampler: Some(&mut heights),
-            structure_key: Some(StructureKeys::VillageSavanna),
-        };
-        let position = generate_structure_position(
-            &StructureKeys::VillageSavanna,
-            &Structure::VILLAGE_SAVANNA,
-            context,
-        );
-        let Some(position) = position else {
-            panic!("no position");
-        };
-        let collector = position.collector.lock().unwrap();
-        let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
-        let mut raw = Vec::new();
-        let mut template_ids = std::collections::BTreeSet::new();
-        for p in &collector.pieces {
-            if let Some(piece) = p.as_any().downcast_ref::<PoolElementStructurePiece>() {
-                piece.element.for_each_template(|id, _, _, template| {
-                    template_ids.insert(format!(
-                        "{id} (blocks={}, chests={})",
-                        template.blocks.len(),
-                        template
-                            .blocks
-                            .iter()
-                            .filter(|b| (b.state as usize) < template.palette.len()
-                                && template.palette[b.state as usize].name == "minecraft:chest")
-                            .count()
-                    ));
-                });
-                collect_piece_chests(piece, &mut raw);
-            }
-        }
-        for id in &template_ids {
-            lines.push(format!("template: {id}"));
-        }
-        lines.push(format!("unique templates: {}", template_ids.len()));
-        lines.push(format!("collected chests: {}", raw.len()));
-        panic!("{}", lines.join("\n"));
     }
 }

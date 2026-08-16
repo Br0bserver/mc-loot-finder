@@ -1,0 +1,145 @@
+Compiled from "SequencedPriorityIterator.java"
+public final class net.minecraft.util.SequencedPriorityIterator<T> extends com.google.common.collect.AbstractIterator<T> {
+  private static final int MIN_PRIO;
+
+  private java.util.Deque<T> highestPrioQueue;
+
+  private int highestPrio;
+
+  private final it.unimi.dsi.fastutil.ints.Int2ObjectMap<java.util.Deque<T>> queuesByPriority;
+
+  public net.minecraft.util.SequencedPriorityIterator();
+    Code:
+         0: aload_0
+         1: invokespecial #3                  // Method com/google/common/collect/AbstractIterator."<init>":()V
+         4: aload_0
+         5: aconst_null
+         6: putfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+         9: aload_0
+        10: ldc           #15                 // int -2147483648
+        12: putfield      #16                 // Field highestPrio:I
+        15: aload_0
+        16: new           #20                 // class it/unimi/dsi/fastutil/ints/Int2ObjectOpenHashMap
+        19: dup
+        20: invokespecial #22                 // Method it/unimi/dsi/fastutil/ints/Int2ObjectOpenHashMap."<init>":()V
+        23: putfield      #23                 // Field queuesByPriority:Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;
+        26: return
+
+  public void add(T, int);
+    Code:
+         0: iload_2
+         1: aload_0
+         2: getfield      #16                 // Field highestPrio:I
+         5: if_icmpne     26
+         8: aload_0
+         9: getfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+        12: ifnull        26
+        15: aload_0
+        16: getfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+        19: aload_1
+        20: invokeinterface #27,  2           // InterfaceMethod java/util/Deque.addLast:(Ljava/lang/Object;)V
+        25: return
+        26: aload_0
+        27: getfield      #23                 // Field queuesByPriority:Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;
+        30: iload_2
+        31: invokedynamic #33,  0             // InvokeDynamic #0:get:()Lit/unimi/dsi/fastutil/ints/Int2ObjectFunction;
+        36: invokeinterface #37,  3           // InterfaceMethod it/unimi/dsi/fastutil/ints/Int2ObjectMap.computeIfAbsent:(ILit/unimi/dsi/fastutil/ints/Int2ObjectFunction;)Ljava/lang/Object;
+        41: checkcast     #28                 // class java/util/Deque
+        44: astore_3
+        45: aload_3
+        46: aload_1
+        47: invokeinterface #27,  2           // InterfaceMethod java/util/Deque.addLast:(Ljava/lang/Object;)V
+        52: iload_2
+        53: aload_0
+        54: getfield      #16                 // Field highestPrio:I
+        57: if_icmplt     70
+        60: aload_0
+        61: aload_3
+        62: putfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+        65: aload_0
+        66: iload_2
+        67: putfield      #16                 // Field highestPrio:I
+        70: return
+
+  protected T computeNext();
+    Code:
+         0: aload_0
+         1: getfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+         4: ifnonnull     12
+         7: aload_0
+         8: invokevirtual #43                 // Method endOfData:()Ljava/lang/Object;
+        11: areturn
+        12: aload_0
+        13: getfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+        16: invokeinterface #47,  1           // InterfaceMethod java/util/Deque.removeFirst:()Ljava/lang/Object;
+        21: astore_1
+        22: aload_1
+        23: ifnonnull     31
+        26: aload_0
+        27: invokevirtual #43                 // Method endOfData:()Ljava/lang/Object;
+        30: areturn
+        31: aload_0
+        32: getfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+        35: invokeinterface #50,  1           // InterfaceMethod java/util/Deque.isEmpty:()Z
+        40: ifeq          47
+        43: aload_0
+        44: invokevirtual #54                 // Method switchCacheToNextHighestPrioQueue:()V
+        47: aload_1
+        48: areturn
+
+  private void switchCacheToNextHighestPrioQueue();
+    Code:
+         0: ldc           #15                 // int -2147483648
+         2: istore_1
+         3: aconst_null
+         4: astore_2
+         5: aload_0
+         6: getfield      #23                 // Field queuesByPriority:Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;
+         9: invokestatic  #57                 // Method it/unimi/dsi/fastutil/ints/Int2ObjectMaps.fastIterable:(Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;)Lit/unimi/dsi/fastutil/objects/ObjectIterable;
+        12: invokeinterface #63,  1           // InterfaceMethod it/unimi/dsi/fastutil/objects/ObjectIterable.iterator:()Lit/unimi/dsi/fastutil/objects/ObjectIterator;
+        17: astore_3
+        18: aload_3
+        19: invokeinterface #69,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+        24: ifeq          98
+        27: aload_3
+        28: invokeinterface #74,  1           // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+        33: checkcast     #77                 // class it/unimi/dsi/fastutil/ints/Int2ObjectMap$Entry
+        36: astore        4
+        38: aload         4
+        40: invokeinterface #79,  1           // InterfaceMethod it/unimi/dsi/fastutil/ints/Int2ObjectMap$Entry.getValue:()Ljava/lang/Object;
+        45: checkcast     #28                 // class java/util/Deque
+        48: astore        5
+        50: aload         4
+        52: invokeinterface #82,  1           // InterfaceMethod it/unimi/dsi/fastutil/ints/Int2ObjectMap$Entry.getIntKey:()I
+        57: istore        6
+        59: iload         6
+        61: iload_1
+        62: if_icmple     95
+        65: aload         5
+        67: invokeinterface #50,  1           // InterfaceMethod java/util/Deque.isEmpty:()Z
+        72: ifne          95
+        75: iload         6
+        77: istore_1
+        78: aload         5
+        80: astore_2
+        81: iload         6
+        83: aload_0
+        84: getfield      #16                 // Field highestPrio:I
+        87: iconst_1
+        88: isub
+        89: if_icmpne     95
+        92: goto          98
+        95: goto          18
+        98: aload_0
+        99: iload_1
+       100: putfield      #16                 // Field highestPrio:I
+       103: aload_0
+       104: aload_2
+       105: putfield      #9                  // Field highestPrioQueue:Ljava/util/Deque;
+       108: return
+
+  private static java.util.Deque lambda$add$0(int);
+    Code:
+         0: invokestatic  #86                 // Method com/google/common/collect/Queues.newArrayDeque:()Ljava/util/ArrayDeque;
+         3: areturn
+}

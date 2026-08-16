@@ -1,0 +1,645 @@
+Compiled from "JigsawPlacement.java"
+final class net.minecraft.world.level.levelgen.structure.pools.JigsawPlacement$Placer {
+  private final net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool> pools;
+
+  private final int maxDepth;
+
+  private final net.minecraft.world.level.chunk.ChunkGenerator chunkGenerator;
+
+  private final net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager structureTemplateManager;
+
+  private final java.util.List<? super net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece> pieces;
+
+  private final net.minecraft.util.RandomSource random;
+
+  private final net.minecraft.util.SequencedPriorityIterator<net.minecraft.world.level.levelgen.structure.pools.JigsawPlacement$PieceState> placing;
+
+  private net.minecraft.world.level.levelgen.structure.pools.JigsawPlacement$Placer(net.minecraft.core.Registry<net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool>, int, net.minecraft.world.level.chunk.ChunkGenerator, net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager, java.util.List<? super net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece>, net.minecraft.util.RandomSource);
+    Code:
+         0: aload_0
+         1: invokespecial #3                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: new           #9                  // class net/minecraft/util/SequencedPriorityIterator
+         8: dup
+         9: invokespecial #11                 // Method net/minecraft/util/SequencedPriorityIterator."<init>":()V
+        12: putfield      #12                 // Field placing:Lnet/minecraft/util/SequencedPriorityIterator;
+        15: aload_0
+        16: aload_1
+        17: putfield      #18                 // Field pools:Lnet/minecraft/core/Registry;
+        20: aload_0
+        21: iload_2
+        22: putfield      #22                 // Field maxDepth:I
+        25: aload_0
+        26: aload_3
+        27: putfield      #26                 // Field chunkGenerator:Lnet/minecraft/world/level/chunk/ChunkGenerator;
+        30: aload_0
+        31: aload         4
+        33: putfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+        36: aload_0
+        37: aload         5
+        39: putfield      #34                 // Field pieces:Ljava/util/List;
+        42: aload_0
+        43: aload         6
+        45: putfield      #38                 // Field random:Lnet/minecraft/util/RandomSource;
+        48: return
+
+  private void tryPlacingChildren(net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece, org.apache.commons.lang3.mutable.MutableObject<net.minecraft.world.phys.shapes.VoxelShape>, int, boolean, net.minecraft.world.level.LevelHeightAccessor, net.minecraft.world.level.levelgen.RandomState, net.minecraft.world.level.levelgen.structure.pools.alias.PoolAliasLookup, net.minecraft.world.level.levelgen.structure.templatesystem.LiquidSettings);
+    Code:
+         0: aload_1
+         1: invokevirtual #42                 // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.getElement:()Lnet/minecraft/world/level/levelgen/structure/pools/StructurePoolElement;
+         4: astore        9
+         6: aload_1
+         7: invokevirtual #48                 // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.getPosition:()Lnet/minecraft/core/BlockPos;
+        10: astore        10
+        12: aload_1
+        13: invokevirtual #52                 // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.getRotation:()Lnet/minecraft/world/level/block/Rotation;
+        16: astore        11
+        18: aload         9
+        20: invokevirtual #56                 // Method net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement.getProjection:()Lnet/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection;
+        23: astore        12
+        25: aload         12
+        27: getstatic     #62                 // Field net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection.RIGID:Lnet/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection;
+        30: if_acmpne     37
+        33: iconst_1
+        34: goto          38
+        37: iconst_0
+        38: istore        13
+        40: new           #68                 // class org/apache/commons/lang3/mutable/MutableObject
+        43: dup
+        44: invokespecial #70                 // Method org/apache/commons/lang3/mutable/MutableObject."<init>":()V
+        47: astore        14
+        49: aload_1
+        50: invokevirtual #71                 // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.getBoundingBox:()Lnet/minecraft/world/level/levelgen/structure/BoundingBox;
+        53: astore        15
+        55: aload         15
+        57: invokevirtual #75                 // Method net/minecraft/world/level/levelgen/structure/BoundingBox.minY:()I
+        60: istore        16
+        62: aload         9
+        64: aload_0
+        65: getfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+        68: aload         10
+        70: aload         11
+        72: aload_0
+        73: getfield      #38                 // Field random:Lnet/minecraft/util/RandomSource;
+        76: invokevirtual #81                 // Method net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement.getShuffledJigsawBlocks:(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/Rotation;Lnet/minecraft/util/RandomSource;)Ljava/util/List;
+        79: invokeinterface #85,  1           // InterfaceMethod java/util/List.iterator:()Ljava/util/Iterator;
+        84: astore        17
+        86: aload         17
+        88: invokeinterface #91,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+        93: ifeq          1218
+        96: aload         17
+        98: invokeinterface #97,  1           // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+       103: checkcast     #101                // class net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo
+       106: astore        18
+       108: aload         18
+       110: invokevirtual #103                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo.info:()Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo;
+       113: astore        19
+       115: aload         19
+       117: invokevirtual #107                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo.state:()Lnet/minecraft/world/level/block/state/BlockState;
+       120: invokestatic  #113                // Method net/minecraft/world/level/block/JigsawBlock.getFrontFacing:(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/core/Direction;
+       123: astore        20
+       125: aload         19
+       127: invokevirtual #119                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo.pos:()Lnet/minecraft/core/BlockPos;
+       130: astore        21
+       132: aload         21
+       134: aload         20
+       136: invokevirtual #122                // Method net/minecraft/core/BlockPos.relative:(Lnet/minecraft/core/Direction;)Lnet/minecraft/core/BlockPos;
+       139: astore        22
+       141: aload         21
+       143: invokevirtual #128                // Method net/minecraft/core/BlockPos.getY:()I
+       146: iload         16
+       148: isub
+       149: istore        23
+       151: ldc           #131                // int -2147483648
+       153: istore        24
+       155: aload         7
+       157: aload         18
+       159: invokevirtual #132                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo.pool:()Lnet/minecraft/resources/ResourceKey;
+       162: invokeinterface #136,  2          // InterfaceMethod net/minecraft/world/level/levelgen/structure/pools/alias/PoolAliasLookup.lookup:(Lnet/minecraft/resources/ResourceKey;)Lnet/minecraft/resources/ResourceKey;
+       167: astore        25
+       169: aload_0
+       170: getfield      #18                 // Field pools:Lnet/minecraft/core/Registry;
+       173: aload         25
+       175: invokeinterface #142,  2          // InterfaceMethod net/minecraft/core/Registry.get:(Lnet/minecraft/resources/ResourceKey;)Ljava/util/Optional;
+       180: astore        26
+       182: aload         26
+       184: invokevirtual #148                // Method java/util/Optional.isEmpty:()Z
+       187: ifeq          208
+       190: getstatic     #153                // Field net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement.LOGGER:Lorg/slf4j/Logger;
+       193: ldc           #157                // String Empty or non-existent pool: {}
+       195: aload         25
+       197: invokevirtual #159                // Method net/minecraft/resources/ResourceKey.identifier:()Lnet/minecraft/resources/Identifier;
+       200: invokeinterface #165,  3          // InterfaceMethod org/slf4j/Logger.warn:(Ljava/lang/String;Ljava/lang/Object;)V
+       205: goto          86
+       208: aload         26
+       210: invokevirtual #171                // Method java/util/Optional.get:()Ljava/lang/Object;
+       213: checkcast     #173                // class net/minecraft/core/Holder
+       216: astore        27
+       218: aload         27
+       220: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+       225: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+       228: invokevirtual #180                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.size:()I
+       231: ifne          265
+       234: aload         27
+       236: getstatic     #183                // Field net/minecraft/data/worldgen/Pools.EMPTY:Lnet/minecraft/resources/ResourceKey;
+       239: invokeinterface #189,  2          // InterfaceMethod net/minecraft/core/Holder.is:(Lnet/minecraft/resources/ResourceKey;)Z
+       244: ifne          265
+       247: getstatic     #153                // Field net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement.LOGGER:Lorg/slf4j/Logger;
+       250: ldc           #157                // String Empty or non-existent pool: {}
+       252: aload         25
+       254: invokevirtual #159                // Method net/minecraft/resources/ResourceKey.identifier:()Lnet/minecraft/resources/Identifier;
+       257: invokeinterface #165,  3          // InterfaceMethod org/slf4j/Logger.warn:(Ljava/lang/String;Ljava/lang/Object;)V
+       262: goto          86
+       265: aload         27
+       267: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+       272: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+       275: invokevirtual #193                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.getFallback:()Lnet/minecraft/core/Holder;
+       278: astore        28
+       280: aload         28
+       282: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+       287: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+       290: invokevirtual #180                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.size:()I
+       293: ifne          342
+       296: aload         28
+       298: getstatic     #183                // Field net/minecraft/data/worldgen/Pools.EMPTY:Lnet/minecraft/resources/ResourceKey;
+       301: invokeinterface #189,  2          // InterfaceMethod net/minecraft/core/Holder.is:(Lnet/minecraft/resources/ResourceKey;)Z
+       306: ifne          342
+       309: getstatic     #153                // Field net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement.LOGGER:Lorg/slf4j/Logger;
+       312: ldc           #197                // String Empty or non-existent fallback pool: {}
+       314: aload         28
+       316: invokeinterface #199,  1          // InterfaceMethod net/minecraft/core/Holder.unwrapKey:()Ljava/util/Optional;
+       321: invokedynamic #203,  0            // InvokeDynamic #0:apply:()Ljava/util/function/Function;
+       326: invokevirtual #207                // Method java/util/Optional.map:(Ljava/util/function/Function;)Ljava/util/Optional;
+       329: ldc           #211                // String <unregistered>
+       331: invokevirtual #213                // Method java/util/Optional.orElse:(Ljava/lang/Object;)Ljava/lang/Object;
+       334: invokeinterface #165,  3          // InterfaceMethod org/slf4j/Logger.warn:(Ljava/lang/String;Ljava/lang/Object;)V
+       339: goto          86
+       342: aload         15
+       344: aload         22
+       346: invokevirtual #217                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.isInside:(Lnet/minecraft/core/Vec3i;)Z
+       349: istore        30
+       351: iload         30
+       353: ifeq          384
+       356: aload         14
+       358: astore        29
+       360: aload         14
+       362: invokevirtual #221                // Method org/apache/commons/lang3/mutable/MutableObject.get:()Ljava/lang/Object;
+       365: ifnonnull     387
+       368: aload         14
+       370: aload         15
+       372: invokestatic  #222                // Method net/minecraft/world/phys/AABB.of:(Lnet/minecraft/world/level/levelgen/structure/BoundingBox;)Lnet/minecraft/world/phys/AABB;
+       375: invokestatic  #228                // Method net/minecraft/world/phys/shapes/Shapes.create:(Lnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/phys/shapes/VoxelShape;
+       378: invokevirtual #234                // Method org/apache/commons/lang3/mutable/MutableObject.setValue:(Ljava/lang/Object;)V
+       381: goto          387
+       384: aload_2
+       385: astore        29
+       387: invokestatic  #238                // Method com/google/common/collect/Lists.newArrayList:()Ljava/util/ArrayList;
+       390: astore        31
+       392: iload_3
+       393: aload_0
+       394: getfield      #22                 // Field maxDepth:I
+       397: if_icmpeq     425
+       400: aload         31
+       402: aload         27
+       404: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+       409: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+       412: aload_0
+       413: getfield      #38                 // Field random:Lnet/minecraft/util/RandomSource;
+       416: invokevirtual #244                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.getShuffledTemplates:(Lnet/minecraft/util/RandomSource;)Ljava/util/List;
+       419: invokeinterface #248,  2          // InterfaceMethod java/util/List.addAll:(Ljava/util/Collection;)Z
+       424: pop
+       425: aload         31
+       427: aload         28
+       429: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+       434: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+       437: aload_0
+       438: getfield      #38                 // Field random:Lnet/minecraft/util/RandomSource;
+       441: invokevirtual #244                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.getShuffledTemplates:(Lnet/minecraft/util/RandomSource;)Ljava/util/List;
+       444: invokeinterface #248,  2          // InterfaceMethod java/util/List.addAll:(Ljava/util/Collection;)Z
+       449: pop
+       450: aload         18
+       452: invokevirtual #252                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo.placementPriority:()I
+       455: istore        32
+       457: aload         31
+       459: invokeinterface #85,  1           // InterfaceMethod java/util/List.iterator:()Ljava/util/Iterator;
+       464: astore        33
+       466: aload         33
+       468: invokeinterface #91,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+       473: ifeq          1215
+       476: aload         33
+       478: invokeinterface #97,  1           // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+       483: checkcast     #57                 // class net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement
+       486: astore        34
+       488: aload         34
+       490: getstatic     #255                // Field net/minecraft/world/level/levelgen/structure/pools/EmptyPoolElement.INSTANCE:Lnet/minecraft/world/level/levelgen/structure/pools/EmptyPoolElement;
+       493: if_acmpne     499
+       496: goto          1215
+       499: aload_0
+       500: getfield      #38                 // Field random:Lnet/minecraft/util/RandomSource;
+       503: invokestatic  #261                // Method net/minecraft/world/level/block/Rotation.getShuffled:(Lnet/minecraft/util/RandomSource;)Ljava/util/List;
+       506: invokeinterface #85,  1           // InterfaceMethod java/util/List.iterator:()Ljava/util/Iterator;
+       511: astore        35
+       513: aload         35
+       515: invokeinterface #91,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+       520: ifeq          1212
+       523: aload         35
+       525: invokeinterface #97,  1           // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+       530: checkcast     #262                // class net/minecraft/world/level/block/Rotation
+       533: astore        36
+       535: aload         34
+       537: aload_0
+       538: getfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+       541: getstatic     #266                // Field net/minecraft/core/BlockPos.ZERO:Lnet/minecraft/core/BlockPos;
+       544: aload         36
+       546: aload_0
+       547: getfield      #38                 // Field random:Lnet/minecraft/util/RandomSource;
+       550: invokevirtual #81                 // Method net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement.getShuffledJigsawBlocks:(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/Rotation;Lnet/minecraft/util/RandomSource;)Ljava/util/List;
+       553: astore        37
+       555: aload         34
+       557: aload_0
+       558: getfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+       561: getstatic     #266                // Field net/minecraft/core/BlockPos.ZERO:Lnet/minecraft/core/BlockPos;
+       564: aload         36
+       566: invokevirtual #270                // Method net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement.getBoundingBox:(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/Rotation;)Lnet/minecraft/world/level/levelgen/structure/BoundingBox;
+       569: astore        38
+       571: iload         4
+       573: ifeq          586
+       576: aload         38
+       578: invokevirtual #273                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.getYSpan:()I
+       581: bipush        16
+       583: if_icmple     592
+       586: iconst_0
+       587: istore        39
+       589: goto          625
+       592: aload         37
+       594: invokeinterface #276,  1          // InterfaceMethod java/util/List.stream:()Ljava/util/stream/Stream;
+       599: aload_0
+       600: aload         38
+       602: aload         7
+       604: invokedynamic #280,  0            // InvokeDynamic #1:applyAsInt:(Lnet/minecraft/world/level/levelgen/structure/pools/JigsawPlacement$Placer;Lnet/minecraft/world/level/levelgen/structure/BoundingBox;Lnet/minecraft/world/level/levelgen/structure/pools/alias/PoolAliasLookup;)Ljava/util/function/ToIntFunction;
+       609: invokeinterface #284,  2          // InterfaceMethod java/util/stream/Stream.mapToInt:(Ljava/util/function/ToIntFunction;)Ljava/util/stream/IntStream;
+       614: invokeinterface #290,  1          // InterfaceMethod java/util/stream/IntStream.max:()Ljava/util/OptionalInt;
+       619: iconst_0
+       620: invokevirtual #296                // Method java/util/OptionalInt.orElse:(I)I
+       623: istore        39
+       625: aload         37
+       627: invokeinterface #85,  1           // InterfaceMethod java/util/List.iterator:()Ljava/util/Iterator;
+       632: astore        40
+       634: aload         40
+       636: invokeinterface #91,  1           // InterfaceMethod java/util/Iterator.hasNext:()Z
+       641: ifeq          1209
+       644: aload         40
+       646: invokeinterface #97,  1           // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+       651: checkcast     #101                // class net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo
+       654: astore        41
+       656: aload         18
+       658: aload         41
+       660: invokestatic  #301                // Method net/minecraft/world/level/block/JigsawBlock.canAttach:(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo;Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo;)Z
+       663: ifne          669
+       666: goto          634
+       669: aload         41
+       671: invokevirtual #103                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo.info:()Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo;
+       674: invokevirtual #119                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo.pos:()Lnet/minecraft/core/BlockPos;
+       677: astore        42
+       679: aload         22
+       681: aload         42
+       683: invokevirtual #305                // Method net/minecraft/core/BlockPos.subtract:(Lnet/minecraft/core/Vec3i;)Lnet/minecraft/core/BlockPos;
+       686: astore        43
+       688: aload         34
+       690: aload_0
+       691: getfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+       694: aload         43
+       696: aload         36
+       698: invokevirtual #270                // Method net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement.getBoundingBox:(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/Rotation;)Lnet/minecraft/world/level/levelgen/structure/BoundingBox;
+       701: astore        44
+       703: aload         44
+       705: invokevirtual #75                 // Method net/minecraft/world/level/levelgen/structure/BoundingBox.minY:()I
+       708: istore        45
+       710: aload         34
+       712: invokevirtual #56                 // Method net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement.getProjection:()Lnet/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection;
+       715: astore        46
+       717: aload         46
+       719: getstatic     #62                 // Field net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection.RIGID:Lnet/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection;
+       722: if_acmpne     729
+       725: iconst_1
+       726: goto          730
+       729: iconst_0
+       730: istore        47
+       732: aload         42
+       734: invokevirtual #128                // Method net/minecraft/core/BlockPos.getY:()I
+       737: istore        48
+       739: iload         23
+       741: iload         48
+       743: isub
+       744: aload         19
+       746: invokevirtual #107                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo.state:()Lnet/minecraft/world/level/block/state/BlockState;
+       749: invokestatic  #113                // Method net/minecraft/world/level/block/JigsawBlock.getFrontFacing:(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/core/Direction;
+       752: invokevirtual #309                // Method net/minecraft/core/Direction.getStepY:()I
+       755: iadd
+       756: istore        49
+       758: iload         13
+       760: ifeq          778
+       763: iload         47
+       765: ifeq          778
+       768: iload         16
+       770: iload         49
+       772: iadd
+       773: istore        50
+       775: goto          818
+       778: iload         24
+       780: ldc           #131                // int -2147483648
+       782: if_icmpne     811
+       785: aload_0
+       786: getfield      #26                 // Field chunkGenerator:Lnet/minecraft/world/level/chunk/ChunkGenerator;
+       789: aload         21
+       791: invokevirtual #314                // Method net/minecraft/core/BlockPos.getX:()I
+       794: aload         21
+       796: invokevirtual #317                // Method net/minecraft/core/BlockPos.getZ:()I
+       799: getstatic     #320                // Field net/minecraft/world/level/levelgen/Heightmap$Types.WORLD_SURFACE_WG:Lnet/minecraft/world/level/levelgen/Heightmap$Types;
+       802: aload         5
+       804: aload         6
+       806: invokevirtual #326                // Method net/minecraft/world/level/chunk/ChunkGenerator.getFirstFreeHeight:(IILnet/minecraft/world/level/levelgen/Heightmap$Types;Lnet/minecraft/world/level/LevelHeightAccessor;Lnet/minecraft/world/level/levelgen/RandomState;)I
+       809: istore        24
+       811: iload         24
+       813: iload         48
+       815: isub
+       816: istore        50
+       818: iload         50
+       820: iload         45
+       822: isub
+       823: istore        51
+       825: aload         44
+       827: iconst_0
+       828: iload         51
+       830: iconst_0
+       831: invokevirtual #332                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.moved:(III)Lnet/minecraft/world/level/levelgen/structure/BoundingBox;
+       834: astore        52
+       836: aload         43
+       838: iconst_0
+       839: iload         51
+       841: iconst_0
+       842: invokevirtual #336                // Method net/minecraft/core/BlockPos.offset:(III)Lnet/minecraft/core/BlockPos;
+       845: astore        53
+       847: iload         39
+       849: ifle          903
+       852: iload         39
+       854: iconst_1
+       855: iadd
+       856: aload         52
+       858: invokevirtual #340                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.maxY:()I
+       861: aload         52
+       863: invokevirtual #75                 // Method net/minecraft/world/level/levelgen/structure/BoundingBox.minY:()I
+       866: isub
+       867: invokestatic  #343                // Method java/lang/Math.max:(II)I
+       870: istore        54
+       872: aload         52
+       874: new           #123                // class net/minecraft/core/BlockPos
+       877: dup
+       878: aload         52
+       880: invokevirtual #348                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.minX:()I
+       883: aload         52
+       885: invokevirtual #75                 // Method net/minecraft/world/level/levelgen/structure/BoundingBox.minY:()I
+       888: iload         54
+       890: iadd
+       891: aload         52
+       893: invokevirtual #351                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.minZ:()I
+       896: invokespecial #354                // Method net/minecraft/core/BlockPos."<init>":(III)V
+       899: invokevirtual #357                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.encapsulate:(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/levelgen/structure/BoundingBox;
+       902: pop
+       903: aload         29
+       905: invokevirtual #221                // Method org/apache/commons/lang3/mutable/MutableObject.get:()Ljava/lang/Object;
+       908: checkcast     #361                // class net/minecraft/world/phys/shapes/VoxelShape
+       911: aload         52
+       913: invokestatic  #222                // Method net/minecraft/world/phys/AABB.of:(Lnet/minecraft/world/level/levelgen/structure/BoundingBox;)Lnet/minecraft/world/phys/AABB;
+       916: ldc2_w        #363                // double 0.25d
+       919: invokevirtual #365                // Method net/minecraft/world/phys/AABB.deflate:(D)Lnet/minecraft/world/phys/AABB;
+       922: invokestatic  #228                // Method net/minecraft/world/phys/shapes/Shapes.create:(Lnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/phys/shapes/VoxelShape;
+       925: getstatic     #369                // Field net/minecraft/world/phys/shapes/BooleanOp.ONLY_SECOND:Lnet/minecraft/world/phys/shapes/BooleanOp;
+       928: invokestatic  #375                // Method net/minecraft/world/phys/shapes/Shapes.joinIsNotEmpty:(Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/BooleanOp;)Z
+       931: ifeq          937
+       934: goto          634
+       937: aload         29
+       939: aload         29
+       941: invokevirtual #221                // Method org/apache/commons/lang3/mutable/MutableObject.get:()Ljava/lang/Object;
+       944: checkcast     #361                // class net/minecraft/world/phys/shapes/VoxelShape
+       947: aload         52
+       949: invokestatic  #222                // Method net/minecraft/world/phys/AABB.of:(Lnet/minecraft/world/level/levelgen/structure/BoundingBox;)Lnet/minecraft/world/phys/AABB;
+       952: invokestatic  #228                // Method net/minecraft/world/phys/shapes/Shapes.create:(Lnet/minecraft/world/phys/AABB;)Lnet/minecraft/world/phys/shapes/VoxelShape;
+       955: getstatic     #379                // Field net/minecraft/world/phys/shapes/BooleanOp.ONLY_FIRST:Lnet/minecraft/world/phys/shapes/BooleanOp;
+       958: invokestatic  #382                // Method net/minecraft/world/phys/shapes/Shapes.joinUnoptimized:(Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/BooleanOp;)Lnet/minecraft/world/phys/shapes/VoxelShape;
+       961: invokevirtual #234                // Method org/apache/commons/lang3/mutable/MutableObject.setValue:(Ljava/lang/Object;)V
+       964: aload_1
+       965: invokevirtual #386                // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.getGroundLevelDelta:()I
+       968: istore        54
+       970: iload         47
+       972: ifeq          985
+       975: iload         54
+       977: iload         49
+       979: isub
+       980: istore        55
+       982: goto          992
+       985: aload         34
+       987: invokevirtual #389                // Method net/minecraft/world/level/levelgen/structure/pools/StructurePoolElement.getGroundLevelDelta:()I
+       990: istore        55
+       992: new           #43                 // class net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece
+       995: dup
+       996: aload_0
+       997: getfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+      1000: aload         34
+      1002: aload         53
+      1004: iload         55
+      1006: aload         36
+      1008: aload         52
+      1010: aload         8
+      1012: invokespecial #390                // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece."<init>":(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;Lnet/minecraft/world/level/levelgen/structure/pools/StructurePoolElement;Lnet/minecraft/core/BlockPos;ILnet/minecraft/world/level/block/Rotation;Lnet/minecraft/world/level/levelgen/structure/BoundingBox;Lnet/minecraft/world/level/levelgen/structure/templatesystem/LiquidSettings;)V
+      1015: astore        56
+      1017: iload         13
+      1019: ifeq          1032
+      1022: iload         16
+      1024: iload         23
+      1026: iadd
+      1027: istore        57
+      1029: goto          1089
+      1032: iload         47
+      1034: ifeq          1047
+      1037: iload         50
+      1039: iload         48
+      1041: iadd
+      1042: istore        57
+      1044: goto          1089
+      1047: iload         24
+      1049: ldc           #131                // int -2147483648
+      1051: if_icmpne     1080
+      1054: aload_0
+      1055: getfield      #26                 // Field chunkGenerator:Lnet/minecraft/world/level/chunk/ChunkGenerator;
+      1058: aload         21
+      1060: invokevirtual #314                // Method net/minecraft/core/BlockPos.getX:()I
+      1063: aload         21
+      1065: invokevirtual #317                // Method net/minecraft/core/BlockPos.getZ:()I
+      1068: getstatic     #320                // Field net/minecraft/world/level/levelgen/Heightmap$Types.WORLD_SURFACE_WG:Lnet/minecraft/world/level/levelgen/Heightmap$Types;
+      1071: aload         5
+      1073: aload         6
+      1075: invokevirtual #326                // Method net/minecraft/world/level/chunk/ChunkGenerator.getFirstFreeHeight:(IILnet/minecraft/world/level/levelgen/Heightmap$Types;Lnet/minecraft/world/level/LevelHeightAccessor;Lnet/minecraft/world/level/levelgen/RandomState;)I
+      1078: istore        24
+      1080: iload         24
+      1082: iload         49
+      1084: iconst_2
+      1085: idiv
+      1086: iadd
+      1087: istore        57
+      1089: aload_1
+      1090: new           #393                // class net/minecraft/world/level/levelgen/structure/pools/JigsawJunction
+      1093: dup
+      1094: aload         22
+      1096: invokevirtual #314                // Method net/minecraft/core/BlockPos.getX:()I
+      1099: iload         57
+      1101: iload         23
+      1103: isub
+      1104: iload         54
+      1106: iadd
+      1107: aload         22
+      1109: invokevirtual #317                // Method net/minecraft/core/BlockPos.getZ:()I
+      1112: iload         49
+      1114: aload         46
+      1116: invokespecial #395                // Method net/minecraft/world/level/levelgen/structure/pools/JigsawJunction."<init>":(IIIILnet/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection;)V
+      1119: invokevirtual #398                // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.addJunction:(Lnet/minecraft/world/level/levelgen/structure/pools/JigsawJunction;)V
+      1122: aload         56
+      1124: new           #393                // class net/minecraft/world/level/levelgen/structure/pools/JigsawJunction
+      1127: dup
+      1128: aload         21
+      1130: invokevirtual #314                // Method net/minecraft/core/BlockPos.getX:()I
+      1133: iload         57
+      1135: iload         48
+      1137: isub
+      1138: iload         55
+      1140: iadd
+      1141: aload         21
+      1143: invokevirtual #317                // Method net/minecraft/core/BlockPos.getZ:()I
+      1146: iload         49
+      1148: ineg
+      1149: aload         12
+      1151: invokespecial #395                // Method net/minecraft/world/level/levelgen/structure/pools/JigsawJunction."<init>":(IIIILnet/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool$Projection;)V
+      1154: invokevirtual #398                // Method net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.addJunction:(Lnet/minecraft/world/level/levelgen/structure/pools/JigsawJunction;)V
+      1157: aload_0
+      1158: getfield      #34                 // Field pieces:Ljava/util/List;
+      1161: aload         56
+      1163: invokeinterface #402,  2          // InterfaceMethod java/util/List.add:(Ljava/lang/Object;)Z
+      1168: pop
+      1169: iload_3
+      1170: iconst_1
+      1171: iadd
+      1172: aload_0
+      1173: getfield      #22                 // Field maxDepth:I
+      1176: if_icmpgt     1215
+      1179: new           #406                // class net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement$PieceState
+      1182: dup
+      1183: aload         56
+      1185: aload         29
+      1187: iload_3
+      1188: iconst_1
+      1189: iadd
+      1190: invokespecial #408                // Method net/minecraft/world/level/levelgen/structure/pools/JigsawPlacement$PieceState."<init>":(Lnet/minecraft/world/level/levelgen/structure/PoolElementStructurePiece;Lorg/apache/commons/lang3/mutable/MutableObject;I)V
+      1193: astore        58
+      1195: aload_0
+      1196: getfield      #12                 // Field placing:Lnet/minecraft/util/SequencedPriorityIterator;
+      1199: aload         58
+      1201: iload         32
+      1203: invokevirtual #411                // Method net/minecraft/util/SequencedPriorityIterator.add:(Ljava/lang/Object;I)V
+      1206: goto          1215
+      1209: goto          513
+      1212: goto          466
+      1215: goto          86
+      1218: return
+
+  private int lambda$tryPlacingChildren$1(net.minecraft.world.level.levelgen.structure.BoundingBox, net.minecraft.world.level.levelgen.structure.pools.alias.PoolAliasLookup, net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate$JigsawBlockInfo);
+    Code:
+         0: aload_3
+         1: invokevirtual #103                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo.info:()Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo;
+         4: astore        4
+         6: aload_1
+         7: aload         4
+         9: invokevirtual #119                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo.pos:()Lnet/minecraft/core/BlockPos;
+        12: aload         4
+        14: invokevirtual #107                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$StructureBlockInfo.state:()Lnet/minecraft/world/level/block/state/BlockState;
+        17: invokestatic  #113                // Method net/minecraft/world/level/block/JigsawBlock.getFrontFacing:(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/core/Direction;
+        20: invokevirtual #122                // Method net/minecraft/core/BlockPos.relative:(Lnet/minecraft/core/Direction;)Lnet/minecraft/core/BlockPos;
+        23: invokevirtual #217                // Method net/minecraft/world/level/levelgen/structure/BoundingBox.isInside:(Lnet/minecraft/core/Vec3i;)Z
+        26: ifne          31
+        29: iconst_0
+        30: ireturn
+        31: aload_2
+        32: aload_3
+        33: invokevirtual #132                // Method net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate$JigsawBlockInfo.pool:()Lnet/minecraft/resources/ResourceKey;
+        36: invokeinterface #136,  2          // InterfaceMethod net/minecraft/world/level/levelgen/structure/pools/alias/PoolAliasLookup.lookup:(Lnet/minecraft/resources/ResourceKey;)Lnet/minecraft/resources/ResourceKey;
+        41: astore        5
+        43: aload_0
+        44: getfield      #18                 // Field pools:Lnet/minecraft/core/Registry;
+        47: aload         5
+        49: invokeinterface #142,  2          // InterfaceMethod net/minecraft/core/Registry.get:(Lnet/minecraft/resources/ResourceKey;)Ljava/util/Optional;
+        54: astore        6
+        56: aload         6
+        58: invokedynamic #414,  0            // InvokeDynamic #2:apply:()Ljava/util/function/Function;
+        63: invokevirtual #207                // Method java/util/Optional.map:(Ljava/util/function/Function;)Ljava/util/Optional;
+        66: astore        7
+        68: aload         6
+        70: aload_0
+        71: invokedynamic #415,  0            // InvokeDynamic #3:apply:(Lnet/minecraft/world/level/levelgen/structure/pools/JigsawPlacement$Placer;)Ljava/util/function/Function;
+        76: invokevirtual #207                // Method java/util/Optional.map:(Ljava/util/function/Function;)Ljava/util/Optional;
+        79: iconst_0
+        80: invokestatic  #418                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+        83: invokevirtual #213                // Method java/util/Optional.orElse:(Ljava/lang/Object;)Ljava/lang/Object;
+        86: checkcast     #419                // class java/lang/Integer
+        89: invokevirtual #424                // Method java/lang/Integer.intValue:()I
+        92: istore        8
+        94: aload         7
+        96: aload_0
+        97: invokedynamic #427,  0            // InvokeDynamic #4:apply:(Lnet/minecraft/world/level/levelgen/structure/pools/JigsawPlacement$Placer;)Ljava/util/function/Function;
+       102: invokevirtual #207                // Method java/util/Optional.map:(Ljava/util/function/Function;)Ljava/util/Optional;
+       105: iconst_0
+       106: invokestatic  #418                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+       109: invokevirtual #213                // Method java/util/Optional.orElse:(Ljava/lang/Object;)Ljava/lang/Object;
+       112: checkcast     #419                // class java/lang/Integer
+       115: invokevirtual #424                // Method java/lang/Integer.intValue:()I
+       118: istore        9
+       120: iload         8
+       122: iload         9
+       124: invokestatic  #343                // Method java/lang/Math.max:(II)I
+       127: ireturn
+
+  private java.lang.Integer lambda$tryPlacingChildren$4(net.minecraft.core.Holder);
+    Code:
+         0: aload_1
+         1: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+         6: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+         9: aload_0
+        10: getfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+        13: invokevirtual #428                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.getMaxSize:(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;)I
+        16: invokestatic  #418                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+        19: areturn
+
+  private java.lang.Integer lambda$tryPlacingChildren$3(net.minecraft.core.Holder);
+    Code:
+         0: aload_1
+         1: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+         6: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+         9: aload_0
+        10: getfield      #30                 // Field structureTemplateManager:Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;
+        13: invokevirtual #428                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.getMaxSize:(Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplateManager;)I
+        16: invokestatic  #418                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+        19: areturn
+
+  private static net.minecraft.core.Holder lambda$tryPlacingChildren$2(net.minecraft.core.Holder);
+    Code:
+         0: aload_0
+         1: invokeinterface #175,  1          // InterfaceMethod net/minecraft/core/Holder.value:()Ljava/lang/Object;
+         6: checkcast     #178                // class net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool
+         9: invokevirtual #193                // Method net/minecraft/world/level/levelgen/structure/pools/StructureTemplatePool.getFallback:()Lnet/minecraft/core/Holder;
+        12: areturn
+
+  private static java.lang.String lambda$tryPlacingChildren$0(net.minecraft.resources.ResourceKey);
+    Code:
+         0: aload_0
+         1: invokevirtual #159                // Method net/minecraft/resources/ResourceKey.identifier:()Lnet/minecraft/resources/Identifier;
+         4: invokevirtual #432                // Method net/minecraft/resources/Identifier.toString:()Ljava/lang/String;
+         7: areturn
+}
