@@ -1104,32 +1104,28 @@ mod debug_village {
         let collector = position.collector.lock().unwrap();
         let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
         let mut raw = Vec::new();
-        let mut total_templates = 0usize;
-        let mut chest_palette_names = std::collections::BTreeSet::new();
-        let mut first_template_dump = String::new();
+        let mut template_ids = std::collections::BTreeSet::new();
         for p in &collector.pieces {
             if let Some(piece) = p.as_any().downcast_ref::<PoolElementStructurePiece>() {
                 piece.element.for_each_template(|id, _, _, template| {
-                    total_templates += 1;
-                    for entry in &template.palette {
-                        if entry.name.contains("chest") {
-                            chest_palette_names.insert(entry.name.clone());
-                        }
-                    }
-                    if first_template_dump.is_empty() {
-                        first_template_dump = format!(
-                            "first template={id} blocks={} palette0={:?}",
-                            template.blocks.len(),
-                            template.palette.first().map(|p| &p.name)
-                        );
-                    }
+                    template_ids.insert(format!(
+                        "{id} (blocks={}, chests={})",
+                        template.blocks.len(),
+                        template
+                            .blocks
+                            .iter()
+                            .filter(|b| (b.state as usize) < template.palette.len()
+                                && template.palette[b.state as usize].name == "minecraft:chest")
+                            .count()
+                    ));
                 });
                 collect_piece_chests(piece, &mut raw);
             }
         }
-        lines.push(format!("templates={total_templates}"));
-        lines.push(format!("chest palette names: {:?}", chest_palette_names));
-        lines.push(first_template_dump);
+        for id in &template_ids {
+            lines.push(format!("template: {id}"));
+        }
+        lines.push(format!("unique templates: {}", template_ids.len()));
         lines.push(format!("collected chests: {}", raw.len()));
         panic!("{}", lines.join("\n"));
     }
