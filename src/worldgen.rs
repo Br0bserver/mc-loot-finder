@@ -1104,49 +1104,33 @@ mod debug_village {
         let collector = position.collector.lock().unwrap();
         let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
         let mut raw = Vec::new();
-        let mut total_blocks = 0usize;
         let mut total_templates = 0usize;
-        let mut total_chest_blocks = 0usize;
+        let mut chest_palette_names = std::collections::BTreeSet::new();
+        let mut first_template_dump = String::new();
         for p in &collector.pieces {
             if let Some(piece) = p.as_any().downcast_ref::<PoolElementStructurePiece>() {
-                let mut seen = Vec::new();
                 piece.element.for_each_template(|id, _, _, template| {
                     total_templates += 1;
-                    total_blocks += template.blocks.len();
-                    let chests = template
-                        .blocks
-                        .iter()
-                        .filter(|b| {
-                            (b.state as usize) < template.palette.len()
-                                && template.palette[b.state as usize].name == "minecraft:chest"
-                        })
-                        .count();
-                    total_chest_blocks += chests;
-                    seen.push(format!(
-                        "template={id} blocks={} palette={} chests={chests}",
-                        template.blocks.len(),
-                        template.palette.len()
-                    ));
+                    for entry in &template.palette {
+                        if entry.name.contains("chest") {
+                            chest_palette_names.insert(entry.name.clone());
+                        }
+                    }
+                    if first_template_dump.is_empty() {
+                        first_template_dump = format!(
+                            "first template={id} blocks={} palette0={:?}",
+                            template.blocks.len(),
+                            template.palette.first().map(|p| &p.name)
+                        );
+                    }
                 });
-                if seen.is_empty() {
-                    lines.push(format!(
-                        "piece box={:?} NO-TEMPLATE",
-                        piece.piece.bounding_box
-                    ));
-                }
                 collect_piece_chests(piece, &mut raw);
             }
         }
-        lines.push(format!(
-            "templates={total_templates} blocks={total_blocks} chestBlocks={total_chest_blocks}"
-        ));
+        lines.push(format!("templates={total_templates}"));
+        lines.push(format!("chest palette names: {:?}", chest_palette_names));
+        lines.push(first_template_dump);
         lines.push(format!("collected chests: {}", raw.len()));
-        for c in &raw {
-            lines.push(format!(
-                "chest at ({},{},{}) {}",
-                c.x, c.y, c.z, c.loot_table
-            ));
-        }
         panic!("{}", lines.join("\n"));
     }
 }
