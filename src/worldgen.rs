@@ -1121,6 +1121,19 @@ mod tests {
         .expect("position");
         let collector = position.collector.lock().unwrap();
         lines.push(format!("pieces: {}", collector.pieces.len()));
+        {
+            let start = &collector.pieces[0];
+            let piece = start
+                .as_any()
+                .downcast_ref::<PoolElementStructurePiece>()
+                .expect("pool piece");
+            for (i, j) in piece.jigsaw_blocks.iter().enumerate() {
+                lines.push(format!(
+                    "startjig[{i}] name={} pool={} pos=({},{},{}) facing={:?}",
+                    j.name, j.pool, j.pos.0.x, j.pos.0.y, j.pos.0.z, j.facing
+                ));
+            }
+        }
         for p in &collector.pieces {
             let piece = p
                 .as_any()
