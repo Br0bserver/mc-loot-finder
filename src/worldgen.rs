@@ -576,6 +576,7 @@ impl Scanner {
             ),
         ];
         let mut selected: Option<(Structure, StructureKeys, i32)> = None;
+        let mut probe_heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
         while !remaining.is_empty() {
             let choice = random.next_bounded_i32(remaining.len() as i32) as usize;
             let (structure, key, index, biomes) = remaining.swap_remove(choice);
@@ -583,7 +584,16 @@ impl Scanner {
                 size: Some(0),
                 ..structure
             };
-            let mut probe_context = self.context(chunk_x, chunk_z);
+            let mut probe_context = StructureGeneratorContext {
+                seed: self.world_seed,
+                chunk_x,
+                chunk_z,
+                random: create_chunk_random(self.world_seed, chunk_x, chunk_z),
+                sea_level: self.kind.sea_level(),
+                min_y: self.kind.min_y(),
+                height_sampler: Some(&mut probe_heights),
+                structure_key: Some(key),
+            };
             let Some(probe) = village_jigsaw::generate_village_position(
                 probe_structure
                     .start_pool
