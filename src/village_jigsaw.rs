@@ -581,7 +581,12 @@ pub fn generate_village_position(
                                     target_collision_box.min.y + max_y_offset;
                             }
 
-                            let collision_space = if source_box.contains(
+                            // Vanilla checks `sourceBox.isInside` against the
+                            // piece's bounding box, which includes the
+                            // expansion-hack growth; use the expanded
+                            // collision box here so jigsaws near the top of a
+                            // street's expansion stay in the interior space.
+                            let collision_space = if source_collision_box.contains(
                                 target_jigsaw_pos.0.x,
                                 target_jigsaw_pos.0.y,
                                 target_jigsaw_pos.0.z,
