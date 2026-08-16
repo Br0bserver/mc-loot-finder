@@ -1082,6 +1082,18 @@ mod tests {
                 (290, 75, 900, -8_102_066_785_630_644_298),
             ],
         ];
+        let scan = &scans[0];
+        let mut lines = vec![format!(
+            "valid={} chests={}",
+            scan.valid_structure,
+            scan.chests.len()
+        )];
+        for c in &scan.chests {
+            lines.push(format!(
+                "chest ({},{},{}) {} seed={}",
+                c.x, c.y, c.z, c.loot_table, c.loot_seed
+            ));
+        }
         for (scan, chests) in scans.iter().zip(expected) {
             assert!(scan.valid_structure);
             let actual = scan
@@ -1091,5 +1103,6 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(actual, chests);
         }
+        panic!("{}", lines.join("\n"));
     }
 }
