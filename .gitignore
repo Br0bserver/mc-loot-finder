@@ -10,3 +10,5 @@ mc-loot-finder-linux-x86_64
 AGENT.md
 .gh-cache/
 .ghcache/
+.forkdb/
+.forktree/
