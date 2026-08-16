@@ -1,5 +1,5 @@
 use crate::error::Error;
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
 
 use crate::commands;
 
@@ -188,38 +188,10 @@ pub(crate) fn require_identifier(value: &str, option: &str) -> Result<(), Error>
     }
 }
 
-pub fn print_help() {
-    println!("mc-loot-finder");
-    println!("Minecraft Java 26.1.2 structure container and loot finder");
-    println!();
-    println!("Commands:");
-    println!();
-    println!("  candidates --seed N [search options]");
-    println!("    List possible structure chunks without full verification.");
-    println!();
-    println!("  chests --seed N [search options]");
-    println!("    Verify structures and list their block containers.");
-    println!();
-    println!("  find --seed N [--item ID] [search options]");
-    println!("    Find containers that generate the requested item.");
-    println!();
-    println!("  loot --loot-seed N [--table ID]");
-    println!("    Replay one supported loot table.");
-    println!();
-    println!("  container-seed --seed N --chunk-x X --chunk-z Z [options]");
-    println!("    Calculate a seed for supported shortcut structures.");
-    println!();
-    println!("  explain [--structure NAME]");
-    println!("    Show defaults, supported structures, and loot tables.");
-    println!();
-    println!("Search options:");
-    println!("  --structure NAME  --center-x X  --center-z Z");
-    println!("  --radius N  --limit N");
-    println!();
-    println!("Common options:");
-    println!("  --version 26.1.2  --json");
-    println!();
-    println!("Use 'explain' to list structure capabilities and defaults.");
+/// Print the clap-generated help for the top-level command.
+fn print_help() {
+    let mut command = Cli::command();
+    let _ = command.print_help();
 }
 
 #[cfg(test)]
@@ -280,5 +252,21 @@ mod tests {
             Cli::try_parse_from(["mc-loot-finder", "find", "--seed", "0", "--limit", "-1",])
                 .is_err()
         );
+    }
+
+    #[test]
+    fn help_lists_all_commands() {
+        let mut command = Cli::command();
+        let help = command.render_help().to_string();
+        for command in [
+            "candidates",
+            "chests",
+            "find",
+            "loot",
+            "container-seed",
+            "explain",
+        ] {
+            assert!(help.contains(command), "help must mention {command}");
+        }
     }
 }
