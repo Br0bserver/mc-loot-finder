@@ -5,6 +5,23 @@ env:
 
 on:
   workflow_dispatch:
+    inputs:
+      command:
+        description: "CLI command to run (chests/find/candidates)"
+        required: false
+        default: "chests"
+      structure:
+        description: "Structure name"
+        required: false
+        default: "ancient_city"
+      seed:
+        description: "World seed"
+        required: false
+        default: "114514"
+      args:
+        description: "Extra CLI arguments (e.g. --radius 5000 --json)"
+        required: false
+        default: "--radius 5000 --json"
   push:
     paths:
       - Cargo.toml
@@ -43,6 +60,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes musl-tools
       - name: Build static release binary
         run: cargo build --release --locked --target x86_64-unknown-linux-musl
+      - name: Run requested CLI command (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          target/x86_64-unknown-linux-musl/release/mc-loot-finder ${{ inputs.command }} \
+            --seed ${{ inputs.seed }} \
+            --structure ${{ inputs.structure }} \
+            ${{ inputs.args }}
       - name: Run ancient city smoke test
         run: |
           target/x86_64-unknown-linux-musl/release/mc-loot-finder chests \
@@ -206,6 +230,41 @@ jobs:
               $result.checked_chests -ne 6 -or
               $result.hits -ne 1) {
             throw "unexpected bastion result: $json"
+          }
+      - name: Run desert pyramid smoke test
+        shell: pwsh
+        run: |
+          $json = & target\release\mc-loot-finder.exe chests `
+            --seed 0 `
+            --structure desert_pyramid `
+            --radius 5000 `
+            --limit 1000 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "chests exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 307 -or
+              $result.valid_structures -ne 3 -or
+              $result.chest_count -ne 12) {
+            throw "unexpected desert pyramid chests result: $json"
+          }
+          $json = & target\release\mc-loot-finder.exe find `
+            --seed 0 `
+            --structure desert_pyramid `
+            --item minecraft:dune_armor_trim_smithing_template `
+            --radius 5000 `
+            --limit 20 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "find exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 307 -or
+              $result.valid_structures -ne 3 -or
+              $result.checked_chests -ne 12 -or
+              $result.hits -ne 5) {
+            throw "unexpected desert pyramid find result: $json"
           }
       - name: Prepare Windows binary
         shell: pwsh
