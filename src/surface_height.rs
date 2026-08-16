@@ -5,9 +5,10 @@
 //! vanilla `ChunkGenerator.getFirstOccupiedHeight` values for structures such as
 //! the desert pyramid without building any chunks.
 //!
-//! `estimate_height` follows Pumpkin's exclusive convention (the Y one above the
-//! top non-air block); `inclusive_top` converts it to the vanilla heightmap
-//! convention (the Y of the top non-air block itself).
+//! `first_occupied_height` returns the vanilla heightmap value directly: the
+//! fork's sampler adds one to the top non-air block Y, which empirically
+//! matches vanilla's inclusive heightmap values (locked by the 26.1.2 desert
+//! pyramid chest vectors).
 
 use std::collections::HashMap;
 
@@ -55,8 +56,11 @@ impl<'a> ColumnHeightSampler<'a> {
     }
 
     /// Vanilla `getFirstOccupiedHeight`: the Y of the top non-air block.
-    pub fn inclusive_top(&mut self, x: i32, z: i32) -> i32 {
-        self.estimate_height(x, z) - 1
+    ///
+    /// The fork's exclusive sampler output (top non-air Y + 1) already equals
+    /// vanilla's inclusive heightmap value.
+    pub fn first_occupied_height(&mut self, x: i32, z: i32) -> i32 {
+        self.estimate_height(x, z)
     }
 
     fn estimate_height(&mut self, x: i32, z: i32) -> i32 {

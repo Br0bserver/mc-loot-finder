@@ -309,7 +309,7 @@ impl Scanner {
             (min_x + DESERT_PYRAMID_WIDTH, min_z + DESERT_PYRAMID_DEPTH),
         ]
         .into_iter()
-        .map(|(x, z)| heights.inclusive_top(x, z))
+        .map(|(x, z)| heights.first_occupied_height(x, z))
         .min()
         .ok_or_else(|| Error::Worldgen("desert pyramid corner list was empty".to_owned()))?;
         if corner_lowest < self.kind.sea_level() {
@@ -318,7 +318,7 @@ impl Scanner {
 
         let mid_x = min_x + 8;
         let mid_z = min_z + 8;
-        let mid_y = heights.inclusive_top(mid_x, mid_z);
+        let mid_y = heights.first_occupied_height(mid_x, mid_z);
         if !self.biome_is_valid(
             Vector3::new(mid_x, mid_y, mid_z),
             self.valid_biomes,
@@ -358,7 +358,7 @@ impl Scanner {
         let mut lowest = i32::MAX;
         for x in min_x..=min_x + DESERT_PYRAMID_WIDTH - 1 {
             for z in min_z..=min_z + DESERT_PYRAMID_DEPTH - 1 {
-                lowest = lowest.min(heights.inclusive_top(x, z));
+                lowest = lowest.min(heights.first_occupied_height(x, z));
             }
         }
         let base_y = lowest + ground_offset;
