@@ -3,18 +3,28 @@ use std::collections::HashMap;
 use crate::catalog::ContainerSeedShortcut;
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
+use pumpkin_data::chunk::Biome;
 use pumpkin_data::{
+    Block, BlockState, BlockStateId, Mirror, Rotation,
     dimension::Dimension,
-    structures::{Structure, StructureKeys},
+    structures::{GenerationStep, Structure, StructureKeys},
     tag::{RegistryKey, get_tag_ids},
 };
-use pumpkin_util::{math::vector3::Vector3, random::RandomImpl, world_seed::Seed};
-use pumpkin_world::generation::structure::structures::jigsaw::PoolElementStructurePiece;
+use pumpkin_util::{
+    math::{position::BlockPos, vector3::Vector3},
+    random::{RandomGenerator, RandomImpl, get_decorator_seed, xoroshiro128::Xoroshiro},
+    world_seed::Seed,
+};
+use pumpkin_world::generation::generator::{GeneratorInit, VanillaGenerator, WorldGenerator};
+use pumpkin_world::generation::proto_chunk::{GenerationCache, ProtoChunk};
+use pumpkin_world::generation::structure::structures::{
+    StructurePiecesCollector, jigsaw::PoolElementStructurePiece,
+};
+use pumpkin_world::world::{BlockAccessor, WorldPortalExt};
 use pumpkin_world::{
     biome::{BiomeSupplier, MultiNoiseBiomeSupplier},
     generation::{
         biome_coords,
-        generator::{GeneratorInit, VanillaGenerator},
         noise::router::multi_noise_sampler::{MultiNoiseSampler, MultiNoiseSamplerBuilderOptions},
         structure::{
             generate_structure_position,
@@ -32,6 +42,7 @@ const NETHER_SEA_LEVEL: i32 = 32;
 pub enum Kind {
     AncientCity,
     BastionRemnant,
+    NetherFortress,
 }
 
 impl Kind {
@@ -39,6 +50,7 @@ impl Kind {
         match self {
             Self::AncientCity => Structure::ANCIENT_CITY,
             Self::BastionRemnant => Structure::BASTION_REMNANT,
+            Self::NetherFortress => Structure::FORTRESS,
         }
     }
 
@@ -46,27 +58,28 @@ impl Kind {
         match self {
             Self::AncientCity => StructureKeys::AncientCity,
             Self::BastionRemnant => StructureKeys::BastionRemnant,
+            Self::NetherFortress => StructureKeys::Fortress,
         }
     }
 
     const fn dimension(self) -> Dimension {
         match self {
             Self::AncientCity => Dimension::OVERWORLD,
-            Self::BastionRemnant => Dimension::THE_NETHER,
+            Self::BastionRemnant | Self::NetherFortress => Dimension::THE_NETHER,
         }
     }
 
     const fn min_y(self) -> i32 {
         match self {
             Self::AncientCity => OVERWORLD_MIN_Y,
-            Self::BastionRemnant => NETHER_MIN_Y,
+            Self::BastionRemnant | Self::NetherFortress => NETHER_MIN_Y,
         }
     }
 
     const fn sea_level(self) -> i32 {
         match self {
             Self::AncientCity => OVERWORLD_SEA_LEVEL,
-            Self::BastionRemnant => NETHER_SEA_LEVEL,
+            Self::BastionRemnant | Self::NetherFortress => NETHER_SEA_LEVEL,
         }
     }
 
@@ -74,13 +87,16 @@ impl Kind {
         match self {
             Self::AncientCity => (7, 0),
             Self::BastionRemnant => (4, 0),
+            // Fortress chest seeds come from the recorded piece generation,
+            // not from the decoration random shortcut.
+            Self::NetherFortress => (0, 0),
         }
     }
 
     const fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
         match self {
             Self::AncientCity => MultiNoiseBiomeSupplier::OVERWORLD,
-            Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
+            Self::BastionRemnant | Self::NetherFortress => MultiNoiseBiomeSupplier::NETHER,
         }
     }
 }
@@ -106,7 +122,7 @@ pub struct Scan {
 pub struct Scanner {
     world_seed: i64,
     kind: Kind,
-    generator: VanillaGenerator,
+    generator: WorldGenerator,
     valid_biomes: &'static [u16],
     fortress_biomes: &'static [u16],
 }
@@ -117,6 +133,7 @@ impl Scanner {
         let kind = match structure_name {
             "ancient_city" => Kind::AncientCity,
             "bastion_remnant" => Kind::BastionRemnant,
+            "nether_fortress" => Kind::NetherFortress,
             _ => {
                 return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
@@ -132,7 +149,10 @@ impl Scanner {
         Self {
             world_seed,
             kind,
-            generator: VanillaGenerator::new(Seed(world_seed as u64), kind.dimension()),
+            generator: WorldGenerator::Noise(Box::new(VanillaGenerator::new(
+                Seed(world_seed as u64),
+                kind.dimension(),
+            ))),
             valid_biomes: structure_biomes(&structure),
             fortress_biomes: if kind == Kind::BastionRemnant {
                 structure_biomes(&Structure::FORTRESS)
@@ -142,12 +162,19 @@ impl Scanner {
         }
     }
 
+    fn noise_generator(&self) -> &VanillaGenerator {
+        match &self.generator {
+            WorldGenerator::Noise(generator) => generator,
+            WorldGenerator::Flat(_) => unreachable!("scanner only builds noise generators"),
+        }
+    }
+
     pub fn scan_many(
         &self,
         chunks: impl IntoIterator<Item = (i32, i32)>,
     ) -> Result<Vec<Scan>, Error> {
         let mut sampler = MultiNoiseSampler::generate(
-            &self.generator.base_router.multi_noise,
+            &self.noise_generator().base_router.multi_noise,
             &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
         );
         chunks
@@ -162,6 +189,9 @@ impl Scanner {
         chunk_z: i32,
         sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
+        if self.kind == Kind::NetherFortress {
+            return self.scan_fortress(chunk_x, chunk_z, sampler);
+        }
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
         {
@@ -251,6 +281,75 @@ impl Scanner {
         })
     }
 
+    /// Scan a nether fortress by recording the programmatic piece generation
+    /// into temporary chunks and reading the placed chest block entities.
+    fn scan_fortress(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        // The fortress and the bastion are mutually exclusive nether complexes;
+        // the fortress only appears when the bastion was not selected first.
+        let mut selection_random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
+        if selection_random.next_bounded_i32(5) >= 2 {
+            return Ok(invalid_scan());
+        }
+
+        let structure = self.kind.structure();
+        let Some(position) = generate_structure_position(
+            &self.kind.structure_key(),
+            &structure,
+            self.context(chunk_x, chunk_z),
+        ) else {
+            return Ok(invalid_scan());
+        };
+        if !self.biome_is_valid(position.start_pos.0, self.valid_biomes, sampler) {
+            return Ok(invalid_scan());
+        }
+
+        let mut collector = position
+            .collector
+            .lock()
+            .map_err(|_| Error::Worldgen("fortress piece collector was poisoned".to_owned()))?;
+        let raw = record_fortress_chests(&mut collector, &self.generator, self.world_seed)?;
+
+        let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
+        let mut chests = Vec::with_capacity(raw.len());
+        let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
+        for chest in raw {
+            let chest_chunk_x = chest.x.div_euclid(16);
+            let chest_chunk_z = chest.z.div_euclid(16);
+            let ordinal = next_ordinal_by_chunk
+                .entry((chest_chunk_x, chest_chunk_z))
+                .or_insert(0);
+            let current_ordinal = *ordinal;
+            *ordinal += 1;
+            let prediction = Chest {
+                structure_chunk_x: chunk_x,
+                structure_chunk_z: chunk_z,
+                x: chest.x,
+                y: chest.y,
+                z: chest.z,
+                loot_table: chest.loot_table,
+                ordinal: current_ordinal,
+                loot_seed: chest.loot_seed,
+            };
+            let key = (prediction.x, prediction.y, prediction.z);
+            if let Some(index) = index_by_position.get(&key).copied() {
+                chests[index] = prediction;
+            } else {
+                index_by_position.insert(key, chests.len());
+                chests.push(prediction);
+            }
+        }
+
+        Ok(Scan {
+            valid_structure: true,
+            chests,
+        })
+    }
+
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {
         StructureGeneratorContext {
             seed: self.world_seed,
@@ -323,6 +422,7 @@ struct RawChest {
     y: i32,
     z: i32,
     loot_table: String,
+    loot_seed: i64,
 }
 
 fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawChest>) {
@@ -359,9 +459,103 @@ fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawC
                 y: world.y,
                 z: world.z,
                 loot_table,
+                loot_seed: 0,
             });
         }
     });
+}
+
+/// Record the chests a nether fortress would place by replaying the piece
+/// generation into a fresh chunk per chunk-column, mirroring the vanilla
+/// per-chunk decorator random of the structure step.
+fn record_fortress_chests(
+    collector: &mut StructurePiecesCollector,
+    generator: &WorldGenerator,
+    world_seed: i64,
+) -> Result<Vec<RawChest>, Error> {
+    let registry = RecordingBlockRegistry;
+    let bounding_box = collector.get_bounding_box();
+    let min_chunk_x = bounding_box.min.x.div_euclid(16);
+    let max_chunk_x = bounding_box.max.x.div_euclid(16);
+    let min_chunk_z = bounding_box.min.z.div_euclid(16);
+    let max_chunk_z = bounding_box.max.z.div_euclid(16);
+    let step = GenerationStep::UndergroundDecoration.ordinal() as u64;
+    let mut chests = Vec::new();
+    for chunk_z in min_chunk_z..=max_chunk_z {
+        for chunk_x in min_chunk_x..=max_chunk_x {
+            let mut chunk = ProtoChunk::new(chunk_x, chunk_z, generator);
+            let population_seed = Xoroshiro::get_population_seed(
+                world_seed as u64,
+                chunk_x.wrapping_mul(16),
+                chunk_z.wrapping_mul(16),
+            );
+            let decorator_seed = get_decorator_seed(population_seed, 0, step);
+            let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(decorator_seed));
+            collector.generate_in_chunk(&mut chunk, &registry, &mut random, world_seed);
+            for entity in chunk.take_pending_block_entities() {
+                if entity.get_string("id") != Some("minecraft:chest") {
+                    continue;
+                }
+                let (Some(x), Some(y), Some(z)) = (
+                    entity.get_int("x"),
+                    entity.get_int("y"),
+                    entity.get_int("z"),
+                ) else {
+                    continue;
+                };
+                let Some(loot_table) = entity.get_string("LootTable") else {
+                    continue;
+                };
+                chests.push(RawChest {
+                    x,
+                    y,
+                    z,
+                    loot_table: loot_table.to_owned(),
+                    loot_seed: entity.get_long("LootTableSeed").unwrap_or(0),
+                });
+            }
+        }
+    }
+    Ok(chests)
+}
+
+/// Dummy world portal backend for recording structure piece placement.
+/// Structure pieces only consult it for portal frames and block mirroring,
+/// neither of which applies to recorded nether fortress blocks.
+struct RecordingBlockRegistry;
+
+impl WorldPortalExt for RecordingBlockRegistry {
+    fn can_place_at(
+        &self,
+        _block: &Block,
+        _state: &BlockState,
+        _block_accessor: &dyn BlockAccessor,
+        _block_pos: &BlockPos,
+    ) -> bool {
+        true
+    }
+
+    fn mirror(&self, block: &Block, state_id: BlockStateId, mirror: Mirror) -> &'static BlockState {
+        block.mirror(state_id, mirror)
+    }
+
+    fn rotate(
+        &self,
+        block: &Block,
+        state_id: BlockStateId,
+        rotation: Rotation,
+    ) -> &'static BlockState {
+        block.rotate(state_id, rotation)
+    }
+
+    fn spawn_mobs_for_chunk_generation(
+        &self,
+        _cache: &mut dyn GenerationCache,
+        _biome: &'static Biome,
+        _chunk_x: i32,
+        _chunk_z: i32,
+    ) {
+    }
 }
 
 #[cfg(test)]
@@ -465,5 +659,30 @@ mod tests {
                 "minecraft:chests/bastion_treasure",
             ])
         );
+    }
+
+    #[test]
+    fn scans_known_26_1_2_fortress() {
+        // Parity vector from the Java mainline VillageAndFortressIntegrationTest:
+        // seed 0, chunk (15, 2) yields 6 chests, all nether_bridge.
+        let scanner = Scanner::new(0, Kind::NetherFortress);
+        let scans = scanner.scan_many([(15, 2)]).expect("scan known fortress");
+        let scan = &scans[0];
+        assert!(scan.valid_structure);
+        assert_eq!(
+            scan.chests.len(),
+            6,
+            "fortress chests: {:?}",
+            scan.chests
+                .iter()
+                .map(|chest| (chest.x, chest.y, chest.z, chest.loot_seed))
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            scan.chests
+                .iter()
+                .all(|chest| chest.loot_table == "minecraft:chests/nether_bridge")
+        );
+        assert!(scan.chests.iter().all(|chest| chest.loot_seed != 0));
     }
 }

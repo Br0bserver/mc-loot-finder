@@ -233,7 +233,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         decoration_step: -1,
         structure_index: -1,
         container_seed: ContainerSeedShortcut::None,
-        scanner: "VANILLA_PLACEMENT",
+        scanner: "FORTRESS_RECORDING",
         loot_tables: &["minecraft:chests/nether_bridge"],
         default_item: "minecraft:diamond",
     },
@@ -311,7 +311,10 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
 impl CandidateStructure {
     /// Whether `chests` and `find` are fully supported for this structure.
     pub fn supports_full_scan(&self) -> bool {
-        matches!(self.name, "ancient_city" | "bastion_remnant")
+        matches!(
+            self.name,
+            "ancient_city" | "bastion_remnant" | "nether_fortress"
+        )
     }
 }
 

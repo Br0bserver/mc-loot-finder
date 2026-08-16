@@ -36,7 +36,7 @@ pub fn run(args: ExplainArgs) -> Result<u8, Error> {
         println!("  find: ancient_city, center (0, 0), radius 5,000, limit 20");
         println!("  loot: minecraft:chests/ancient_city\n");
         println!("Structure capabilities:");
-        println!("  ancient_city and bastion_remnant support chests and find.");
+        println!("  ancient_city, bastion_remnant and nether_fortress support chests and find.");
         println!("  Other entries support candidate calculation only.");
         for (index, structure) in CANDIDATE_STRUCTURES.iter().enumerate() {
             println!("\n[{}] {}", index + 1, structure.name);
