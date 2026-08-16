@@ -313,7 +313,7 @@ impl CandidateStructure {
     pub fn supports_full_scan(&self) -> bool {
         matches!(
             self.name,
-            "ancient_city" | "bastion_remnant" | "desert_pyramid" | "igloo"
+            "ancient_city" | "bastion_remnant" | "desert_pyramid" | "igloo" | "village"
         )
     }
 }

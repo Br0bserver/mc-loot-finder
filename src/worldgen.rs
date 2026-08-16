@@ -46,6 +46,7 @@ pub enum Kind {
     BastionRemnant,
     DesertPyramid,
     Igloo,
+    Village,
 }
 
 impl Kind {
@@ -55,6 +56,8 @@ impl Kind {
             Self::BastionRemnant => Structure::BASTION_REMNANT,
             Self::DesertPyramid => Structure::DESERT_PYRAMID,
             Self::Igloo => Structure::IGLOO,
+            // The village variant is selected per candidate in `scan_village`.
+            Self::Village => Structure::VILLAGE_PLAINS,
         }
     }
 
@@ -64,26 +67,33 @@ impl Kind {
             Self::BastionRemnant => StructureKeys::BastionRemnant,
             Self::DesertPyramid => StructureKeys::DesertPyramid,
             Self::Igloo => StructureKeys::Igloo,
+            Self::Village => StructureKeys::VillagePlains,
         }
     }
 
     const fn dimension(self) -> Dimension {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo => Dimension::OVERWORLD,
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
+                Dimension::OVERWORLD
+            }
             Self::BastionRemnant => Dimension::THE_NETHER,
         }
     }
 
     const fn min_y(self) -> i32 {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo => OVERWORLD_MIN_Y,
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
+                OVERWORLD_MIN_Y
+            }
             Self::BastionRemnant => NETHER_MIN_Y,
         }
     }
 
     const fn sea_level(self) -> i32 {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo => OVERWORLD_SEA_LEVEL,
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
+                OVERWORLD_SEA_LEVEL
+            }
             Self::BastionRemnant => NETHER_SEA_LEVEL,
         }
     }
@@ -94,12 +104,14 @@ impl Kind {
             Self::BastionRemnant => (4, 0),
             Self::DesertPyramid => (1, 4),
             Self::Igloo => (3, 4),
+            // The village variant index is resolved per candidate.
+            Self::Village => (22, 4),
         }
     }
 
     const fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo => {
+            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
                 MultiNoiseBiomeSupplier::OVERWORLD
             }
             Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
@@ -141,6 +153,7 @@ impl Scanner {
             "bastion_remnant" => Kind::BastionRemnant,
             "desert_pyramid" => Kind::DesertPyramid,
             "igloo" => Kind::Igloo,
+            "village" => Kind::Village,
             _ => {
                 return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
@@ -191,6 +204,9 @@ impl Scanner {
         }
         if self.kind == Kind::Igloo {
             return self.scan_igloo(chunk_x, chunk_z, sampler);
+        }
+        if self.kind == Kind::Village {
+            return self.scan_village(chunk_x, chunk_z, sampler);
         }
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
@@ -502,6 +518,156 @@ impl Scanner {
                 ordinal: 0,
                 loot_seed,
             }],
+        })
+    }
+
+    /// Scans a village candidate chunk.
+    ///
+    /// Mirrors the Java main's weighted structure-set selection for the
+    /// five village variants: the placement random draws `nextInt(remaining)`,
+    /// the candidate variant is probed with its own biome tag and, when
+    /// invalid, removed before the next draw (biome fallback). Chest loot
+    /// seeds use the `Direct` shortcut with the variant's decoration index.
+    fn scan_village(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        let min_x = chunk_x
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("village chunk x overflowed".to_owned()))?;
+        let min_z = chunk_z
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("village chunk z overflowed".to_owned()))?;
+
+        let mut random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
+        let mut remaining: Vec<(Structure, StructureKeys, i32, &'static [u16])> = vec![
+            (
+                Structure::VILLAGE_DESERT,
+                StructureKeys::VillageDesert,
+                21,
+                structure_biomes(&Structure::VILLAGE_DESERT),
+            ),
+            (
+                Structure::VILLAGE_PLAINS,
+                StructureKeys::VillagePlains,
+                22,
+                structure_biomes(&Structure::VILLAGE_PLAINS),
+            ),
+            (
+                Structure::VILLAGE_SAVANNA,
+                StructureKeys::VillageSavanna,
+                23,
+                structure_biomes(&Structure::VILLAGE_SAVANNA),
+            ),
+            (
+                Structure::VILLAGE_SNOWY,
+                StructureKeys::VillageSnowy,
+                24,
+                structure_biomes(&Structure::VILLAGE_SNOWY),
+            ),
+            (
+                Structure::VILLAGE_TAIGA,
+                StructureKeys::VillageTaiga,
+                25,
+                structure_biomes(&Structure::VILLAGE_TAIGA),
+            ),
+        ];
+        let mut selected: Option<(Structure, StructureKeys, i32)> = None;
+        while !remaining.is_empty() {
+            let choice = random.next_bounded_i32(remaining.len() as i32) as usize;
+            let (structure, key, index, biomes) = remaining.swap_remove(choice);
+            let probe_structure = Structure {
+                size: Some(0),
+                ..structure
+            };
+            let Some(probe) =
+                generate_structure_position(&key, &probe_structure, self.context(chunk_x, chunk_z))
+            else {
+                continue;
+            };
+            if !self.biome_is_valid(probe.start_pos, biomes, sampler) {
+                continue;
+            }
+            selected = Some((structure, key, index));
+            break;
+        }
+        let Some((structure, key, index)) = selected else {
+            return Ok(invalid_scan());
+        };
+
+        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let position = generate_structure_position(
+            &key,
+            &structure,
+            StructureGeneratorContext {
+                seed: self.world_seed,
+                chunk_x,
+                chunk_z,
+                random: create_chunk_random(self.world_seed, chunk_x, chunk_z),
+                sea_level: self.kind.sea_level(),
+                min_y: self.kind.min_y(),
+                height_sampler: Some(&mut heights),
+                structure_key: Some(key),
+            },
+        )
+        .ok_or_else(|| Error::Worldgen("village failed full placement".to_owned()))?;
+
+        let collector = position
+            .collector
+            .lock()
+            .map_err(|_| Error::Worldgen("village piece collector was poisoned".to_owned()))?;
+        let mut raw = Vec::new();
+        for piece in &collector.pieces {
+            let Some(piece) = piece.as_any().downcast_ref::<PoolElementStructurePiece>() else {
+                continue;
+            };
+            collect_piece_chests(piece, &mut raw);
+        }
+
+        let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
+        let mut visible = Vec::<Chest>::new();
+        let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
+        for chest in raw {
+            let chest_chunk_x = chest.x.div_euclid(16);
+            let chest_chunk_z = chest.z.div_euclid(16);
+            let ordinal = next_ordinal_by_chunk
+                .entry((chest_chunk_x, chest_chunk_z))
+                .or_insert(0);
+            let current_ordinal = *ordinal;
+            *ordinal += 1;
+            let loot_seed = container_loot_seed(
+                self.world_seed,
+                chest_chunk_x,
+                chest_chunk_z,
+                index,
+                4,
+                current_ordinal,
+                ContainerSeedShortcut::Direct,
+            )?;
+            let prediction = Chest {
+                structure_chunk_x: chunk_x,
+                structure_chunk_z: chunk_z,
+                x: chest.x,
+                y: chest.y,
+                z: chest.z,
+                loot_table: chest.loot_table,
+                ordinal: current_ordinal,
+                loot_seed,
+            };
+            let key = (prediction.x, prediction.y, prediction.z);
+            if let Some(position) = index_by_position.get(&key).copied() {
+                visible[position] = prediction;
+            } else {
+                index_by_position.insert(key, visible.len());
+                visible.push(prediction);
+            }
+        }
+
+        Ok(Scan {
+            valid_structure: true,
+            chests: visible,
         })
     }
 
@@ -869,6 +1035,39 @@ mod tests {
                 scan.chests.is_empty(),
                 "igloo without basement must have no chests"
             );
+        }
+    }
+
+    #[test]
+    fn scans_known_26_1_2_villages() {
+        let scanner = Scanner::new(0, Kind::Village);
+        // Seed 0: a savanna village at (38,45) with five chests and a plains
+        // village at (17,59) with two chests (vectors from the vanilla
+        // 26.1.2 placement run, including variant indices 23 and 22).
+        let scans = scanner
+            .scan_many([(38, 45), (17, 59)])
+            .expect("scan villages");
+        let expected = [
+            vec![
+                (566, 72, 715, -8_360_261_126_396_786_299),
+                (613, 72, 749, -5_741_561_169_428_246_725),
+                (613, 75, 715, 7_894_754_405_246_038_683),
+                (629, 74, 724, 7_967_509_563_249_290_458),
+                (634, 74, 736, 412_383_135_729_192_107),
+            ],
+            vec![
+                (283, 69, 944, 1_415_882_058_948_058_970),
+                (290, 75, 900, -8_102_066_785_630_644_298),
+            ],
+        ];
+        for (scan, chests) in scans.iter().zip(expected) {
+            assert!(scan.valid_structure);
+            let actual = scan
+                .chests
+                .iter()
+                .map(|chest| (chest.x, chest.y, chest.z, chest.loot_seed))
+                .collect::<Vec<_>>();
+            assert_eq!(actual, chests);
         }
     }
 }

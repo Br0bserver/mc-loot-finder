@@ -187,3 +187,13 @@ impl<'a> ColumnHeightSampler<'a> {
         )
     }
 }
+
+/// Adapts the column sampler to the fork's `HeightSampler` contract so
+/// structure generation (e.g. village `project_start_to_heightmap`) can
+/// resolve surface heights; the fork's estimate matches vanilla
+/// `getBaseHeight`.
+impl pumpkin_world::generation::structure::structures::HeightSampler for ColumnHeightSampler<'_> {
+    fn estimate_height(&mut self, block_x: i32, block_z: i32) -> i32 {
+        self.base_height(block_x, block_z)
+    }
+}
