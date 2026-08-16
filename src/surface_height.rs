@@ -2,13 +2,14 @@
 //!
 //! Replicates `pumpkin_world::generation::structure::height_sampler::NoiseHeightSampler`
 //! (which is `pub(crate)` inside the Pumpkin fork) so the scanner can resolve
-//! vanilla `ChunkGenerator.getFirstOccupiedHeight` values for structures such as
-//! the desert pyramid without building any chunks.
+//! vanilla `ChunkGenerator` height queries for structures such as the desert
+//! pyramid without building any chunks.
 //!
-//! `first_occupied_height` returns the vanilla heightmap value directly: the
-//! fork's sampler adds one to the top non-air block Y, which empirically
-//! matches vanilla's inclusive heightmap values (locked by the 26.1.2 desert
-//! pyramid chest vectors).
+//! The fork's sampler output (top non-air Y + 1) equals vanilla
+//! `getBaseHeight`; vanilla `getFirstOccupiedHeight` is `getBaseHeight - 1`.
+//! Both accessors are exposed so callers can mirror the exact vanilla query
+//! (desert pyramid: `getFirstOccupiedHeight` for the corner sea-level check and
+//! the biome position, the heightmap value for the piece base height).
 
 use std::collections::HashMap;
 
@@ -55,12 +56,19 @@ impl<'a> ColumnHeightSampler<'a> {
         }
     }
 
-    /// Vanilla `getFirstOccupiedHeight`: the Y of the top non-air block.
+    /// Vanilla `ChunkGenerator.getBaseHeight`: the height stored in heightmaps
+    /// (one above the top block matching the heightmap predicate).
     ///
-    /// The fork's exclusive sampler output (top non-air Y + 1) already equals
-    /// vanilla's inclusive heightmap value.
-    pub fn first_occupied_height(&mut self, x: i32, z: i32) -> i32 {
+    /// The fork's exclusive sampler output (top non-air Y + 1) equals this
+    /// value exactly; locked by the 26.1.2 desert pyramid chest vectors.
+    pub fn base_height(&mut self, x: i32, z: i32) -> i32 {
         self.estimate_height(x, z)
+    }
+
+    /// Vanilla `ChunkGenerator.getFirstOccupiedHeight`: `getBaseHeight - 1`,
+    /// i.e. the Y of the top block matching the heightmap predicate.
+    pub fn first_occupied_height(&mut self, x: i32, z: i32) -> i32 {
+        self.estimate_height(x, z) - 1
     }
 
     fn estimate_height(&mut self, x: i32, z: i32) -> i32 {

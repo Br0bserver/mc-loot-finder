@@ -275,15 +275,17 @@ impl Scanner {
     ///
     /// Mirrors vanilla 26.1.2 `SinglePieceStructure.findGenerationPoint` +
     /// `DesertPyramidPiece`:
-    /// 1. the lowest `WORLD_SURFACE_WG` height at the four bounding box corners
-    ///    must be at least the sea level;
-    /// 2. the biome at the chunk center block, sampled at the world surface
-    ///    height, must be in the structure's biome tag;
+    /// 1. the lowest `getFirstOccupiedHeight(WORLD_SURFACE_WG)` at the four
+    ///    bounding box corners must be at least the sea level;
+    /// 2. the biome at the chunk center block, sampled at the
+    ///    `getFirstOccupiedHeight` world surface height, must be in the
+    ///    structure's biome tag;
     /// 3. the piece is anchored at `(minBlockX, 64, minBlockZ)` with a
     ///    horizontal facing drawn from the placement random;
     /// 4. `postProcess` draws `nextInt(3)` and shifts the piece so its base sits
-    ///    at the lowest `MOTION_BLOCKING_NO_LEAVES` height in the 21x21 area plus
-    ///    the (non-positive) ground offset;
+    ///    at the lowest `MOTION_BLOCKING_NO_LEAVES` heightmap value
+    ///    (`getBaseHeight`) in the 21x21 area plus the (non-positive) ground
+    ///    offset;
     /// 5. four chests are placed in NORTH/EAST/SOUTH/WEST order at local
     ///    `(10 +- 2, -11, 10 +- 2)`; each consumes one `nextLong` from the
     ///    decoration random, which is exactly the
@@ -358,7 +360,7 @@ impl Scanner {
         let mut lowest = i32::MAX;
         for x in min_x..=min_x + DESERT_PYRAMID_WIDTH - 1 {
             for z in min_z..=min_z + DESERT_PYRAMID_DEPTH - 1 {
-                lowest = lowest.min(heights.first_occupied_height(x, z));
+                lowest = lowest.min(heights.base_height(x, z));
             }
         }
         let base_y = lowest + ground_offset;
@@ -643,45 +645,28 @@ mod tests {
     }
 
     #[test]
-    fn debug_desert_pyramid_corner_heights() {
-        let scanner = Scanner::new(0, Kind::DesertPyramid);
-        let chunks = [
-            (22, -146),
-            (-30, -160),
-            (-10, -178),
-            (98, -155),
-            (102, -224),
-            (105, -246),
-            (0, -188),
-            (77, -213),
-            (81, -254),
-        ];
-        let mut lines = Vec::new();
-        for (chunk_x, chunk_z) in chunks {
-            let min_x = chunk_x * 16;
-            let min_z = chunk_z * 16;
-            let mut heights = ColumnHeightSampler::new(&scanner.generator, min_x, min_z);
-            let corners = [
-                (min_x, min_z),
-                (min_x, min_z + 21),
-                (min_x + 21, min_z),
-                (min_x + 21, min_z + 21),
-            ]
-            .map(|(x, z)| heights.first_occupied_height(x, z));
-            let center = heights.first_occupied_height(min_x + 8, min_z + 8);
-            lines.push(format!(
-                "chunk ({chunk_x},{chunk_z}) corners={corners:?} center={center}"
-            ));
-        }
-        panic!("DEBUG HEIGHTS\n{}", lines.join("\n"));
-    }
-
-    #[test]
     fn scans_known_26_1_2_desert_pyramids() {
         let scanner = Scanner::new(0, Kind::DesertPyramid);
+        // Seed 0: three valid pyramids and six candidates rejected by the
+        // vanilla sea-level corner check (some corner below the sea level).
         let scans = scanner
-            .scan_many([(0, -188), (77, -213), (81, -254)])
-            .expect("scan known desert pyramids");
+            .scan_many([
+                (0, -188),
+                (77, -213),
+                (81, -254),
+                (22, -146),
+                (-30, -160),
+                (-10, -178),
+                (98, -155),
+                (102, -224),
+                (105, -246),
+            ])
+            .expect("scan desert pyramid candidates");
+        for scan in &scans[3..] {
+            assert!(!scan.valid_structure, "candidate must be rejected");
+            assert!(scan.chests.is_empty(), "rejected candidate has chests");
+        }
+        let scans = &scans[..3];
         let expected = [
             (
                 "minecraft:chests/desert_pyramid",
