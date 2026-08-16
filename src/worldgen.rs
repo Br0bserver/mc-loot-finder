@@ -1104,17 +1104,42 @@ mod debug_village {
         let collector = position.collector.lock().unwrap();
         let mut lines = vec![format!("pieces: {}", collector.pieces.len())];
         let mut raw = Vec::new();
+        let mut total_blocks = 0usize;
+        let mut total_templates = 0usize;
+        let mut total_chest_blocks = 0usize;
         for p in &collector.pieces {
-            lines.push(format!(
-                "piece type={:?} box={:?} facing={:?}",
-                p.get_structure_piece().r#type,
-                p.get_structure_piece().bounding_box,
-                p.get_structure_piece().facing.map(|d| d as i32),
-            ));
             if let Some(piece) = p.as_any().downcast_ref::<PoolElementStructurePiece>() {
+                let mut seen = Vec::new();
+                piece.element.for_each_template(|id, _, _, template| {
+                    total_templates += 1;
+                    total_blocks += template.blocks.len();
+                    let chests = template
+                        .blocks
+                        .iter()
+                        .filter(|b| {
+                            (b.state as usize) < template.palette.len()
+                                && template.palette[b.state as usize].name == "minecraft:chest"
+                        })
+                        .count();
+                    total_chest_blocks += chests;
+                    seen.push(format!(
+                        "template={id} blocks={} palette={} chests={chests}",
+                        template.blocks.len(),
+                        template.palette.len()
+                    ));
+                });
+                if seen.is_empty() {
+                    lines.push(format!(
+                        "piece box={:?} NO-TEMPLATE",
+                        piece.piece.bounding_box
+                    ));
+                }
                 collect_piece_chests(piece, &mut raw);
             }
         }
+        lines.push(format!(
+            "templates={total_templates} blocks={total_blocks} chestBlocks={total_chest_blocks}"
+        ));
         lines.push(format!("collected chests: {}", raw.len()));
         for c in &raw {
             lines.push(format!(
