@@ -388,13 +388,13 @@ pub fn generate_village_position(
     if max_depth > 0 {
         let mut placing = PriorityQueue::new();
         let mut states: Vec<PieceState> = Vec::new();
-        placing.add(0, 0);
         states.push(PieceState {
             piece_idx: 0,
             depth: 0,
             priority: 0,
             collision_space: 0,
         });
+        placing.add(0, 0);
 
         while let Some(state_idx) = placing.pop() {
             let state = states[state_idx];
@@ -665,13 +665,14 @@ pub fn generate_village_position(
                                 });
 
                                 if depth < max_depth {
-                                    placing.add(source_jigsaw.placement_priority, target_piece_idx);
+                                    let child_state_idx = states.len();
                                     states.push(PieceState {
                                         piece_idx: target_piece_idx,
                                         depth: depth + 1,
                                         priority: source_jigsaw.placement_priority,
                                         collision_space,
                                     });
+                                    placing.add(source_jigsaw.placement_priority, child_state_idx);
                                 }
 
                                 continue 'jigsaw_loop;
