@@ -42,9 +42,6 @@ const NETHER_MIN_Y: i32 = 0;
 const OVERWORLD_SEA_LEVEL: i32 = 63;
 const NETHER_SEA_LEVEL: i32 = 32;
 
-const PILLAGER_SPACING: i32 = 32;
-const PILLAGER_SEPARATION: i32 = 8;
-const PILLAGER_SALT: i64 = 165_745_296;
 const PILLAGER_FREQUENCY: f32 = 0.2;
 const VILLAGE_SPACING: i32 = 34;
 const VILLAGE_SEPARATION: i32 = 8;
@@ -95,7 +92,7 @@ fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> boo
     let bound = (1.0 / PILLAGER_FREQUENCY) as i32;
     random.next_int(bound) == 0
 }
-
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Kind {
     AncientCity,
     BastionRemnant,
