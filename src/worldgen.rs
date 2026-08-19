@@ -42,6 +42,7 @@ const NETHER_MIN_Y: i32 = 0;
 const OVERWORLD_SEA_LEVEL: i32 = 63;
 const NETHER_SEA_LEVEL: i32 = 32;
 
+#[allow(dead_code)]
 const PILLAGER_FREQUENCY: f32 = 0.2;
 const VILLAGE_SPACING: i32 = 34;
 const VILLAGE_SEPARATION: i32 = 8;
@@ -50,8 +51,8 @@ const VILLAGE_EXCLUSION_RADIUS: i32 = 10;
 const REGION_X_MULTIPLIER: i64 = 341_873_128_712;
 const REGION_Z_MULTIPLIER: i64 = 132_897_987_541;
 
+#[allow(dead_code)]
 fn is_village_placement_chunk(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
-    let spacing = VILLAGE_SPACING;
     let separation = VILLAGE_SEPARATION;
     let salt = VILLAGE_SALT;
     let limit = spacing - separation;
@@ -69,6 +70,7 @@ fn is_village_placement_chunk(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bo
     chunk_x == potential_x && chunk_z == potential_z
 }
 
+#[allow(dead_code)]
 fn has_village_nearby(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let radius = VILLAGE_EXCLUSION_RADIUS;
     for dx in -radius..=radius {
@@ -83,6 +85,7 @@ fn has_village_nearby(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     false
 }
 
+#[allow(dead_code)]
 fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let i = chunk_x >> 4;
     let j = chunk_z >> 4;
