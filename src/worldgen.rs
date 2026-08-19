@@ -96,6 +96,28 @@ fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> boo
     let bound = (1.0 / PILLAGER_FREQUENCY) as i32;
     random.next_int(bound) == 0
 }
+
+fn buried_treasure_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
+    let mut random = LegacyRandom48::new(0);
+    random.set_large_feature_seed(world_seed, chunk_x, chunk_z);
+    random.next_double() < 0.01
+}
+
+const fn hash_block_pos(x: i32, y: i32, z: i32) -> i64 {
+    let l = ((x as i64).wrapping_mul(3129871)) ^ ((z as i64).wrapping_mul(116129781)) ^ (y as i64);
+    let l = l
+        .wrapping_mul(l)
+        .wrapping_mul(42317861)
+        .wrapping_add(l.wrapping_mul(11));
+    l >> 16
+}
+
+fn buried_treasure_loot_seed(x: i32, y: i32, z: i32) -> i64 {
+    let hash = hash_block_pos(x, y, z);
+    let mut random = LegacyRandom48::new(hash);
+    random.next_long()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Kind {
     AncientCity,
@@ -104,6 +126,8 @@ pub enum Kind {
     Igloo,
     Village,
     PillagerOutpost,
+    BuriedTreasure,
+    Shipwreck,
 }
 impl Kind {
     fn structure(self) -> Structure {
@@ -115,6 +139,8 @@ impl Kind {
             // The village variant is selected per candidate in `scan_village`.
             Self::Village => Structure::VILLAGE_PLAINS,
             Self::PillagerOutpost => Structure::PILLAGER_OUTPOST,
+            Self::BuriedTreasure => Structure::BURIED_TREASURE,
+            Self::Shipwreck => Structure::SHIPWRECK,
         }
     }
 
@@ -126,6 +152,8 @@ impl Kind {
             Self::Igloo => StructureKeys::Igloo,
             Self::Village => StructureKeys::VillagePlains,
             Self::PillagerOutpost => StructureKeys::PillagerOutpost,
+            Self::BuriedTreasure => StructureKeys::BuriedTreasure,
+            Self::Shipwreck => StructureKeys::Shipwreck,
         }
     }
 
@@ -135,7 +163,9 @@ impl Kind {
             | Self::DesertPyramid
             | Self::Igloo
             | Self::Village
-            | Self::PillagerOutpost => Dimension::OVERWORLD,
+            | Self::PillagerOutpost
+            | Self::BuriedTreasure
+            | Self::Shipwreck => Dimension::OVERWORLD,
             Self::BastionRemnant => Dimension::THE_NETHER,
         }
     }
@@ -146,7 +176,9 @@ impl Kind {
             | Self::DesertPyramid
             | Self::Igloo
             | Self::Village
-            | Self::PillagerOutpost => OVERWORLD_MIN_Y,
+            | Self::PillagerOutpost
+            | Self::BuriedTreasure
+            | Self::Shipwreck => OVERWORLD_MIN_Y,
             Self::BastionRemnant => NETHER_MIN_Y,
         }
     }
@@ -157,7 +189,9 @@ impl Kind {
             | Self::DesertPyramid
             | Self::Igloo
             | Self::Village
-            | Self::PillagerOutpost => OVERWORLD_SEA_LEVEL,
+            | Self::PillagerOutpost
+            | Self::BuriedTreasure
+            | Self::Shipwreck => OVERWORLD_SEA_LEVEL,
             Self::BastionRemnant => NETHER_SEA_LEVEL,
         }
     }
@@ -171,6 +205,8 @@ impl Kind {
             // The village variant index is resolved per candidate.
             Self::Village => (22, 4),
             Self::PillagerOutpost => (9, 4),
+            Self::BuriedTreasure => (0, 0),
+            Self::Shipwreck => (17, 4),
         }
     }
 
@@ -180,7 +216,9 @@ impl Kind {
             | Self::DesertPyramid
             | Self::Igloo
             | Self::Village
-            | Self::PillagerOutpost => MultiNoiseBiomeSupplier::OVERWORLD,
+            | Self::PillagerOutpost
+            | Self::BuriedTreasure
+            | Self::Shipwreck => MultiNoiseBiomeSupplier::OVERWORLD,
             Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
         }
     }
@@ -222,6 +260,8 @@ impl Scanner {
             "igloo" => Kind::Igloo,
             "village" => Kind::Village,
             "pillager_outpost" => Kind::PillagerOutpost,
+            "buried_treasure" => Kind::BuriedTreasure,
+            "shipwreck" => Kind::Shipwreck,
             _ => {
                 return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
@@ -278,6 +318,12 @@ impl Scanner {
         }
         if self.kind == Kind::PillagerOutpost {
             return self.scan_pillager_outpost(chunk_x, chunk_z, sampler);
+        }
+        if self.kind == Kind::BuriedTreasure {
+            return self.scan_buried_treasure(chunk_x, chunk_z, sampler);
+        }
+        if self.kind == Kind::Shipwreck {
+            return self.scan_shipwreck(chunk_x, chunk_z, sampler);
         }
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
@@ -912,6 +958,61 @@ impl Scanner {
             chests: visible,
         })
     }
+    fn scan_buried_treasure(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        if !buried_treasure_frequency_passes(self.world_seed, chunk_x, chunk_z) {
+            return Ok(invalid_scan());
+        }
+        let min_x = chunk_x
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("buried treasure chunk x overflowed".to_owned()))?;
+        let min_z = chunk_z
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("buried treasure chunk z overflowed".to_owned()))?;
+        let structure = self.kind.structure();
+        let position = generate_structure_position(
+            &self.kind.structure_key(),
+            &structure,
+            self.context(chunk_x, chunk_z),
+        )
+        .ok_or_else(|| Error::Worldgen("buried treasure failed placement".to_owned()))?;
+        if !self.biome_is_valid(position.start_pos.0, self.valid_biomes, sampler) {
+            return Ok(invalid_scan());
+        }
+        let center_x = min_x + 8;
+        let center_z = min_z + 8;
+        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let y = heights.first_occupied_height(center_x, center_z);
+        let chest_x = center_x + 1;
+        let chest_z = center_z + 1;
+        let chest_y = y;
+        let loot_seed = buried_treasure_loot_seed(chest_x, chest_y, chest_z);
+        Ok(Scan {
+            valid_structure: true,
+            chests: vec![Chest {
+                structure_chunk_x: chunk_x,
+                structure_chunk_z: chunk_z,
+                x: chest_x,
+                y: chest_y,
+                z: chest_z,
+                loot_table: "minecraft:chests/buried_treasure".to_owned(),
+                ordinal: 0,
+                loot_seed,
+            }],
+        })
+    }
+    fn scan_shipwreck(
+        &self,
+        _chunk_x: i32,
+        _chunk_z: i32,
+        _sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        Ok(invalid_scan())
+    }
 
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {
         StructureGeneratorContext {
@@ -1395,5 +1496,19 @@ mod tests {
             "36,103 should be invalid for world scan due to frequency"
         );
         assert!(scans[0].chests.is_empty());
+    }
+    #[test]
+    fn scans_known_26_1_2_buried_treasure() {
+        let scanner = Scanner::new(0, Kind::BuriedTreasure);
+        let scans = scanner.scan_many([(0, -22)]).expect("scan buried");
+        assert_eq!(scans.len(), 1);
+        let scan = &scans[0];
+        assert!(scan.valid_structure);
+        assert_eq!(scan.chests.len(), 1);
+        let chest = &scan.chests[0];
+        assert_eq!((chest.x, chest.y, chest.z), (9, 63, -343));
+        assert_eq!(chest.loot_table, "minecraft:chests/buried_treasure");
+        assert_eq!(chest.loot_seed, -2156648588641602659);
+        assert_eq!(chest.ordinal, 0);
     }
 }

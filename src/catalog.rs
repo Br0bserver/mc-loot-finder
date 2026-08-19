@@ -319,6 +319,7 @@ impl CandidateStructure {
                 | "igloo"
                 | "village"
                 | "pillager_outpost"
+                | "buried_treasure"
         )
     }
 }
