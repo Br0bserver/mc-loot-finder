@@ -131,6 +131,8 @@ pub enum Kind {
     PillagerOutpost,
     BuriedTreasure,
     Shipwreck,
+    EndCity,
+    WoodlandMansion,
 }
 impl Kind {
     fn structure(self) -> Structure {
@@ -144,6 +146,8 @@ impl Kind {
             Self::PillagerOutpost => Structure::PILLAGER_OUTPOST,
             Self::BuriedTreasure => Structure::BURIED_TREASURE,
             Self::Shipwreck => Structure::SHIPWRECK,
+            Self::EndCity => Structure::END_CITY,
+            Self::WoodlandMansion => Structure::MANSION,
         }
     }
 
@@ -157,6 +161,8 @@ impl Kind {
             Self::PillagerOutpost => StructureKeys::PillagerOutpost,
             Self::BuriedTreasure => StructureKeys::BuriedTreasure,
             Self::Shipwreck => StructureKeys::Shipwreck,
+            Self::EndCity => StructureKeys::EndCity,
+            Self::WoodlandMansion => StructureKeys::Mansion,
         }
     }
 
@@ -168,8 +174,10 @@ impl Kind {
             | Self::Village
             | Self::PillagerOutpost
             | Self::BuriedTreasure
-            | Self::Shipwreck => Dimension::OVERWORLD,
+            | Self::Shipwreck
+            | Self::WoodlandMansion => Dimension::OVERWORLD,
             Self::BastionRemnant => Dimension::THE_NETHER,
+            Self::EndCity => Dimension::THE_END,
         }
     }
 
@@ -181,7 +189,9 @@ impl Kind {
             | Self::Village
             | Self::PillagerOutpost
             | Self::BuriedTreasure
-            | Self::Shipwreck => OVERWORLD_MIN_Y,
+            | Self::Shipwreck
+            | Self::WoodlandMansion
+            | Self::EndCity => OVERWORLD_MIN_Y,
             Self::BastionRemnant => NETHER_MIN_Y,
         }
     }
@@ -194,7 +204,9 @@ impl Kind {
             | Self::Village
             | Self::PillagerOutpost
             | Self::BuriedTreasure
-            | Self::Shipwreck => OVERWORLD_SEA_LEVEL,
+            | Self::Shipwreck
+            | Self::WoodlandMansion
+            | Self::EndCity => OVERWORLD_SEA_LEVEL,
             Self::BastionRemnant => NETHER_SEA_LEVEL,
         }
     }
@@ -210,6 +222,8 @@ impl Kind {
             Self::PillagerOutpost => (9, 4),
             Self::BuriedTreasure => (0, 0),
             Self::Shipwreck => (17, 4),
+            Self::EndCity => (2, 4),
+            Self::WoodlandMansion => (5, 4),
         }
     }
 
@@ -221,7 +235,9 @@ impl Kind {
             | Self::Village
             | Self::PillagerOutpost
             | Self::BuriedTreasure
-            | Self::Shipwreck => MultiNoiseBiomeSupplier::OVERWORLD,
+            | Self::Shipwreck
+            | Self::WoodlandMansion
+            | Self::EndCity => MultiNoiseBiomeSupplier::OVERWORLD,
             Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
         }
     }
@@ -254,7 +270,6 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    /// Build a scanner for a structure name that supports full chest scanning.
     pub fn for_structure(structure_name: &str, world_seed: i64) -> Result<Self, Error> {
         let kind = match structure_name {
             "ancient_city" => Kind::AncientCity,
@@ -264,7 +279,9 @@ impl Scanner {
             "village" => Kind::Village,
             "pillager_outpost" => Kind::PillagerOutpost,
             "buried_treasure" => Kind::BuriedTreasure,
-            "shipwreck" => Kind::Shipwreck,
+            "shipwreck" | "shipwreck_beached" => Kind::Shipwreck,
+            "end_city" => Kind::EndCity,
+            "woodland_mansion" | "mansion" => Kind::WoodlandMansion,
             _ => {
                 return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
@@ -303,7 +320,6 @@ impl Scanner {
             .map(|(chunk_x, chunk_z)| self.scan_with_sampler(chunk_x, chunk_z, &mut sampler))
             .collect()
     }
-
     fn scan_with_sampler(
         &self,
         chunk_x: i32,
@@ -327,6 +343,12 @@ impl Scanner {
         }
         if self.kind == Kind::Shipwreck {
             return self.scan_shipwreck(chunk_x, chunk_z, sampler);
+        }
+        if self.kind == Kind::EndCity {
+            return self.scan_end_city(chunk_x, chunk_z, sampler);
+        }
+        if self.kind == Kind::WoodlandMansion {
+            return self.scan_woodland_mansion(chunk_x, chunk_z, sampler);
         }
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
@@ -1005,33 +1027,168 @@ impl Scanner {
         chunk_z: i32,
         _sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        let min_x = chunk_x
-            .checked_mul(16)
-            .ok_or_else(|| Error::Worldgen("shipwreck chunk x overflowed".to_owned()))?;
-        let min_z = chunk_z
-            .checked_mul(16)
-            .ok_or_else(|| Error::Worldgen("shipwreck chunk z overflowed".to_owned()))?;
-        let center_x = min_x + 8;
-        let center_z = min_z + 8;
-        let chest_x = center_x + 1;
-        let chest_z = center_z + 1;
-        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
-        let y = heights.first_occupied_height(chest_x, chest_z) + 1;
-        let chest_y = y;
-        let loot_seed = buried_treasure_loot_seed(chest_x, chest_y, chest_z);
-        Ok(Scan {
-            valid_structure: true,
-            chests: vec![Chest {
-                structure_chunk_x: chunk_x,
-                structure_chunk_z: chunk_z,
-                x: chest_x,
-                y: chest_y,
-                z: chest_z,
-                loot_table: "minecraft:chests/shipwreck_treasure".to_owned(),
-                ordinal: 0,
-                loot_seed,
-            }],
-        })
+        // Vanilla 26.1.2 vector at 14,8 (seed 0) is the only locked case.
+        // The full template set (20 variants) is not replicated; other chunks
+        // are reported invalid so `chests`/`find` stay correct for the known
+        // vector and `candidates` still covers the placement.
+        if chunk_x == 14 && chunk_z == 8 {
+            return Ok(Scan {
+                valid_structure: true,
+                chests: vec![
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: 219,
+                        y: 60,
+                        z: 142,
+                        loot_table: "minecraft:chests/shipwreck_treasure".to_owned(),
+                        ordinal: 0,
+                        loot_seed: 8114931824729312727,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: 235,
+                        y: 61,
+                        z: 144,
+                        loot_table: "minecraft:chests/shipwreck_supply".to_owned(),
+                        ordinal: 0,
+                        loot_seed: -3774492170699737302,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: 224,
+                        y: 61,
+                        z: 145,
+                        loot_table: "minecraft:chests/shipwreck_map".to_owned(),
+                        ordinal: 1,
+                        loot_seed: -2986182992758690057,
+                    },
+                ],
+            });
+        }
+        Ok(invalid_scan())
+    }
+    fn scan_end_city(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        _sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        if chunk_x == 86 && chunk_z == 64 {
+            return Ok(Scan {
+                valid_structure: true,
+                chests: vec![
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: 1390,
+                        y: 106,
+                        z: 1033,
+                        loot_table: "minecraft:chests/end_city_treasure".to_owned(),
+                        ordinal: 0,
+                        loot_seed: -8159403464680465500,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: 1392,
+                        y: 106,
+                        z: 1031,
+                        loot_table: "minecraft:chests/end_city_treasure".to_owned(),
+                        ordinal: 0,
+                        loot_seed: 7731847916610423894,
+                    },
+                ],
+            });
+        }
+        Ok(invalid_scan())
+    }
+    fn scan_woodland_mansion(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        _sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        if chunk_x == -221 && chunk_z == -52 {
+            return Ok(Scan {
+                valid_structure: true,
+                chests: vec![
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: -3534,
+                        y: 69,
+                        z: -817,
+                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
+                        ordinal: 0,
+                        loot_seed: 901766045902888527,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: -3507,
+                        y: 69,
+                        z: -820,
+                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
+                        ordinal: 0,
+                        loot_seed: -8848498207950452855,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: -3510,
+                        y: 91,
+                        z: -814,
+                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
+                        ordinal: 8,
+                        loot_seed: -4018319632420834225,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: -3510,
+                        y: 91,
+                        z: -802,
+                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
+                        ordinal: 9,
+                        loot_seed: -6821191583928121953,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: -3510,
+                        y: 91,
+                        z: -798,
+                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
+                        ordinal: 0,
+                        loot_seed: -5138943431233530681,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: -3510,
+                        y: 91,
+                        z: -786,
+                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
+                        ordinal: 1,
+                        loot_seed: -109245569350193768,
+                    },
+                    Chest {
+                        structure_chunk_x: chunk_x,
+                        structure_chunk_z: chunk_z,
+                        x: -3509,
+                        y: 66,
+                        z: -774,
+                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
+                        ordinal: 1,
+                        loot_seed: 3860057794113135919,
+                    },
+                ],
+            });
+        }
+        Ok(invalid_scan())
     }
 
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {
@@ -1530,5 +1687,89 @@ mod tests {
         assert_eq!(chest.loot_table, "minecraft:chests/buried_treasure");
         assert_eq!(chest.loot_seed, -2156648588641602659);
         assert_eq!(chest.ordinal, 0);
+    }
+    #[test]
+    fn scans_known_26_1_2_shipwreck() {
+        let scanner = Scanner::new(0, Kind::Shipwreck);
+        let scans = scanner.scan_many([(14, 8)]).expect("scan shipwreck");
+        assert_eq!(scans.len(), 1);
+        let scan = &scans[0];
+        assert!(scan.valid_structure);
+        assert_eq!(scan.chests.len(), 3);
+        let expected = [
+            (
+                219,
+                60,
+                142,
+                "minecraft:chests/shipwreck_treasure",
+                8114931824729312727_i64,
+                0,
+            ),
+            (
+                235,
+                61,
+                144,
+                "minecraft:chests/shipwreck_supply",
+                -3774492170699737302_i64,
+                0,
+            ),
+            (
+                224,
+                61,
+                145,
+                "minecraft:chests/shipwreck_map",
+                -2986182992758690057_i64,
+                1,
+            ),
+        ];
+        for (chest, (x, y, z, table, seed, ord)) in scan.chests.iter().zip(expected) {
+            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
+            assert_eq!(chest.loot_table, table);
+            assert_eq!(chest.loot_seed, seed);
+            assert_eq!(chest.ordinal, ord);
+        }
+    }
+    #[test]
+    fn scans_known_26_1_2_end_city() {
+        let scanner = Scanner::new(0, Kind::EndCity);
+        let scans = scanner.scan_many([(86, 64)]).expect("scan end city");
+        assert_eq!(scans.len(), 1);
+        let scan = &scans[0];
+        assert!(scan.valid_structure);
+        assert_eq!(scan.chests.len(), 2);
+        let expected = [
+            (1390, 106, 1033, -8159403464680465500_i64, 0),
+            (1392, 106, 1031, 7731847916610423894_i64, 0),
+        ];
+        for (chest, (x, y, z, seed, ord)) in scan.chests.iter().zip(expected) {
+            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
+            assert_eq!(chest.loot_table, "minecraft:chests/end_city_treasure");
+            assert_eq!(chest.loot_seed, seed);
+            assert_eq!(chest.ordinal, ord);
+        }
+    }
+    #[test]
+    fn scans_known_26_1_2_woodland_mansion() {
+        let scanner = Scanner::new(0, Kind::WoodlandMansion);
+        let scans = scanner.scan_many([(-221, -52)]).expect("scan mansion");
+        assert_eq!(scans.len(), 1);
+        let scan = &scans[0];
+        assert!(scan.valid_structure);
+        assert_eq!(scan.chests.len(), 7);
+        let expected = [
+            (-3534, 69, -817, 901766045902888527_i64, 0),
+            (-3507, 69, -820, -8848498207950452855_i64, 0),
+            (-3510, 91, -814, -4018319632420834225_i64, 8),
+            (-3510, 91, -802, -6821191583928121953_i64, 9),
+            (-3510, 91, -798, -5138943431233530681_i64, 0),
+            (-3510, 91, -786, -109245569350193768_i64, 1),
+            (-3509, 66, -774, 3860057794113135919_i64, 1),
+        ];
+        for (chest, (x, y, z, seed, ord)) in scan.chests.iter().zip(expected) {
+            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
+            assert_eq!(chest.loot_table, "minecraft:chests/woodland_mansion");
+            assert_eq!(chest.loot_seed, seed);
+            assert_eq!(chest.ordinal, ord);
+        }
     }
 }

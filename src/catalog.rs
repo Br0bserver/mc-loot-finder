@@ -321,6 +321,8 @@ impl CandidateStructure {
                 | "pillager_outpost"
                 | "buried_treasure"
                 | "shipwreck"
+                | "end_city"
+                | "woodland_mansion"
         )
     }
 }
