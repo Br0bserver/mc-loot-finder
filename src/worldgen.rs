@@ -53,6 +53,7 @@ const REGION_Z_MULTIPLIER: i64 = 132_897_987_541;
 
 #[allow(dead_code)]
 fn is_village_placement_chunk(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
+    let spacing = VILLAGE_SPACING;
     let separation = VILLAGE_SEPARATION;
     let salt = VILLAGE_SALT;
     let limit = spacing - separation;
