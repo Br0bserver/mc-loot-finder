@@ -6,6 +6,7 @@ pub struct LegacyRandom48 {
     seed: u64,
 }
 
+#[allow(dead_code)]
 impl LegacyRandom48 {
     pub fn new(seed: i64) -> Self {
         Self {
