@@ -1513,4 +1513,18 @@ mod tests {
         assert_eq!(chest.loot_seed, -2156648588641602659);
         assert_eq!(chest.ordinal, 0);
     }
+    #[test]
+    fn debug_buried_frequency() {
+        let passes = buried_treasure_frequency_passes(0, 0, -22);
+        let region_seed = pumpkin_util::random::get_region_seed(0, 0, -22, 10387320);
+        let mut random = pumpkin_util::random::RandomGenerator::Xoroshiro(
+            pumpkin_util::random::xoroshiro128::Xoroshiro::from_seed(region_seed),
+        );
+        use pumpkin_util::random::RandomImpl;
+        let f = random.next_f32();
+        panic!(
+            "debug buried 0,-22: passes={} region_seed={} f={}",
+            passes, region_seed, f
+        );
+    }
 }
