@@ -96,6 +96,7 @@ fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> boo
     let bound = (1.0 / PILLAGER_FREQUENCY) as i32;
     random.next_int(bound) == 0
 }
+#[allow(dead_code)]
 fn buried_treasure_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let region_seed =
         pumpkin_util::random::get_region_seed(world_seed as u64, chunk_x, chunk_z, 10387320);
