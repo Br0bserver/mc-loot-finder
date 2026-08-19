@@ -1515,16 +1515,46 @@ mod tests {
     }
     #[test]
     fn debug_buried_frequency() {
-        let passes = buried_treasure_frequency_passes(0, 0, -22);
-        let region_seed = pumpkin_util::random::get_region_seed(0, 0, -22, 10387320);
-        let mut random = pumpkin_util::random::RandomGenerator::Xoroshiro(
-            pumpkin_util::random::xoroshiro128::Xoroshiro::from_seed(region_seed),
+        let seed = 0i64;
+        let chunk_x = 0i32;
+        let chunk_z = -22i32;
+        let region_seed_l2 =
+            pumpkin_util::random::get_region_seed(seed as u64, chunk_x, chunk_z, 10387320);
+        let mut r_l2 = pumpkin_util::random::RandomGenerator::Xoroshiro(
+            pumpkin_util::random::xoroshiro128::Xoroshiro::from_seed(region_seed_l2),
         );
         use pumpkin_util::random::RandomImpl;
-        let f = random.next_f32();
+        let f_l2 = r_l2.next_f32();
+        let region_seed_def =
+            pumpkin_util::random::get_region_seed(seed as u64, chunk_x, chunk_z, 0);
+        let mut r_def = pumpkin_util::random::RandomGenerator::Xoroshiro(
+            pumpkin_util::random::xoroshiro128::Xoroshiro::from_seed(region_seed_def),
+        );
+        let f_def = r_def.next_f32();
+        let x = chunk_x >> 4;
+        let z = chunk_z >> 4;
+        let mut r_l1 = pumpkin_util::random::legacy_rand::LegacyRand::from_seed(
+            (i64::from(x ^ (z << 4)) ^ seed) as u64,
+        );
+        let _ = r_l1.next_i32();
+        let bound = (1.0 / 0.01) as i32;
+        let f_l1 = r_l1.next_bounded_i32(bound) == 0;
+        let mut r_legacy = LegacyRandom48::new(0);
+        r_legacy.set_large_feature_seed(seed, chunk_x, chunk_z);
+        let f_legacy = r_legacy.next_double();
+        let carver_seed = pumpkin_util::random::get_carver_seed(seed as u64, chunk_x, chunk_z);
+        let mut r_l3 = pumpkin_util::random::RandomGenerator::Xoroshiro(
+            pumpkin_util::random::xoroshiro128::Xoroshiro::from_seed(carver_seed),
+        );
+        let f_l3 = r_l3.next_f64();
         panic!(
-            "debug buried 0,-22: passes={} region_seed={} f={}",
-            passes, region_seed, f
+            "debug buried 0,-22: l2 f={} (passes {}) def f={} l1 passes={} legacy f={} l3 f={}",
+            f_l2,
+            f_l2 < 0.01,
+            f_def,
+            f_l1,
+            f_legacy,
+            f_l3
         );
     }
 }
