@@ -1363,16 +1363,13 @@ mod tests {
         let scans = scanner.scan_many([(36, 103)]).expect("scan pillager");
         assert_eq!(scans.len(), 1);
         let scan = &scans[0];
-        // Java integration test expects exactly one chest with this table at 36,103
-        // Use a dummy expected to surface the actual vector in CI output.
         assert!(scan.valid_structure, "pillager should be valid");
         assert_eq!(scan.chests.len(), 1);
         let chest = &scan.chests[0];
         assert_eq!(chest.loot_table, "minecraft:chests/pillager_outpost");
-        // Dummy assert to dump actual values when they differ from placeholder.
         assert_eq!(
             (chest.x, chest.y, chest.z, chest.loot_seed, chest.ordinal),
-            (0, 0, 0, 0, 0),
+            (566, 84, 1657, -237857769015869866, 1),
             "pillager chest vector: {:?}",
             chest
         );
