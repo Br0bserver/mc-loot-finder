@@ -978,7 +978,7 @@ impl Scanner {
         let chest_x = center_x + 1;
         let chest_z = center_z + 1;
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
-        let y = heights.first_occupied_height(chest_x, chest_z);
+        let y = heights.first_occupied_height(chest_x, chest_z) + 1;
         let chest_y = y;
         let loot_seed = buried_treasure_loot_seed(chest_x, chest_y, chest_z);
         Ok(Scan {
