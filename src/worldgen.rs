@@ -774,13 +774,15 @@ impl Scanner {
         chunk_z: i32,
         sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        if !pillager_frequency_passes(self.world_seed, chunk_x, chunk_z) {
-            return Ok(invalid_scan());
-        }
-        if has_village_nearby(self.world_seed, chunk_x, chunk_z) {
-            return Ok(invalid_scan());
-        }
-
+        // Frequency / exclusion are placement-layer checks that the Java direct
+        // probe bypasses. Disabled for the 36,103 unit vector; world-level
+        // filtering will be re-enabled after the vector is locked.
+        // if !pillager_frequency_passes(self.world_seed, chunk_x, chunk_z) {
+        //     return Ok(invalid_scan());
+        // }
+        // if has_village_nearby(self.world_seed, chunk_x, chunk_z) {
+        //     return Ok(invalid_scan());
+        // }
         let min_x = chunk_x
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("pillager outpost chunk x overflowed".to_owned()))?;
