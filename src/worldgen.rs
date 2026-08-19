@@ -975,10 +975,10 @@ impl Scanner {
             .ok_or_else(|| Error::Worldgen("buried treasure chunk z overflowed".to_owned()))?;
         let center_x = min_x + 8;
         let center_z = min_z + 8;
-        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
-        let y = heights.first_occupied_height(center_x, center_z);
         let chest_x = center_x + 1;
         let chest_z = center_z + 1;
+        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let y = heights.first_occupied_height(chest_x, chest_z);
         let chest_y = y;
         let loot_seed = buried_treasure_loot_seed(chest_x, chest_y, chest_z);
         Ok(Scan {
