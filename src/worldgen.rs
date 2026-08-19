@@ -778,15 +778,12 @@ impl Scanner {
         chunk_z: i32,
         sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        // Frequency / exclusion are placement-layer checks that the Java direct
-        // probe bypasses. Disabled for the 36,103 unit vector; world-level
-        // filtering will be re-enabled after the vector is locked.
-        // if !pillager_frequency_passes(self.world_seed, chunk_x, chunk_z) {
-        //     return Ok(invalid_scan());
-        // }
-        // if has_village_nearby(self.world_seed, chunk_x, chunk_z) {
-        //     return Ok(invalid_scan());
-        // }
+        if !pillager_frequency_passes(self.world_seed, chunk_x, chunk_z) {
+            return Ok(invalid_scan());
+        }
+        if has_village_nearby(self.world_seed, chunk_x, chunk_z) {
+            return Ok(invalid_scan());
+        }
         let min_x = chunk_x
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("pillager outpost chunk x overflowed".to_owned()))?;
@@ -1359,8 +1356,14 @@ mod tests {
 
     #[test]
     fn scans_known_26_1_2_pillager_outpost() {
+        // World-level valid pillager for seed 0: chunk (-51,70) passes
+        // frequency (legacy_type_1, 0.2) and the 10-chunk village
+        // exclusion, then generates one chest. This vector was captured
+        // from the Rust scanner with placement filters enabled and matches
+        // the Java direct generation for the same chunk (except the
+        // placement filters).
         let scanner = Scanner::new(0, Kind::PillagerOutpost);
-        let scans = scanner.scan_many([(36, 103)]).expect("scan pillager");
+        let scans = scanner.scan_many([(-51, 70)]).expect("scan pillager");
         assert_eq!(scans.len(), 1);
         let scan = &scans[0];
         assert!(scan.valid_structure, "pillager should be valid");
@@ -1369,9 +1372,26 @@ mod tests {
         assert_eq!(chest.loot_table, "minecraft:chests/pillager_outpost");
         assert_eq!(
             (chest.x, chest.y, chest.z, chest.loot_seed, chest.ordinal),
-            (566, 84, 1657, -237857769015869866, 1),
+            (-826, 77, 1110, -638836315418230144, 1),
             "pillager chest vector: {:?}",
             chest
         );
+    }
+
+    #[test]
+    fn pillager_outpost_36_103_is_filtered_by_frequency() {
+        // Java's `VillageAndFortressIntegrationTest` probes pillager at
+        // 36,103 via direct `generateSelectedStructure`, bypassing the
+        // placement frequency check, and finds one chest at (566,84,1657).
+        // For world scans `isStructurePlacementChunk` rejects 36,103
+        // (legacy_type_1), so the Rust scanner must report it as invalid.
+        let scanner = Scanner::new(0, Kind::PillagerOutpost);
+        let scans = scanner.scan_many([(36, 103)]).expect("scan pillager");
+        assert_eq!(scans.len(), 1);
+        assert!(
+            !scans[0].valid_structure,
+            "36,103 should be invalid for world scan due to frequency"
+        );
+        assert!(scans[0].chests.is_empty());
     }
 }
