@@ -13,7 +13,7 @@ impl LegacyRandom48 {
         }
     }
 
-    fn next(&mut self, bits: u32) -> i32 {
+    pub fn next(&mut self, bits: u32) -> i32 {
         self.seed = self.seed.wrapping_mul(MULTIPLIER).wrapping_add(ADDEND) & MASK;
         (self.seed >> (48 - bits)) as i32
     }
@@ -30,6 +30,10 @@ impl LegacyRandom48 {
                 return value;
             }
         }
+    }
+
+    pub fn next_int_unbounded(&mut self) -> i32 {
+        self.next(32)
     }
 
     pub fn next_float(&mut self) -> f32 {

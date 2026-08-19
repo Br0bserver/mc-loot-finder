@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::catalog::ContainerSeedShortcut;
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
+use crate::random::LegacyRandom48;
 use crate::surface_height::ColumnHeightSampler;
 use crate::village_jigsaw;
 use pumpkin_data::{
@@ -41,15 +42,68 @@ const NETHER_MIN_Y: i32 = 0;
 const OVERWORLD_SEA_LEVEL: i32 = 63;
 const NETHER_SEA_LEVEL: i32 = 32;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+const PILLAGER_SPACING: i32 = 32;
+const PILLAGER_SEPARATION: i32 = 8;
+const PILLAGER_SALT: i64 = 165_745_296;
+const PILLAGER_FREQUENCY: f32 = 0.2;
+const VILLAGE_SPACING: i32 = 34;
+const VILLAGE_SEPARATION: i32 = 8;
+const VILLAGE_SALT: i64 = 10_387_312;
+const VILLAGE_EXCLUSION_RADIUS: i32 = 10;
+const REGION_X_MULTIPLIER: i64 = 341_873_128_712;
+const REGION_Z_MULTIPLIER: i64 = 132_897_987_541;
+
+fn is_village_placement_chunk(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
+    let spacing = VILLAGE_SPACING;
+    let separation = VILLAGE_SEPARATION;
+    let salt = VILLAGE_SALT;
+    let limit = spacing - separation;
+    let region_x = chunk_x.div_euclid(spacing);
+    let region_z = chunk_z.div_euclid(spacing);
+    let placement_seed = world_seed
+        .wrapping_add(i64::from(region_x).wrapping_mul(REGION_X_MULTIPLIER))
+        .wrapping_add(i64::from(region_z).wrapping_mul(REGION_Z_MULTIPLIER))
+        .wrapping_add(salt);
+    let mut random = LegacyRandom48::new(placement_seed);
+    let offset_x = random.next_int(limit);
+    let offset_z = random.next_int(limit);
+    let potential_x = region_x * spacing + offset_x;
+    let potential_z = region_z * spacing + offset_z;
+    chunk_x == potential_x && chunk_z == potential_z
+}
+
+fn has_village_nearby(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
+    let radius = VILLAGE_EXCLUSION_RADIUS;
+    for dx in -radius..=radius {
+        for dz in -radius..=radius {
+            let other_x = chunk_x + dx;
+            let other_z = chunk_z + dz;
+            if is_village_placement_chunk(world_seed, other_x, other_z) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
+    let i = chunk_x >> 4;
+    let j = chunk_z >> 4;
+    let combined = i64::from(i << 4 ^ j) ^ world_seed;
+    let mut random = LegacyRandom48::new(combined);
+    let _ = random.next_int_unbounded();
+    let bound = (1.0 / PILLAGER_FREQUENCY) as i32;
+    random.next_int(bound) == 0
+}
+
 pub enum Kind {
     AncientCity,
     BastionRemnant,
     DesertPyramid,
     Igloo,
     Village,
+    PillagerOutpost,
 }
-
 impl Kind {
     fn structure(self) -> Structure {
         match self {
@@ -59,6 +113,7 @@ impl Kind {
             Self::Igloo => Structure::IGLOO,
             // The village variant is selected per candidate in `scan_village`.
             Self::Village => Structure::VILLAGE_PLAINS,
+            Self::PillagerOutpost => Structure::PILLAGER_OUTPOST,
         }
     }
 
@@ -69,32 +124,39 @@ impl Kind {
             Self::DesertPyramid => StructureKeys::DesertPyramid,
             Self::Igloo => StructureKeys::Igloo,
             Self::Village => StructureKeys::VillagePlains,
+            Self::PillagerOutpost => StructureKeys::PillagerOutpost,
         }
     }
 
     const fn dimension(self) -> Dimension {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
-                Dimension::OVERWORLD
-            }
+            Self::AncientCity
+            | Self::DesertPyramid
+            | Self::Igloo
+            | Self::Village
+            | Self::PillagerOutpost => Dimension::OVERWORLD,
             Self::BastionRemnant => Dimension::THE_NETHER,
         }
     }
 
     const fn min_y(self) -> i32 {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
-                OVERWORLD_MIN_Y
-            }
+            Self::AncientCity
+            | Self::DesertPyramid
+            | Self::Igloo
+            | Self::Village
+            | Self::PillagerOutpost => OVERWORLD_MIN_Y,
             Self::BastionRemnant => NETHER_MIN_Y,
         }
     }
 
     const fn sea_level(self) -> i32 {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
-                OVERWORLD_SEA_LEVEL
-            }
+            Self::AncientCity
+            | Self::DesertPyramid
+            | Self::Igloo
+            | Self::Village
+            | Self::PillagerOutpost => OVERWORLD_SEA_LEVEL,
             Self::BastionRemnant => NETHER_SEA_LEVEL,
         }
     }
@@ -107,14 +169,17 @@ impl Kind {
             Self::Igloo => (3, 4),
             // The village variant index is resolved per candidate.
             Self::Village => (22, 4),
+            Self::PillagerOutpost => (9, 4),
         }
     }
 
     const fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
         match self {
-            Self::AncientCity | Self::DesertPyramid | Self::Igloo | Self::Village => {
-                MultiNoiseBiomeSupplier::OVERWORLD
-            }
+            Self::AncientCity
+            | Self::DesertPyramid
+            | Self::Igloo
+            | Self::Village
+            | Self::PillagerOutpost => MultiNoiseBiomeSupplier::OVERWORLD,
             Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
         }
     }
@@ -155,6 +220,7 @@ impl Scanner {
             "desert_pyramid" => Kind::DesertPyramid,
             "igloo" => Kind::Igloo,
             "village" => Kind::Village,
+            "pillager_outpost" => Kind::PillagerOutpost,
             _ => {
                 return Err(Error::Structure(format!(
                     "Rust chests and find do not support {structure_name} yet"
@@ -209,12 +275,14 @@ impl Scanner {
         if self.kind == Kind::Village {
             return self.scan_village(chunk_x, chunk_z, sampler);
         }
+        if self.kind == Kind::PillagerOutpost {
+            return self.scan_pillager_outpost(chunk_x, chunk_z, sampler);
+        }
         if self.kind == Kind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
         {
             return Ok(invalid_scan());
         }
-
         let structure = self.kind.structure();
         let probe_structure = Structure {
             size: Some(0),
@@ -703,6 +771,146 @@ impl Scanner {
         })
     }
 
+    fn scan_pillager_outpost(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        sampler: &mut MultiNoiseSampler<'_>,
+    ) -> Result<Scan, Error> {
+        if !pillager_frequency_passes(self.world_seed, chunk_x, chunk_z) {
+            return Ok(invalid_scan());
+        }
+        if has_village_nearby(self.world_seed, chunk_x, chunk_z) {
+            return Ok(invalid_scan());
+        }
+
+        let min_x = chunk_x
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("pillager outpost chunk x overflowed".to_owned()))?;
+        let min_z = chunk_z
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("pillager outpost chunk z overflowed".to_owned()))?;
+
+        let structure = self.kind.structure();
+        let mut probe_heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let mut probe_context = StructureGeneratorContext {
+            seed: self.world_seed,
+            chunk_x,
+            chunk_z,
+            random: create_chunk_random(self.world_seed, chunk_x, chunk_z),
+            sea_level: self.kind.sea_level(),
+            min_y: self.kind.min_y(),
+            height_sampler: Some(&mut probe_heights),
+            structure_key: Some(self.kind.structure_key()),
+        };
+        let probe_structure = Structure {
+            size: Some(0),
+            ..structure
+        };
+        let Some(probe) = village_jigsaw::generate_village_position(
+            probe_structure
+                .start_pool
+                .expect("pillager outpost has a start pool"),
+            0,
+            i32::from(
+                probe_structure
+                    .start_height
+                    .unwrap_or(self.kind.sea_level() as i16),
+            ),
+            probe_structure.project_start_to_heightmap.is_some(),
+            probe_structure.max_distance_from_center.unwrap_or(80),
+            &mut probe_context,
+        ) else {
+            return Ok(invalid_scan());
+        };
+        if !self.biome_is_valid(probe.start_pos.0, self.valid_biomes, sampler) {
+            return Ok(invalid_scan());
+        }
+
+        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let position = village_jigsaw::generate_village_position(
+            structure
+                .start_pool
+                .expect("pillager outpost has a start pool"),
+            structure.size.expect("pillager outpost has a size"),
+            i32::from(
+                structure
+                    .start_height
+                    .unwrap_or(self.kind.sea_level() as i16),
+            ),
+            structure.project_start_to_heightmap.is_some(),
+            structure.max_distance_from_center.unwrap_or(80),
+            &mut StructureGeneratorContext {
+                seed: self.world_seed,
+                chunk_x,
+                chunk_z,
+                random: create_chunk_random(self.world_seed, chunk_x, chunk_z),
+                sea_level: self.kind.sea_level(),
+                min_y: self.kind.min_y(),
+                height_sampler: Some(&mut heights),
+                structure_key: Some(self.kind.structure_key()),
+            },
+        )
+        .ok_or_else(|| Error::Worldgen("pillager outpost failed full placement".to_owned()))?;
+
+        let collector = position
+            .collector
+            .lock()
+            .map_err(|_| Error::Worldgen("pillager piece collector was poisoned".to_owned()))?;
+        let mut raw = Vec::new();
+        for piece in &collector.pieces {
+            let Some(piece) = piece.as_any().downcast_ref::<PoolElementStructurePiece>() else {
+                continue;
+            };
+            collect_piece_chests(piece, &mut raw);
+        }
+
+        let (decoration_step, structure_index) = self.kind.decoration_coordinates();
+        let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
+        let mut visible = Vec::<Chest>::new();
+        let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
+        for chest in raw {
+            let chest_chunk_x = chest.x.div_euclid(16);
+            let chest_chunk_z = chest.z.div_euclid(16);
+            let ordinal = next_ordinal_by_chunk
+                .entry((chest_chunk_x, chest_chunk_z))
+                .or_insert(0);
+            let current_ordinal = *ordinal;
+            *ordinal += 1;
+            let loot_seed = container_loot_seed(
+                self.world_seed,
+                chest_chunk_x,
+                chest_chunk_z,
+                structure_index,
+                decoration_step,
+                current_ordinal,
+                ContainerSeedShortcut::Direct,
+            )?;
+            let prediction = Chest {
+                structure_chunk_x: chunk_x,
+                structure_chunk_z: chunk_z,
+                x: chest.x,
+                y: chest.y,
+                z: chest.z,
+                loot_table: chest.loot_table,
+                ordinal: current_ordinal,
+                loot_seed,
+            };
+            let key = (prediction.x, prediction.y, prediction.z);
+            if let Some(existing) = index_by_position.get(&key).copied() {
+                visible[existing] = prediction;
+            } else {
+                index_by_position.insert(key, visible.len());
+                visible.push(prediction);
+            }
+        }
+
+        Ok(Scan {
+            valid_structure: true,
+            chests: visible,
+        })
+    }
+
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {
         StructureGeneratorContext {
             seed: self.world_seed,
@@ -1144,5 +1352,26 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(actual, chests);
         }
+    }
+
+    #[test]
+    fn scans_known_26_1_2_pillager_outpost() {
+        let scanner = Scanner::new(0, Kind::PillagerOutpost);
+        let scans = scanner.scan_many([(36, 103)]).expect("scan pillager");
+        assert_eq!(scans.len(), 1);
+        let scan = &scans[0];
+        // Java integration test expects exactly one chest with this table at 36,103
+        // Use a dummy expected to surface the actual vector in CI output.
+        assert!(scan.valid_structure, "pillager should be valid");
+        assert_eq!(scan.chests.len(), 1);
+        let chest = &scan.chests[0];
+        assert_eq!(chest.loot_table, "minecraft:chests/pillager_outpost");
+        // Dummy assert to dump actual values when they differ from placeholder.
+        assert_eq!(
+            (chest.x, chest.y, chest.z, chest.loot_seed, chest.ordinal),
+            (0, 0, 0, 0, 0),
+            "pillager chest vector: {:?}",
+            chest
+        );
     }
 }

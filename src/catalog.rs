@@ -286,9 +286,9 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "pillager_outpost",
         dimension: "minecraft:overworld",
         placement: linear(32, 8, 165_745_296),
-        decoration_step: -1,
-        structure_index: -1,
-        container_seed: ContainerSeedShortcut::None,
+        decoration_step: 4,
+        structure_index: 9,
+        container_seed: ContainerSeedShortcut::Direct,
         scanner: "JIGSAW_FAST",
         loot_tables: &["minecraft:chests/pillager_outpost"],
         default_item: "minecraft:sentry_armor_trim_smithing_template",
@@ -313,7 +313,12 @@ impl CandidateStructure {
     pub fn supports_full_scan(&self) -> bool {
         matches!(
             self.name,
-            "ancient_city" | "bastion_remnant" | "desert_pyramid" | "igloo" | "village"
+            "ancient_city"
+                | "bastion_remnant"
+                | "desert_pyramid"
+                | "igloo"
+                | "village"
+                | "pillager_outpost"
         )
     }
 }
