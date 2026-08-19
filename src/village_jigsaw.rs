@@ -305,6 +305,7 @@ pub fn generate_village_position(
     start_y: i32,
     project_start_to_heightmap: bool,
     max_distance_from_center: i32,
+    use_expansion_hack: bool,
     context: &mut StructureGeneratorContext<'_>,
 ) -> Option<StructurePosition> {
     let max_depth = size.clamp(0, 20);
@@ -535,41 +536,43 @@ pub fn generate_village_position(
                             let target_box = rotated_box(target_pos, target_size, target_rotation);
                             let mut target_collision_box = target_box;
 
-                            let mut expand_to = 0;
-                            if (target_box.max.y - target_box.min.y + 1) <= 16 {
-                                for tj in &target_jigsaws {
-                                    let tj_facing = rotate_direction(tj.facing, target_rotation);
-                                    let rotated_tj_pos = rotate_pos(tj.pos.0, target_rotation);
-                                    let rotated_tj_target_pos =
-                                        rotated_tj_pos.add(&tj_facing.to_vector());
+                            if use_expansion_hack {
+                                let mut expand_to = 0;
+                                if (target_box.max.y - target_box.min.y + 1) <= 16 {
+                                    for tj in &target_jigsaws {
+                                        let tj_facing = rotate_direction(tj.facing, target_rotation);
+                                        let rotated_tj_pos = rotate_pos(tj.pos.0, target_rotation);
+                                        let rotated_tj_target_pos =
+                                            rotated_tj_pos.add(&tj_facing.to_vector());
 
-                                    let hack_box = rotated_box(
-                                        BlockPos::new(0, 0, 0),
-                                        target_size,
-                                        target_rotation,
-                                    );
-                                    if hack_box.contains(
-                                        rotated_tj_target_pos.x,
-                                        rotated_tj_target_pos.y,
-                                        rotated_tj_target_pos.z,
-                                    ) {
-                                        let child_pool_id = &tj.pool;
-                                        let child_pool_max_y = get_pool_max_y_size(child_pool_id);
-                                        let child_fallback_max_y =
-                                            TemplatePool::discover(child_pool_id)
-                                                .map_or(0, |cp| get_pool_max_y_size(&cp.fallback));
-                                        expand_to = expand_to
-                                            .max(child_pool_max_y)
-                                            .max(child_fallback_max_y);
+                                        let hack_box = rotated_box(
+                                            BlockPos::new(0, 0, 0),
+                                            target_size,
+                                            target_rotation,
+                                        );
+                                        if hack_box.contains(
+                                            rotated_tj_target_pos.x,
+                                            rotated_tj_target_pos.y,
+                                            rotated_tj_target_pos.z,
+                                        ) {
+                                            let child_pool_id = &tj.pool;
+                                            let child_pool_max_y = get_pool_max_y_size(child_pool_id);
+                                            let child_fallback_max_y =
+                                                TemplatePool::discover(child_pool_id)
+                                                    .map_or(0, |cp| get_pool_max_y_size(&cp.fallback));
+                                            expand_to = expand_to
+                                                .max(child_pool_max_y)
+                                                .max(child_fallback_max_y);
+                                        }
                                     }
                                 }
-                            }
 
-                            if expand_to > 0 {
-                                let max_y_offset = (expand_to + 1)
-                                    .max(target_collision_box.max.y - target_collision_box.min.y);
-                                target_collision_box.max.y =
-                                    target_collision_box.min.y + max_y_offset;
+                                if expand_to > 0 {
+                                    let max_y_offset = (expand_to + 1)
+                                        .max(target_collision_box.max.y - target_collision_box.min.y);
+                                    target_collision_box.max.y =
+                                        target_collision_box.min.y + max_y_offset;
+                                }
                             }
 
                             // Vanilla checks `sourceBox.isInside` against the

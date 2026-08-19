@@ -675,6 +675,7 @@ impl Scanner {
                 ),
                 probe_structure.project_start_to_heightmap.is_some(),
                 probe_structure.max_distance_from_center.unwrap_or(80),
+                true,
                 &mut probe_context,
             ) else {
                 continue;
@@ -688,7 +689,6 @@ impl Scanner {
         let Some((structure, key, index)) = selected else {
             return Ok(invalid_scan());
         };
-
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
         let position = village_jigsaw::generate_village_position(
             structure
@@ -702,6 +702,7 @@ impl Scanner {
             ),
             structure.project_start_to_heightmap.is_some(),
             structure.max_distance_from_center.unwrap_or(80),
+            true,
             &mut StructureGeneratorContext {
                 seed: self.world_seed,
                 chunk_x,
@@ -819,6 +820,7 @@ impl Scanner {
             ),
             probe_structure.project_start_to_heightmap.is_some(),
             probe_structure.max_distance_from_center.unwrap_or(80),
+            true,
             &mut probe_context,
         ) else {
             return Ok(invalid_scan());
@@ -826,7 +828,6 @@ impl Scanner {
         if !self.biome_is_valid(probe.start_pos.0, self.valid_biomes, sampler) {
             return Ok(invalid_scan());
         }
-
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
         let position = village_jigsaw::generate_village_position(
             structure
@@ -840,6 +841,7 @@ impl Scanner {
             ),
             structure.project_start_to_heightmap.is_some(),
             structure.max_distance_from_center.unwrap_or(80),
+            true,
             &mut StructureGeneratorContext {
                 seed: self.world_seed,
                 chunk_x,
