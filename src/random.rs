@@ -58,9 +58,7 @@ impl LegacyRandom48 {
         self.set_seed(seed);
         let a = self.next_long();
         let b = self.next_long();
-        let c = (i64::from(chunk_x).wrapping_mul(a))
-            ^ (i64::from(chunk_z).wrapping_mul(b))
-            ^ seed;
+        let c = (i64::from(chunk_x).wrapping_mul(a)) ^ (i64::from(chunk_z).wrapping_mul(b)) ^ seed;
         self.set_seed(c);
     }
 }

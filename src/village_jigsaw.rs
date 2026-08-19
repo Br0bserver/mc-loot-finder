@@ -540,7 +540,8 @@ pub fn generate_village_position(
                                 let mut expand_to = 0;
                                 if (target_box.max.y - target_box.min.y + 1) <= 16 {
                                     for tj in &target_jigsaws {
-                                        let tj_facing = rotate_direction(tj.facing, target_rotation);
+                                        let tj_facing =
+                                            rotate_direction(tj.facing, target_rotation);
                                         let rotated_tj_pos = rotate_pos(tj.pos.0, target_rotation);
                                         let rotated_tj_target_pos =
                                             rotated_tj_pos.add(&tj_facing.to_vector());
@@ -556,10 +557,13 @@ pub fn generate_village_position(
                                             rotated_tj_target_pos.z,
                                         ) {
                                             let child_pool_id = &tj.pool;
-                                            let child_pool_max_y = get_pool_max_y_size(child_pool_id);
+                                            let child_pool_max_y =
+                                                get_pool_max_y_size(child_pool_id);
                                             let child_fallback_max_y =
                                                 TemplatePool::discover(child_pool_id)
-                                                    .map_or(0, |cp| get_pool_max_y_size(&cp.fallback));
+                                                    .map_or(0, |cp| {
+                                                        get_pool_max_y_size(&cp.fallback)
+                                                    });
                                             expand_to = expand_to
                                                 .max(child_pool_max_y)
                                                 .max(child_fallback_max_y);
@@ -568,8 +572,9 @@ pub fn generate_village_position(
                                 }
 
                                 if expand_to > 0 {
-                                    let max_y_offset = (expand_to + 1)
-                                        .max(target_collision_box.max.y - target_collision_box.min.y);
+                                    let max_y_offset = (expand_to + 1).max(
+                                        target_collision_box.max.y - target_collision_box.min.y,
+                                    );
                                     target_collision_box.max.y =
                                         target_collision_box.min.y + max_y_offset;
                                 }
