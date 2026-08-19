@@ -256,6 +256,50 @@ jobs:
           if actual != expected:
               raise SystemExit(f"unexpected village find result: {result}")
           PY
+      - name: Run pillager outpost smoke test
+        run: |
+          result=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder chests \
+            --seed 0 \
+            --structure pillager_outpost \
+            --radius 5000 \
+            --limit 1000 \
+            --json)
+          python3 - "$result" <<'PY'
+          import json
+          import sys
+
+          result = json.loads(sys.argv[1])
+          expected = {
+              "placement_candidates": 298,
+              "valid_structures": 10,
+              "chest_count": 10,
+          }
+          actual = {key: result[key] for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected pillager chests result: {result}")
+          PY
+          result=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder find \
+            --seed 0 \
+            --structure pillager_outpost \
+            --item minecraft:sentry_armor_trim_smithing_template \
+            --radius 5000 \
+            --limit 20 \
+            --json)
+          python3 - "$result" <<'PY'
+          import json
+          import sys
+
+          result = json.loads(sys.argv[1])
+          expected = {
+              "placement_candidates": 298,
+              "valid_structures": 10,
+              "checked_chests": 10,
+              "hits": 1,
+          }
+          actual = {key: result[key] for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected pillager find result: {result}")
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: ancient-city-chests
@@ -423,6 +467,41 @@ jobs:
               $result.checked_chests -ne 155 -or
               $result.hits -ne 3) {
             throw "unexpected village find result: $json"
+          }
+      - name: Run pillager outpost smoke test
+        shell: pwsh
+        run: |
+          $json = & target\release\mc-loot-finder.exe chests `
+            --seed 0 `
+            --structure pillager_outpost `
+            --radius 5000 `
+            --limit 1000 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "chests exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 298 -or
+              $result.valid_structures -ne 10 -or
+              $result.chest_count -ne 10) {
+            throw "unexpected pillager chests result: $json"
+          }
+          $json = & target\release\mc-loot-finder.exe find `
+            --seed 0 `
+            --structure pillager_outpost `
+            --item minecraft:sentry_armor_trim_smithing_template `
+            --radius 5000 `
+            --limit 20 `
+            --json
+          if ($LASTEXITCODE -ne 0) {
+            throw "find exited with status $LASTEXITCODE"
+          }
+          $result = $json | ConvertFrom-Json
+          if ($result.placement_candidates -ne 298 -or
+              $result.valid_structures -ne 10 -or
+              $result.checked_chests -ne 10 -or
+              $result.hits -ne 1) {
+            throw "unexpected pillager find result: $json"
           }
       - name: Prepare Windows binary
         shell: pwsh
