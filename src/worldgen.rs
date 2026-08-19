@@ -108,7 +108,7 @@ fn buried_treasure_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32)
 }
 
 const fn hash_block_pos(x: i32, y: i32, z: i32) -> i64 {
-    let l = ((x as i64).wrapping_mul(3129871)) ^ ((z as i64).wrapping_mul(116129781)) ^ (y as i64);
+    let l = ((x.wrapping_mul(3129871)) as i64) ^ ((z as i64).wrapping_mul(116129781)) ^ (y as i64);
     let l = l
         .wrapping_mul(l)
         .wrapping_mul(42317861)
@@ -1001,11 +1001,37 @@ impl Scanner {
     }
     fn scan_shipwreck(
         &self,
-        _chunk_x: i32,
-        _chunk_z: i32,
+        chunk_x: i32,
+        chunk_z: i32,
         _sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        Ok(invalid_scan())
+        let min_x = chunk_x
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("shipwreck chunk x overflowed".to_owned()))?;
+        let min_z = chunk_z
+            .checked_mul(16)
+            .ok_or_else(|| Error::Worldgen("shipwreck chunk z overflowed".to_owned()))?;
+        let center_x = min_x + 8;
+        let center_z = min_z + 8;
+        let chest_x = center_x + 1;
+        let chest_z = center_z + 1;
+        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let y = heights.first_occupied_height(chest_x, chest_z) + 1;
+        let chest_y = y;
+        let loot_seed = buried_treasure_loot_seed(chest_x, chest_y, chest_z);
+        Ok(Scan {
+            valid_structure: true,
+            chests: vec![Chest {
+                structure_chunk_x: chunk_x,
+                structure_chunk_z: chunk_z,
+                x: chest_x,
+                y: chest_y,
+                z: chest_z,
+                loot_table: "minecraft:chests/shipwreck_treasure".to_owned(),
+                ordinal: 0,
+                loot_seed,
+            }],
+        })
     }
 
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {

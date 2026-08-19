@@ -320,6 +320,7 @@ impl CandidateStructure {
                 | "village"
                 | "pillager_outpost"
                 | "buried_treasure"
+                | "shipwreck"
         )
     }
 }
