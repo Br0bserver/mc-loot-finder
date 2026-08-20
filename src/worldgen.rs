@@ -41,8 +41,6 @@ const OVERWORLD_MIN_Y: i32 = -64;
 const NETHER_MIN_Y: i32 = 0;
 const OVERWORLD_SEA_LEVEL: i32 = 63;
 const NETHER_SEA_LEVEL: i32 = 32;
-
-#[allow(dead_code)]
 const PILLAGER_FREQUENCY: f32 = 0.2;
 const VILLAGE_SPACING: i32 = 34;
 const VILLAGE_SEPARATION: i32 = 8;
@@ -51,7 +49,6 @@ const VILLAGE_EXCLUSION_RADIUS: i32 = 10;
 const REGION_X_MULTIPLIER: i64 = 341_873_128_712;
 const REGION_Z_MULTIPLIER: i64 = 132_897_987_541;
 
-#[allow(dead_code)]
 fn is_village_placement_chunk(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let spacing = VILLAGE_SPACING;
     let separation = VILLAGE_SEPARATION;
@@ -71,7 +68,6 @@ fn is_village_placement_chunk(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bo
     chunk_x == potential_x && chunk_z == potential_z
 }
 
-#[allow(dead_code)]
 fn has_village_nearby(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let radius = VILLAGE_EXCLUSION_RADIUS;
     for dx in -radius..=radius {
@@ -86,7 +82,6 @@ fn has_village_nearby(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     false
 }
 
-#[allow(dead_code)]
 fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let i = chunk_x >> 4;
     let j = chunk_z >> 4;
@@ -95,16 +90,6 @@ fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> boo
     let _ = random.next_int_unbounded();
     let bound = (1.0 / PILLAGER_FREQUENCY) as i32;
     random.next_int(bound) == 0
-}
-#[allow(dead_code)]
-fn buried_treasure_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
-    let region_seed =
-        pumpkin_util::random::get_region_seed(world_seed as u64, chunk_x, chunk_z, 10387320);
-    let mut random = pumpkin_util::random::RandomGenerator::Xoroshiro(
-        pumpkin_util::random::xoroshiro128::Xoroshiro::from_seed(region_seed),
-    );
-    use pumpkin_util::random::RandomImpl;
-    random.next_f32() < 0.01
 }
 
 const fn hash_block_pos(x: i32, y: i32, z: i32) -> i64 {
@@ -1771,5 +1756,22 @@ mod tests {
             assert_eq!(chest.loot_seed, seed);
             assert_eq!(chest.ordinal, ord);
         }
+    }
+    #[test]
+    fn hash_block_pos_is_i32_wrapped() {
+        // pumpkin-util 24702a1: x is i32-wrapped before cast, z is i64-wrapped.
+        // 9,63,-343 is the buried treasure vector; hash must be 24503658047811
+        // (verified against pumpkin_util::random::hash_block_pos).
+        assert_eq!(hash_block_pos(9, 63, -343), 24503658047811);
+        assert_eq!(hash_block_pos(9, 62, -343), 75975561363974);
+        // negative x wrapping check: -2 *3129871 wraps differently than (x as i64)*3129871
+        let x = -2_000_000_000_i32;
+        let wrapped = (x.wrapping_mul(3129871) as i64) ^ ((0_i64).wrapping_mul(116129781)) ^ 0_i64;
+        let expected = wrapped
+            .wrapping_mul(wrapped)
+            .wrapping_mul(42317861)
+            .wrapping_add(wrapped.wrapping_mul(11))
+            >> 16;
+        assert_eq!(hash_block_pos(x, 0, 0), expected);
     }
 }
