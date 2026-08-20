@@ -120,112 +120,130 @@ pub enum Kind {
     WoodlandMansion,
 }
 impl Kind {
+    const fn profile(self) -> KindProfile {
+        match self {
+            Self::AncientCity => KindProfile {
+                structure: Structure::ANCIENT_CITY,
+                key: StructureKeys::AncientCity,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (7, 0),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::BastionRemnant => KindProfile {
+                structure: Structure::BASTION_REMNANT,
+                key: StructureKeys::BastionRemnant,
+                dimension: Dimension::THE_NETHER,
+                min_y: NETHER_MIN_Y,
+                sea_level: NETHER_SEA_LEVEL,
+                decoration: (4, 0),
+                biome: MultiNoiseBiomeSupplier::NETHER,
+            },
+            Self::DesertPyramid => KindProfile {
+                structure: Structure::DESERT_PYRAMID,
+                key: StructureKeys::DesertPyramid,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (1, 4),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::Igloo => KindProfile {
+                structure: Structure::IGLOO,
+                key: StructureKeys::Igloo,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (3, 4),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::Village => KindProfile {
+                structure: Structure::VILLAGE_PLAINS,
+                key: StructureKeys::VillagePlains,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (22, 4),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::PillagerOutpost => KindProfile {
+                structure: Structure::PILLAGER_OUTPOST,
+                key: StructureKeys::PillagerOutpost,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (9, 4),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::BuriedTreasure => KindProfile {
+                structure: Structure::BURIED_TREASURE,
+                key: StructureKeys::BuriedTreasure,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (0, 0),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::Shipwreck => KindProfile {
+                structure: Structure::SHIPWRECK,
+                key: StructureKeys::Shipwreck,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (17, 4),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::EndCity => KindProfile {
+                structure: Structure::END_CITY,
+                key: StructureKeys::EndCity,
+                dimension: Dimension::THE_END,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (2, 4),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+            Self::WoodlandMansion => KindProfile {
+                structure: Structure::MANSION,
+                key: StructureKeys::Mansion,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                decoration: (5, 4),
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
+        }
+    }
     fn structure(self) -> Structure {
-        match self {
-            Self::AncientCity => Structure::ANCIENT_CITY,
-            Self::BastionRemnant => Structure::BASTION_REMNANT,
-            Self::DesertPyramid => Structure::DESERT_PYRAMID,
-            Self::Igloo => Structure::IGLOO,
-            // The village variant is selected per candidate in `scan_village`.
-            Self::Village => Structure::VILLAGE_PLAINS,
-            Self::PillagerOutpost => Structure::PILLAGER_OUTPOST,
-            Self::BuriedTreasure => Structure::BURIED_TREASURE,
-            Self::Shipwreck => Structure::SHIPWRECK,
-            Self::EndCity => Structure::END_CITY,
-            Self::WoodlandMansion => Structure::MANSION,
-        }
+        self.profile().structure
     }
-
     const fn structure_key(self) -> StructureKeys {
-        match self {
-            Self::AncientCity => StructureKeys::AncientCity,
-            Self::BastionRemnant => StructureKeys::BastionRemnant,
-            Self::DesertPyramid => StructureKeys::DesertPyramid,
-            Self::Igloo => StructureKeys::Igloo,
-            Self::Village => StructureKeys::VillagePlains,
-            Self::PillagerOutpost => StructureKeys::PillagerOutpost,
-            Self::BuriedTreasure => StructureKeys::BuriedTreasure,
-            Self::Shipwreck => StructureKeys::Shipwreck,
-            Self::EndCity => StructureKeys::EndCity,
-            Self::WoodlandMansion => StructureKeys::Mansion,
-        }
+        self.profile().key
     }
-
     const fn dimension(self) -> Dimension {
-        match self {
-            Self::AncientCity
-            | Self::DesertPyramid
-            | Self::Igloo
-            | Self::Village
-            | Self::PillagerOutpost
-            | Self::BuriedTreasure
-            | Self::Shipwreck
-            | Self::WoodlandMansion => Dimension::OVERWORLD,
-            Self::BastionRemnant => Dimension::THE_NETHER,
-            Self::EndCity => Dimension::THE_END,
-        }
+        self.profile().dimension
     }
-
     const fn min_y(self) -> i32 {
-        match self {
-            Self::AncientCity
-            | Self::DesertPyramid
-            | Self::Igloo
-            | Self::Village
-            | Self::PillagerOutpost
-            | Self::BuriedTreasure
-            | Self::Shipwreck
-            | Self::WoodlandMansion
-            | Self::EndCity => OVERWORLD_MIN_Y,
-            Self::BastionRemnant => NETHER_MIN_Y,
-        }
+        self.profile().min_y
     }
-
     const fn sea_level(self) -> i32 {
-        match self {
-            Self::AncientCity
-            | Self::DesertPyramid
-            | Self::Igloo
-            | Self::Village
-            | Self::PillagerOutpost
-            | Self::BuriedTreasure
-            | Self::Shipwreck
-            | Self::WoodlandMansion
-            | Self::EndCity => OVERWORLD_SEA_LEVEL,
-            Self::BastionRemnant => NETHER_SEA_LEVEL,
-        }
+        self.profile().sea_level
     }
-
     const fn decoration_coordinates(self) -> (i32, i32) {
-        match self {
-            Self::AncientCity => (7, 0),
-            Self::BastionRemnant => (4, 0),
-            Self::DesertPyramid => (1, 4),
-            Self::Igloo => (3, 4),
-            // The village variant index is resolved per candidate.
-            Self::Village => (22, 4),
-            Self::PillagerOutpost => (9, 4),
-            Self::BuriedTreasure => (0, 0),
-            Self::Shipwreck => (17, 4),
-            Self::EndCity => (2, 4),
-            Self::WoodlandMansion => (5, 4),
-        }
+        self.profile().decoration
     }
-
     const fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
-        match self {
-            Self::AncientCity
-            | Self::DesertPyramid
-            | Self::Igloo
-            | Self::Village
-            | Self::PillagerOutpost
-            | Self::BuriedTreasure
-            | Self::Shipwreck
-            | Self::WoodlandMansion
-            | Self::EndCity => MultiNoiseBiomeSupplier::OVERWORLD,
-            Self::BastionRemnant => MultiNoiseBiomeSupplier::NETHER,
-        }
+        self.profile().biome
     }
+}
+struct KindProfile {
+    structure: Structure,
+    key: StructureKeys,
+    dimension: Dimension,
+    min_y: i32,
+    sea_level: i32,
+    decoration: (i32, i32),
+    biome: MultiNoiseBiomeSupplier,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
