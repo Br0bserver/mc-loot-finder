@@ -73,11 +73,11 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
 ## 添加新结构的检查清单
 
 1. `src/catalog.rs`：目录条目（若无）+ `supports_full_scan()` 放行。
-2. `src/worldgen.rs`：`Kind` 新变体（`Kind::profile` 单一来源，含 structure/key/dimension/min_y/sea_level/decoration/biome）+ `Scanner::for_structure` 匹配 + 扫描实现。桩向量（stub）类结构走 `src/worldgen/stubs.rs` 集中 13向量，通过 `stubs::stub_scan(kind, chunk)` 统一入口。
+2. `src/worldgen/`：`Kind` 新变体在 `src/worldgen/kind.rs`（`Kind::profile` 单一来源，含 structure/key/dimension/min_y/sea_level/decoration/biome）+ `Scanner::for_structure` 匹配 + 扫描实现。桩向量（stub）类结构走 `src/worldgen/stubs.rs` 集中，通过 `stubs::stub_scan(kind, chunk)` 统一入口。
 3. 地表锚定结构：用 `src/surface_height.rs`（`base_height` = vanilla `getBaseHeight`；`first_occupied_height` = `getBaseHeight - 1`，对应 `getFirstOccupiedHeight`）。注意 vanilla 各检查点用哪个函数：沙漠神殿角点海平面检查与 biome 位置用 `first_occupied_height`，piece 基座高度用 `base_height`。
-4. 容器去重与种子：复用 `dedup_and_seed_chests(world_seed, raw, structure_chunk, index, step, shortcut)`（`HashMap::with_capacity` 预分配），避免 `next_ordinal_by_chunk`/`index_by_position` 复制。
+4. 容器去重与种子：复用 `dedup_and_seed_chests(world_seed, raw, structure_chunk, index, step, shortcut)`（`HashMap::with_capacity` 预分配，`Chest.loot_table: &'static str` 复用静态字面量，避免克隆），避免 `next_ordinal_by_chunk`/`index_by_position` 复制。
 5. 对拍测试：把 Java 真值向量写进 `worldgen.rs` 的单元测试（位置、y、loot seed、ordinal 全锁）；无效候选也要锁（valid=false、chests 空）。新增 `hash_block_pos` 等基础回归。
-6. `.github/workflows/rust.yml`：Linux + Windows 各加 smoke 断言；`clippy pedantic` 非阻塞检查已启用。
+6. `.github/workflows/rust.yml`：Linux + Windows 各加 smoke 断言；`clippy pedantic` 非阻塞检查已启用（`|| true`）。
 7. 提交后 CI 全绿，再拉 artifact 本地 smoke 复验。
 ## 本地允许 / 禁止速查
 
