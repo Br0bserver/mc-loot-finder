@@ -1136,9 +1136,9 @@ fn dedup_and_seed_chests(
     decoration_step: i32,
     shortcut: ContainerSeedShortcut,
 ) -> Result<Vec<Chest>, Error> {
-    let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
-    let mut visible = Vec::<Chest>::new();
-    let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
+    let mut next_ordinal_by_chunk = HashMap::with_capacity(4);
+    let mut visible = Vec::with_capacity(raw.len());
+    let mut index_by_position = HashMap::with_capacity(raw.len());
     for chest in raw {
         let chest_chunk_x = chest.x.div_euclid(16);
         let chest_chunk_z = chest.z.div_euclid(16);

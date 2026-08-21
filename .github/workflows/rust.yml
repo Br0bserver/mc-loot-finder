@@ -52,6 +52,8 @@ jobs:
         run: cargo fmt --check
       - name: Lint with clippy
         run: cargo clippy --all-targets -- -D warnings
+      - name: Lint with clippy pedantic (non-blocking)
+        run: cargo clippy --all-targets -- -W clippy::pedantic || true
       - name: Check Rust CLI
         run: cargo check --locked
       - name: Test Rust CLI
