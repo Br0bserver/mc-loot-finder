@@ -967,20 +967,37 @@ fn static_loot_table(table: &str) -> &'static str {
         "minecraft:chests/end_city_treasure" => "minecraft:chests/end_city_treasure",
         "minecraft:chests/woodland_mansion" => "minecraft:chests/woodland_mansion",
         "minecraft:chests/pillager_outpost" => "minecraft:chests/pillager_outpost",
+        "minecraft:chests/village/village_armorer" => "minecraft:chests/village/village_armorer",
+        "minecraft:chests/village/village_butcher" => "minecraft:chests/village/village_butcher",
+        "minecraft:chests/village/village_cartographer" => {
+            "minecraft:chests/village/village_cartographer"
+        }
         "minecraft:chests/village/village_desert_house" => {
             "minecraft:chests/village/village_desert_house"
         }
+        "minecraft:chests/village/village_fisher" => "minecraft:chests/village/village_fisher",
+        "minecraft:chests/village/village_fletcher" => "minecraft:chests/village/village_fletcher",
+        "minecraft:chests/village/village_mason" => "minecraft:chests/village/village_mason",
         "minecraft:chests/village/village_plains_house" => {
             "minecraft:chests/village/village_plains_house"
         }
         "minecraft:chests/village/village_savanna_house" => {
             "minecraft:chests/village/village_savanna_house"
         }
+        "minecraft:chests/village/village_shepherd" => "minecraft:chests/village/village_shepherd",
         "minecraft:chests/village/village_snowy_house" => {
             "minecraft:chests/village/village_snowy_house"
         }
         "minecraft:chests/village/village_taiga_house" => {
             "minecraft:chests/village/village_taiga_house"
+        }
+        "minecraft:chests/village/village_tannery" => "minecraft:chests/village/village_tannery",
+        "minecraft:chests/village/village_temple" => "minecraft:chests/village/village_temple",
+        "minecraft:chests/village/village_toolsmith" => {
+            "minecraft:chests/village/village_toolsmith"
+        }
+        "minecraft:chests/village/village_weaponsmith" => {
+            "minecraft:chests/village/village_weaponsmith"
         }
         "" => "",
         _ => "",
