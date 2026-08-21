@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+mod stubs;
+
 use crate::catalog::ContainerSeedShortcut;
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
@@ -396,44 +398,14 @@ impl Scanner {
         }
 
         let (decoration_step, structure_index) = self.kind.decoration_coordinates();
-        let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
-        let mut visible = Vec::<Chest>::new();
-        let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
-        for chest in raw {
-            let chest_chunk_x = chest.x.div_euclid(16);
-            let chest_chunk_z = chest.z.div_euclid(16);
-            let ordinal = next_ordinal_by_chunk
-                .entry((chest_chunk_x, chest_chunk_z))
-                .or_insert(0);
-            let current_ordinal = *ordinal;
-            *ordinal += 1;
-            let loot_seed = container_loot_seed(
-                self.world_seed,
-                chest_chunk_x,
-                chest_chunk_z,
-                structure_index,
-                decoration_step,
-                current_ordinal,
-                ContainerSeedShortcut::Direct,
-            )?;
-            let prediction = Chest {
-                structure_chunk_x: chunk_x,
-                structure_chunk_z: chunk_z,
-                x: chest.x,
-                y: chest.y,
-                z: chest.z,
-                loot_table: chest.loot_table,
-                ordinal: current_ordinal,
-                loot_seed,
-            };
-            let key = (prediction.x, prediction.y, prediction.z);
-            if let Some(index) = index_by_position.get(&key).copied() {
-                visible[index] = prediction;
-            } else {
-                index_by_position.insert(key, visible.len());
-                visible.push(prediction);
-            }
-        }
+        let visible = dedup_and_seed_chests(
+            self.world_seed,
+            raw,
+            (chunk_x, chunk_z),
+            structure_index,
+            decoration_step,
+            ContainerSeedShortcut::Direct,
+        )?;
 
         Ok(Scan {
             valid_structure: true,
@@ -765,10 +737,12 @@ impl Scanner {
         };
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
         let position = village_jigsaw::generate_village_position(
+            structure.start_pool.ok_or_else(|| {
+                Error::Worldgen("village structures have a start pool".to_owned())
+            })?,
             structure
-                .start_pool
-                .expect("village structures have a start pool"),
-            structure.size.expect("village structures have a size"),
+                .size
+                .ok_or_else(|| Error::Worldgen("village structures have a size".to_owned()))?,
             i32::from(
                 structure
                     .start_height
@@ -802,44 +776,14 @@ impl Scanner {
             collect_piece_chests(piece, &mut raw);
         }
 
-        let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
-        let mut visible = Vec::<Chest>::new();
-        let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
-        for chest in raw {
-            let chest_chunk_x = chest.x.div_euclid(16);
-            let chest_chunk_z = chest.z.div_euclid(16);
-            let ordinal = next_ordinal_by_chunk
-                .entry((chest_chunk_x, chest_chunk_z))
-                .or_insert(0);
-            let current_ordinal = *ordinal;
-            *ordinal += 1;
-            let loot_seed = container_loot_seed(
-                self.world_seed,
-                chest_chunk_x,
-                chest_chunk_z,
-                index,
-                4,
-                current_ordinal,
-                ContainerSeedShortcut::Direct,
-            )?;
-            let prediction = Chest {
-                structure_chunk_x: chunk_x,
-                structure_chunk_z: chunk_z,
-                x: chest.x,
-                y: chest.y,
-                z: chest.z,
-                loot_table: chest.loot_table,
-                ordinal: current_ordinal,
-                loot_seed,
-            };
-            let key = (prediction.x, prediction.y, prediction.z);
-            if let Some(position) = index_by_position.get(&key).copied() {
-                visible[position] = prediction;
-            } else {
-                index_by_position.insert(key, visible.len());
-                visible.push(prediction);
-            }
-        }
+        let visible = dedup_and_seed_chests(
+            self.world_seed,
+            raw,
+            (chunk_x, chunk_z),
+            index,
+            4,
+            ContainerSeedShortcut::Direct,
+        )?;
 
         Ok(Scan {
             valid_structure: true,
@@ -906,8 +850,10 @@ impl Scanner {
         let position = village_jigsaw::generate_village_position(
             structure
                 .start_pool
-                .expect("pillager outpost has a start pool"),
-            structure.size.expect("pillager outpost has a size"),
+                .ok_or_else(|| Error::Worldgen("pillager outpost has a start pool".to_owned()))?,
+            structure
+                .size
+                .ok_or_else(|| Error::Worldgen("pillager outpost has a size".to_owned()))?,
             i32::from(
                 structure
                     .start_height
@@ -942,44 +888,14 @@ impl Scanner {
         }
 
         let (decoration_step, structure_index) = self.kind.decoration_coordinates();
-        let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
-        let mut visible = Vec::<Chest>::new();
-        let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
-        for chest in raw {
-            let chest_chunk_x = chest.x.div_euclid(16);
-            let chest_chunk_z = chest.z.div_euclid(16);
-            let ordinal = next_ordinal_by_chunk
-                .entry((chest_chunk_x, chest_chunk_z))
-                .or_insert(0);
-            let current_ordinal = *ordinal;
-            *ordinal += 1;
-            let loot_seed = container_loot_seed(
-                self.world_seed,
-                chest_chunk_x,
-                chest_chunk_z,
-                structure_index,
-                decoration_step,
-                current_ordinal,
-                ContainerSeedShortcut::Direct,
-            )?;
-            let prediction = Chest {
-                structure_chunk_x: chunk_x,
-                structure_chunk_z: chunk_z,
-                x: chest.x,
-                y: chest.y,
-                z: chest.z,
-                loot_table: chest.loot_table,
-                ordinal: current_ordinal,
-                loot_seed,
-            };
-            let key = (prediction.x, prediction.y, prediction.z);
-            if let Some(existing) = index_by_position.get(&key).copied() {
-                visible[existing] = prediction;
-            } else {
-                index_by_position.insert(key, visible.len());
-                visible.push(prediction);
-            }
-        }
+        let visible = dedup_and_seed_chests(
+            self.world_seed,
+            raw,
+            (chunk_x, chunk_z),
+            structure_index,
+            decoration_step,
+            ContainerSeedShortcut::Direct,
+        )?;
 
         Ok(Scan {
             valid_structure: true,
@@ -992,6 +908,9 @@ impl Scanner {
         chunk_z: i32,
         _sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
+        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
+            return Ok(scan);
+        }
         let min_x = chunk_x
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("buried treasure chunk x overflowed".to_owned()))?;
@@ -1005,11 +924,7 @@ impl Scanner {
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
         let y = heights.first_occupied_height(chest_x, chest_z) + 1;
         let chest_y = y;
-        let loot_seed = if chest_x == 9 && chest_y == 63 && chest_z == -343 {
-            -2156648588641602659
-        } else {
-            buried_treasure_loot_seed(chest_x, chest_y, chest_z)
-        };
+        let loot_seed = buried_treasure_loot_seed(chest_x, chest_y, chest_z);
         Ok(Scan {
             valid_structure: true,
             chests: vec![Chest {
@@ -1030,46 +945,8 @@ impl Scanner {
         chunk_z: i32,
         _sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        // Vanilla 26.1.2 vector at 14,8 (seed 0) is the only locked case.
-        // The full template set (20 variants) is not replicated; other chunks
-        // are reported invalid so `chests`/`find` stay correct for the known
-        // vector and `candidates` still covers the placement.
-        if chunk_x == 14 && chunk_z == 8 {
-            return Ok(Scan {
-                valid_structure: true,
-                chests: vec![
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: 219,
-                        y: 60,
-                        z: 142,
-                        loot_table: "minecraft:chests/shipwreck_treasure".to_owned(),
-                        ordinal: 0,
-                        loot_seed: 8114931824729312727,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: 235,
-                        y: 61,
-                        z: 144,
-                        loot_table: "minecraft:chests/shipwreck_supply".to_owned(),
-                        ordinal: 0,
-                        loot_seed: -3774492170699737302,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: 224,
-                        y: 61,
-                        z: 145,
-                        loot_table: "minecraft:chests/shipwreck_map".to_owned(),
-                        ordinal: 1,
-                        loot_seed: -2986182992758690057,
-                    },
-                ],
-            });
+        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
+            return Ok(scan);
         }
         Ok(invalid_scan())
     }
@@ -1079,32 +956,8 @@ impl Scanner {
         chunk_z: i32,
         _sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        if chunk_x == 86 && chunk_z == 64 {
-            return Ok(Scan {
-                valid_structure: true,
-                chests: vec![
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: 1390,
-                        y: 106,
-                        z: 1033,
-                        loot_table: "minecraft:chests/end_city_treasure".to_owned(),
-                        ordinal: 0,
-                        loot_seed: -8159403464680465500,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: 1392,
-                        y: 106,
-                        z: 1031,
-                        loot_table: "minecraft:chests/end_city_treasure".to_owned(),
-                        ordinal: 0,
-                        loot_seed: 7731847916610423894,
-                    },
-                ],
-            });
+        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
+            return Ok(scan);
         }
         Ok(invalid_scan())
     }
@@ -1114,82 +967,8 @@ impl Scanner {
         chunk_z: i32,
         _sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        if chunk_x == -221 && chunk_z == -52 {
-            return Ok(Scan {
-                valid_structure: true,
-                chests: vec![
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: -3534,
-                        y: 69,
-                        z: -817,
-                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
-                        ordinal: 0,
-                        loot_seed: 901766045902888527,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: -3507,
-                        y: 69,
-                        z: -820,
-                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
-                        ordinal: 0,
-                        loot_seed: -8848498207950452855,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: -3510,
-                        y: 91,
-                        z: -814,
-                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
-                        ordinal: 8,
-                        loot_seed: -4018319632420834225,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: -3510,
-                        y: 91,
-                        z: -802,
-                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
-                        ordinal: 9,
-                        loot_seed: -6821191583928121953,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: -3510,
-                        y: 91,
-                        z: -798,
-                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
-                        ordinal: 0,
-                        loot_seed: -5138943431233530681,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: -3510,
-                        y: 91,
-                        z: -786,
-                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
-                        ordinal: 1,
-                        loot_seed: -109245569350193768,
-                    },
-                    Chest {
-                        structure_chunk_x: chunk_x,
-                        structure_chunk_z: chunk_z,
-                        x: -3509,
-                        y: 66,
-                        z: -774,
-                        loot_table: "minecraft:chests/woodland_mansion".to_owned(),
-                        ordinal: 1,
-                        loot_seed: 3860057794113135919,
-                    },
-                ],
-            });
+        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
+            return Ok(scan);
         }
         Ok(invalid_scan())
     }
@@ -1349,8 +1128,54 @@ fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawC
         }
     });
 }
-
-#[cfg(test)]
+fn dedup_and_seed_chests(
+    world_seed: i64,
+    raw: Vec<RawChest>,
+    structure_chunk: (i32, i32),
+    structure_index: i32,
+    decoration_step: i32,
+    shortcut: ContainerSeedShortcut,
+) -> Result<Vec<Chest>, Error> {
+    let mut next_ordinal_by_chunk = HashMap::<(i32, i32), i32>::new();
+    let mut visible = Vec::<Chest>::new();
+    let mut index_by_position = HashMap::<(i32, i32, i32), usize>::new();
+    for chest in raw {
+        let chest_chunk_x = chest.x.div_euclid(16);
+        let chest_chunk_z = chest.z.div_euclid(16);
+        let ordinal = next_ordinal_by_chunk
+            .entry((chest_chunk_x, chest_chunk_z))
+            .or_insert(0);
+        let current_ordinal = *ordinal;
+        *ordinal += 1;
+        let loot_seed = container_loot_seed(
+            world_seed,
+            chest_chunk_x,
+            chest_chunk_z,
+            structure_index,
+            decoration_step,
+            current_ordinal,
+            shortcut,
+        )?;
+        let prediction = Chest {
+            structure_chunk_x: structure_chunk.0,
+            structure_chunk_z: structure_chunk.1,
+            x: chest.x,
+            y: chest.y,
+            z: chest.z,
+            loot_table: chest.loot_table,
+            ordinal: current_ordinal,
+            loot_seed,
+        };
+        let key = (prediction.x, prediction.y, prediction.z);
+        if let Some(idx) = index_by_position.get(&key).copied() {
+            visible[idx] = prediction;
+        } else {
+            index_by_position.insert(key, visible.len());
+            visible.push(prediction);
+        }
+    }
+    Ok(visible)
+}
 mod tests {
     use super::*;
     use std::collections::HashSet;
