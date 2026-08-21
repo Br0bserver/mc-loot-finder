@@ -1,4 +1,4 @@
-use super::{Chest, Kind, Scan, invalid_scan};
+use super::{Chest, Kind, Scan};
 
 pub fn stub_scan(kind: Kind, chunk_x: i32, chunk_z: i32) -> Option<Scan> {
     match kind {

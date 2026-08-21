@@ -122,7 +122,7 @@ pub enum Kind {
     WoodlandMansion,
 }
 impl Kind {
-    const fn profile(self) -> KindProfile {
+    fn profile(self) -> KindProfile {
         match self {
             Self::AncientCity => KindProfile {
                 structure: Structure::ANCIENT_CITY,
@@ -219,22 +219,22 @@ impl Kind {
     fn structure(self) -> Structure {
         self.profile().structure
     }
-    const fn structure_key(self) -> StructureKeys {
+    fn structure_key(self) -> StructureKeys {
         self.profile().key
     }
-    const fn dimension(self) -> Dimension {
+    fn dimension(self) -> Dimension {
         self.profile().dimension
     }
-    const fn min_y(self) -> i32 {
+    fn min_y(self) -> i32 {
         self.profile().min_y
     }
-    const fn sea_level(self) -> i32 {
+    fn sea_level(self) -> i32 {
         self.profile().sea_level
     }
-    const fn decoration_coordinates(self) -> (i32, i32) {
+    fn decoration_coordinates(self) -> (i32, i32) {
         self.profile().decoration
     }
-    const fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
+    fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
         self.profile().biome
     }
 }
@@ -1178,6 +1178,7 @@ fn dedup_and_seed_chests(
 }
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
     use std::collections::HashSet;
 
     #[test]
