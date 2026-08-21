@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+mod kind;
+pub use kind::Kind;
 mod stubs;
-
 use crate::catalog::ContainerSeedShortcut;
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
@@ -108,145 +109,6 @@ fn buried_treasure_loot_seed(x: i32, y: i32, z: i32) -> i64 {
     let mut random = LegacyRandom48::new(hash);
     random.next_long()
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Kind {
-    AncientCity,
-    BastionRemnant,
-    DesertPyramid,
-    Igloo,
-    Village,
-    PillagerOutpost,
-    BuriedTreasure,
-    Shipwreck,
-    EndCity,
-    WoodlandMansion,
-}
-impl Kind {
-    fn profile(self) -> KindProfile {
-        match self {
-            Self::AncientCity => KindProfile {
-                structure: Structure::ANCIENT_CITY,
-                key: StructureKeys::AncientCity,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (7, 0),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::BastionRemnant => KindProfile {
-                structure: Structure::BASTION_REMNANT,
-                key: StructureKeys::BastionRemnant,
-                dimension: Dimension::THE_NETHER,
-                min_y: NETHER_MIN_Y,
-                sea_level: NETHER_SEA_LEVEL,
-                decoration: (4, 0),
-                biome: MultiNoiseBiomeSupplier::NETHER,
-            },
-            Self::DesertPyramid => KindProfile {
-                structure: Structure::DESERT_PYRAMID,
-                key: StructureKeys::DesertPyramid,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (1, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::Igloo => KindProfile {
-                structure: Structure::IGLOO,
-                key: StructureKeys::Igloo,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (3, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::Village => KindProfile {
-                structure: Structure::VILLAGE_PLAINS,
-                key: StructureKeys::VillagePlains,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (22, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::PillagerOutpost => KindProfile {
-                structure: Structure::PILLAGER_OUTPOST,
-                key: StructureKeys::PillagerOutpost,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (9, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::BuriedTreasure => KindProfile {
-                structure: Structure::BURIED_TREASURE,
-                key: StructureKeys::BuriedTreasure,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (0, 0),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::Shipwreck => KindProfile {
-                structure: Structure::SHIPWRECK,
-                key: StructureKeys::Shipwreck,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (17, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::EndCity => KindProfile {
-                structure: Structure::END_CITY,
-                key: StructureKeys::EndCity,
-                dimension: Dimension::THE_END,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (2, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::WoodlandMansion => KindProfile {
-                structure: Structure::MANSION,
-                key: StructureKeys::Mansion,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (5, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-        }
-    }
-    fn structure(self) -> Structure {
-        self.profile().structure
-    }
-    fn structure_key(self) -> StructureKeys {
-        self.profile().key
-    }
-    fn dimension(self) -> Dimension {
-        self.profile().dimension
-    }
-    fn min_y(self) -> i32 {
-        self.profile().min_y
-    }
-    fn sea_level(self) -> i32 {
-        self.profile().sea_level
-    }
-    fn decoration_coordinates(self) -> (i32, i32) {
-        self.profile().decoration
-    }
-    fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
-        self.profile().biome
-    }
-}
-struct KindProfile {
-    structure: Structure,
-    key: StructureKeys,
-    dimension: Dimension,
-    min_y: i32,
-    sea_level: i32,
-    decoration: (i32, i32),
-    biome: MultiNoiseBiomeSupplier,
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Chest {
@@ -255,7 +117,7 @@ pub struct Chest {
     pub x: i32,
     pub y: i32,
     pub z: i32,
-    pub loot_table: String,
+    pub loot_table: &'static str,
     pub ordinal: i32,
     pub loot_seed: i64,
 }
@@ -536,7 +398,7 @@ impl Scanner {
                 x: chest_world_x(facing, &adjusted_box, local_x, local_z),
                 y: base_y - 11,
                 z: chest_world_z(facing, &adjusted_box, local_x, local_z),
-                loot_table: "minecraft:chests/desert_pyramid".to_owned(),
+                loot_table: "minecraft:chests/desert_pyramid",
                 ordinal: ordinal as i32,
                 loot_seed,
             });
@@ -630,7 +492,7 @@ impl Scanner {
                 x: min_x + chest_rel_x,
                 y: chest_y,
                 z: min_z - 2 + chest_rel_z,
-                loot_table: "minecraft:chests/igloo_chest".to_owned(),
+                loot_table: "minecraft:chests/igloo_chest",
                 ordinal: 0,
                 loot_seed,
             }],
@@ -933,7 +795,7 @@ impl Scanner {
                 x: chest_x,
                 y: chest_y,
                 z: chest_z,
-                loot_table: "minecraft:chests/buried_treasure".to_owned(),
+                loot_table: "minecraft:chests/buried_treasure",
                 ordinal: 0,
                 loot_seed,
             }],
@@ -1087,9 +949,44 @@ struct RawChest {
     x: i32,
     y: i32,
     z: i32,
-    loot_table: String,
+    loot_table: &'static str,
 }
 
+fn static_loot_table(table: String) -> &'static str {
+    match table.as_str() {
+        "minecraft:chests/ancient_city" => "minecraft:chests/ancient_city",
+        "minecraft:chests/bastion_bridge" => "minecraft:chests/bastion_bridge",
+        "minecraft:chests/bastion_hoglin_stable" => "minecraft:chests/bastion_hoglin_stable",
+        "minecraft:chests/bastion_other" => "minecraft:chests/bastion_other",
+        "minecraft:chests/bastion_treasure" => "minecraft:chests/bastion_treasure",
+        "minecraft:chests/desert_pyramid" => "minecraft:chests/desert_pyramid",
+        "minecraft:chests/igloo_chest" => "minecraft:chests/igloo_chest",
+        "minecraft:chests/buried_treasure" => "minecraft:chests/buried_treasure",
+        "minecraft:chests/shipwreck_supply" => "minecraft:chests/shipwreck_supply",
+        "minecraft:chests/shipwreck_treasure" => "minecraft:chests/shipwreck_treasure",
+        "minecraft:chests/shipwreck_map" => "minecraft:chests/shipwreck_map",
+        "minecraft:chests/end_city_treasure" => "minecraft:chests/end_city_treasure",
+        "minecraft:chests/woodland_mansion" => "minecraft:chests/woodland_mansion",
+        "minecraft:chests/pillager_outpost" => "minecraft:chests/pillager_outpost",
+        "minecraft:chests/village/village_desert_house" => {
+            "minecraft:chests/village/village_desert_house"
+        }
+        "minecraft:chests/village/village_plains_house" => {
+            "minecraft:chests/village/village_plains_house"
+        }
+        "minecraft:chests/village/village_savanna_house" => {
+            "minecraft:chests/village/village_savanna_house"
+        }
+        "minecraft:chests/village/village_snowy_house" => {
+            "minecraft:chests/village/village_snowy_house"
+        }
+        "minecraft:chests/village/village_taiga_house" => {
+            "minecraft:chests/village/village_taiga_house"
+        }
+        "" => "",
+        _ => "",
+    }
+}
 fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawChest>) {
     let origin = piece.pos.0;
     piece.element.for_each_template(|_, _, _, template| {
@@ -1117,8 +1014,8 @@ fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawC
                 .nbt
                 .as_ref()
                 .and_then(|nbt| nbt.get_string("LootTable"))
-                .unwrap_or_default()
-                .to_owned();
+                .map(static_loot_table)
+                .unwrap_or("");
             output.push(RawChest {
                 x: world.x,
                 y: world.y,
@@ -1232,7 +1129,7 @@ mod tests {
                 x: 180,
                 y: 80,
                 z: -233,
-                loot_table: "minecraft:chests/bastion_bridge".to_owned(),
+                loot_table: "minecraft:chests/bastion_bridge",
                 ordinal: 0,
                 loot_seed: 1_335_123_538_721_756_194,
             })
@@ -1245,7 +1142,7 @@ mod tests {
                 x: -428,
                 y: 35,
                 z: -189,
-                loot_table: "minecraft:chests/bastion_other".to_owned(),
+                loot_table: "minecraft:chests/bastion_other",
                 ordinal: 0,
                 loot_seed: -5_513_880_696_554_537_352,
             })
@@ -1258,7 +1155,7 @@ mod tests {
                 x: 1011,
                 y: 35,
                 z: 496,
-                loot_table: "minecraft:chests/bastion_treasure".to_owned(),
+                loot_table: "minecraft:chests/bastion_treasure",
                 ordinal: 0,
                 loot_seed: -6_403_023_197_147_397_919,
             })
@@ -1267,7 +1164,7 @@ mod tests {
         let tables = scans
             .iter()
             .flat_map(|scan| scan.chests.iter())
-            .map(|chest| chest.loot_table.as_str())
+            .map(|chest| chest.loot_table)
             .collect::<HashSet<_>>();
         assert_eq!(
             tables,
@@ -1340,7 +1237,7 @@ mod tests {
                 .iter()
                 .map(|chest| {
                     (
-                        chest.loot_table.as_str(),
+                        chest.loot_table,
                         (chest.x, chest.y, chest.z, chest.loot_seed),
                     )
                 })

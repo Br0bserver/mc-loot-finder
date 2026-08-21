@@ -27,7 +27,7 @@ pub fn run(args: FindArgs) -> Result<u8, Error> {
         }
         valid_structures += 1;
         for chest in scan.chests {
-            if !structure.loot_tables.contains(&chest.loot_table.as_str()) {
+            if !structure.loot_tables.contains(&chest.loot_table) {
                 continue;
             }
             checked_chests += 1;
@@ -66,7 +66,7 @@ pub fn run(args: FindArgs) -> Result<u8, Error> {
                     y: chest.y,
                     z: chest.z,
                     item_count: *item_count,
-                    loot_table: chest.loot_table.clone(),
+                    loot_table: chest.loot_table.to_owned(),
                     loot_seed: chest.loot_seed,
                     start_chunk_x: chest.structure_chunk_x,
                     start_chunk_z: chest.structure_chunk_z,
