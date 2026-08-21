@@ -10,7 +10,6 @@ use crate::random::LegacyRandom48;
 use crate::surface_height::ColumnHeightSampler;
 use crate::village_jigsaw;
 use pumpkin_data::{
-    dimension::Dimension,
     structures::{Structure, StructureKeys},
     tag::{RegistryKey, get_tag_values},
 };
@@ -24,7 +23,7 @@ use pumpkin_world::generation::structure::structures::{
     StructurePieceBase, desert_pyramid::DesertPyramidPiece, jigsaw::PoolElementStructurePiece,
 };
 use pumpkin_world::{
-    biome::{BiomeSupplier, MultiNoiseBiomeSupplier},
+    biome::BiomeSupplier,
     generation::{
         biome_coords,
         generator::{GeneratorInit, VanillaGenerator},
@@ -952,8 +951,8 @@ struct RawChest {
     loot_table: &'static str,
 }
 
-fn static_loot_table(table: String) -> &'static str {
-    match table.as_str() {
+fn static_loot_table(table: &str) -> &'static str {
+    match table {
         "minecraft:chests/ancient_city" => "minecraft:chests/ancient_city",
         "minecraft:chests/bastion_bridge" => "minecraft:chests/bastion_bridge",
         "minecraft:chests/bastion_hoglin_stable" => "minecraft:chests/bastion_hoglin_stable",
