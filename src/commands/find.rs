@@ -35,7 +35,7 @@ pub fn run(args: FindArgs) -> Result<u8, Error> {
                 unpredictable_zero_seeds += 1;
                 continue;
             }
-            let item_count = loot::roll(&chest.loot_table, chest.loot_seed)?
+            let item_count = loot::roll(chest.loot_table, chest.loot_seed)?
                 .into_iter()
                 .filter(|stack| stack.item == item)
                 .map(|stack| stack.count)
