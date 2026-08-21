@@ -1176,6 +1176,7 @@ fn dedup_and_seed_chests(
     }
     Ok(visible)
 }
+#[cfg(test)]
 mod tests {
     use super::*;
     #[allow(unused_imports)]
@@ -1601,6 +1602,7 @@ mod tests {
             assert_eq!(chest.ordinal, ord);
         }
     }
+    #[allow(clippy::identity_op)]
     #[test]
     fn hash_block_pos_is_i32_wrapped() {
         // pumpkin-util 24702a1: x is i32-wrapped before cast, z is i64-wrapped.
