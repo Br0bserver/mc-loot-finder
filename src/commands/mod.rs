@@ -18,7 +18,7 @@ pub(crate) fn locate_and_scan(
     center_z: i32,
     radius: i32,
 ) -> Result<(Vec<Candidate>, Vec<Scan>), Error> {
-    let scanner = worldgen::Scanner::for_structure(structure.name, world_seed)?;
+    let scanner = worldgen::Scanner::for_structure(structure, world_seed)?;
     let candidates =
         placement::locate(world_seed, center_x, center_z, radius, structure.placement)?;
     let scans = scanner.scan_many(candidates.iter().map(|c| (c.chunk_x, c.chunk_z)))?;

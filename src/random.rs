@@ -32,6 +32,10 @@ impl LegacyRandom48 {
         }
     }
 
+    pub fn next_int_unbounded(&mut self) -> i32 {
+        self.next(32)
+    }
+
     pub fn next_float(&mut self) -> f32 {
         self.next(24) as f32 * 2_f32.powi(-24)
     }

@@ -8,7 +8,7 @@ mod output;
 mod placement;
 mod random;
 mod surface_height;
-mod village_jigsaw;
+mod surface_jigsaw;
 mod worldgen;
 
 use std::process::ExitCode;

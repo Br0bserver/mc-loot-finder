@@ -14,6 +14,43 @@ pub struct Candidate {
     pub squared_distance: i64,
 }
 
+fn candidate_chunk(
+    world_seed: i64,
+    region_x: i32,
+    region_z: i32,
+    placement: Placement,
+) -> (i32, i32) {
+    let limit = placement.spacing - placement.separation;
+    let placement_seed = world_seed
+        .wrapping_add(i64::from(region_x).wrapping_mul(REGION_X_MULTIPLIER))
+        .wrapping_add(i64::from(region_z).wrapping_mul(REGION_Z_MULTIPLIER))
+        .wrapping_add(placement.salt);
+    let mut random = LegacyRandom48::new(placement_seed);
+    let mut offset_x = random.next_int(limit);
+    let offset_z = match placement.spread {
+        SpreadType::Triangular => {
+            offset_x = (offset_x + random.next_int(limit)) / 2;
+            (random.next_int(limit) + random.next_int(limit)) / 2
+        }
+        SpreadType::Linear => random.next_int(limit),
+    };
+    (
+        region_x * placement.spacing + offset_x,
+        region_z * placement.spacing + offset_z,
+    )
+}
+
+pub fn is_placement_chunk(
+    world_seed: i64,
+    chunk_x: i32,
+    chunk_z: i32,
+    placement: Placement,
+) -> bool {
+    let region_x = chunk_x.div_euclid(placement.spacing);
+    let region_z = chunk_z.div_euclid(placement.spacing);
+    candidate_chunk(world_seed, region_x, region_z, placement) == (chunk_x, chunk_z)
+}
+
 pub fn locate(
     world_seed: i64,
     center_x: i32,
@@ -52,22 +89,7 @@ pub fn locate(
     let mut candidates = Vec::new();
     for region_x in min_region_x..=max_region_x {
         for region_z in min_region_z..=max_region_z {
-            let limit = placement.spacing - placement.separation;
-            let placement_seed = world_seed
-                .wrapping_add(i64::from(region_x).wrapping_mul(REGION_X_MULTIPLIER))
-                .wrapping_add(i64::from(region_z).wrapping_mul(REGION_Z_MULTIPLIER))
-                .wrapping_add(placement.salt);
-            let mut random = LegacyRandom48::new(placement_seed);
-            let mut offset_x = random.next_int(limit);
-            let offset_z = match placement.spread {
-                SpreadType::Triangular => {
-                    offset_x = (offset_x + random.next_int(limit)) / 2;
-                    (random.next_int(limit) + random.next_int(limit)) / 2
-                }
-                SpreadType::Linear => random.next_int(limit),
-            };
-            let chunk_x = region_x * placement.spacing + offset_x;
-            let chunk_z = region_z * placement.spacing + offset_z;
+            let (chunk_x, chunk_z) = candidate_chunk(world_seed, region_x, region_z, placement);
             let block_x = i64::from(chunk_x) * 16 + 8;
             let block_z = i64::from(chunk_z) * 16 + 8;
             let dx = block_x - i64::from(center_x);
@@ -112,6 +134,17 @@ mod tests {
 
         assert_eq!(candidates.len(), 537);
         assert_eq!((candidates[0].chunk_x, candidates[0].chunk_z), (9, 7));
+        assert!(is_placement_chunk(
+            0,
+            candidates[0].chunk_x,
+            candidates[0].chunk_z,
+            Placement {
+                spacing: 24,
+                separation: 8,
+                salt: 20_083_232,
+                spread: SpreadType::Linear,
+            },
+        ));
         assert_eq!((candidates[1].chunk_x, candidates[1].chunk_z), (8, -16));
     }
 
