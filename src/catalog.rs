@@ -23,10 +23,12 @@ pub enum ScanKind {
     Village,
     PillagerOutpost,
     BuriedTreasure,
+    Shipwreck,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ContainerSeedShortcut {
+    Unavailable,
     Direct,
     DesertPyramid,
 }
@@ -34,6 +36,7 @@ pub enum ContainerSeedShortcut {
 impl ContainerSeedShortcut {
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::Unavailable => "NONE",
             Self::Direct => "DIRECT",
             Self::DesertPyramid => "DESERT_PYRAMID",
         }
@@ -93,6 +96,15 @@ const fn linear(spacing: i32, separation: i32, salt: i64) -> Placement {
 }
 
 pub const VILLAGE_PLACEMENT: Placement = linear(34, 8, 10_387_312);
+
+pub const fn shipwreck_decoration(is_beached: bool) -> DecorationSeedSpec {
+    DecorationSeedSpec {
+        structure_index: if is_beached { 18 } else { 17 },
+        step: 4,
+        ordinal_offset: 0,
+        shortcut: ContainerSeedShortcut::Unavailable,
+    }
+}
 
 const fn triangular(spacing: i32, separation: i32, salt: i64) -> Placement {
     Placement {
@@ -253,7 +265,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "shipwreck",
-        support: ScanSupport::CandidatesOnly,
+        support: ScanSupport::Full(ScanKind::Shipwreck),
         structure_id: "minecraft:shipwreck",
         structure_path: "shipwreck",
         dimension: "minecraft:overworld",

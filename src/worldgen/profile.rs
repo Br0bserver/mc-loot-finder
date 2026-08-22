@@ -67,6 +67,14 @@ impl ScanKind {
                 sea_level: OVERWORLD_SEA_LEVEL,
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
+            Self::Shipwreck => KindProfile {
+                structure: Structure::SHIPWRECK,
+                key: StructureKeys::Shipwreck,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
         }
     }
     pub(crate) fn structure(self) -> Structure {

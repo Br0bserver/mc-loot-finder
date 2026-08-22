@@ -383,6 +383,61 @@ fn scans_known_26_1_2_buried_treasures() {
 }
 
 #[test]
+fn scans_known_26_1_2_shipwrecks() {
+    // Generated and queried from actual vanilla 26.1.2 server chunks. The first
+    // vector is beached and consumes nextInt(3) in the first intersecting
+    // decoration chunk before its template block entities; the second is ocean.
+    let scanner = Scanner::new(0, ScanKind::Shipwreck);
+    let scans = scanner
+        .scan_many([(14, 8), (-21, -33)])
+        .expect("scan known shipwrecks");
+    let expected = [
+        vec![
+            (
+                (219, 61, 142),
+                "minecraft:chests/shipwreck_treasure",
+                -756_378_412_031_281_064,
+                0,
+            ),
+            (
+                (235, 62, 144),
+                "minecraft:chests/shipwreck_supply",
+                -3_774_492_170_699_737_302,
+                0,
+            ),
+            (
+                (224, 62, 145),
+                "minecraft:chests/shipwreck_map",
+                -2_986_182_992_758_690_057,
+                1,
+            ),
+        ],
+        vec![(
+            (-333, 50, -506),
+            "minecraft:chests/shipwreck_supply",
+            2_255_373_725_908_006_481,
+            0,
+        )],
+    ];
+    for (scan, expected_chests) in scans.iter().zip(expected) {
+        assert!(scan.valid_structure);
+        let actual = scan
+            .chests
+            .iter()
+            .map(|chest| {
+                (
+                    (chest.x, chest.y, chest.z),
+                    chest.loot_table.as_str(),
+                    chest.loot_seed,
+                    chest.ordinal,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected_chests);
+    }
+}
+
+#[test]
 fn catalog_scan_support_matches_scanner_construction() {
     for structure in CANDIDATE_STRUCTURES {
         match structure.support {
@@ -400,8 +455,9 @@ fn catalog_scan_support_matches_scanner_construction() {
                     .expect("full catalog entry must construct a scanner");
                 assert_eq!(scanner.kind, kind);
                 assert!(
-                    structure.decoration.is_some() || kind == ScanKind::Village,
-                    "{} has no decoration seed specification",
+                    structure.decoration.is_some()
+                        || matches!(kind, ScanKind::Village | ScanKind::Shipwreck),
+                    "{} has no static decoration seed specification",
                     structure.name
                 );
             }

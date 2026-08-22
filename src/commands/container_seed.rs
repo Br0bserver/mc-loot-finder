@@ -1,4 +1,4 @@
-use crate::catalog::{DecorationSeedSpec, candidate_structure};
+use crate::catalog::{ContainerSeedShortcut, DecorationSeedSpec, candidate_structure};
 use crate::cli::{ContainerSeedArgs, require_version};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
@@ -13,6 +13,12 @@ pub fn run(args: ContainerSeedArgs) -> Result<u8, Error> {
             structure.name
         ))
     })?;
+    if decoration.shortcut == ContainerSeedShortcut::Unavailable {
+        return Err(Error::Usage(format!(
+            "container-seed is not available for {}; use 'chests' to execute vanilla placement",
+            structure.name
+        )));
+    }
     let world_seed = args.seed;
     let chunk_x = args.chunk_x;
     let chunk_z = args.chunk_z;

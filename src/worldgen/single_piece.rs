@@ -1,7 +1,8 @@
-use super::{Chest, Scan, Scanner, invalid_scan};
+use super::{Chest, Scan, Scanner, invalid_scan, template_scan::rotate_around_pivot};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::surface_height::ColumnHeightSampler;
+use pumpkin_data::Rotation;
 use pumpkin_util::{
     BlockDirection,
     math::{block_box::BlockBox, vector3::Vector3},
@@ -36,24 +37,6 @@ fn chest_world_z(facing: BlockDirection, box_: &BlockBox, local_x: i32, local_z:
         BlockDirection::West | BlockDirection::East => box_.min.z + local_x,
         // Vanilla's switch default: the desert pyramid facing is always horizontal.
         BlockDirection::Down | BlockDirection::Up => local_z,
-    }
-}
-
-/// Vanilla `StructureTemplate.transform` rotation of an XZ offset around a
-/// pivot. Rotation indexes follow the vanilla enum order: 0 = NONE,
-/// 1 = CLOCKWISE_90, 2 = CLOCKWISE_180, 3 = COUNTERCLOCKWISE_90.
-fn rotate_around_pivot(
-    rotation_index: i32,
-    x: i32,
-    z: i32,
-    pivot_x: i32,
-    pivot_z: i32,
-) -> (i32, i32) {
-    match rotation_index {
-        0 => (x, z),
-        1 => (pivot_x - z + pivot_z, pivot_z + x - pivot_x),
-        2 => (2 * pivot_x - x, 2 * pivot_z - z),
-        _ => (pivot_x + z - pivot_z, pivot_z - x + pivot_x),
     }
 }
 
@@ -248,10 +231,12 @@ impl Scanner {
         // below the reference column `MOTION_BLOCKING_NO_LEAVES` height, plus
         // the OFFSETS Y component (-3) of the bottom template anchor
         // (template position starts at 90 - 3 - ladder_segments * 3).
-        let (ref_x, ref_z) = rotate_around_pivot(rotation_index, 3, 2, 3, 7);
+        let (ref_x, ref_z) =
+            rotate_around_pivot(Rotation::from_index(rotation_index as u8), 3, 2, 3, 7);
         let surface_y = heights.motion_blocking_no_leaves_height(min_x + ref_x, min_z - 2 + ref_z);
         let chest_y = surface_y - ladder_segments * 3 - 3;
-        let (chest_rel_x, chest_rel_z) = rotate_around_pivot(rotation_index, 1, 6, 3, 7);
+        let (chest_rel_x, chest_rel_z) =
+            rotate_around_pivot(Rotation::from_index(rotation_index as u8), 1, 6, 3, 7);
 
         let loot_seed =
             container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 0)?;
