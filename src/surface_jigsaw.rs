@@ -268,6 +268,237 @@ const fn boxes_intersect(a: &BlockBox, b: &BlockBox) -> bool {
 }
 
 #[derive(Clone, Copy)]
+struct SourceAttachment {
+    piece_idx: usize,
+    depth: i32,
+    collision_space: usize,
+    box_: BlockBox,
+    collision_box: BlockBox,
+    projection: JigsawProjection,
+    rigid: bool,
+}
+
+#[derive(Clone, Copy)]
+struct TargetAttachment<'a> {
+    element: &'a PoolElement,
+    size: Vector3<i32>,
+    rotation: Rotation,
+    jigsaw: &'a JigsawBlock,
+    all_jigsaws: &'a [JigsawBlock],
+}
+
+struct AttachmentContext<'a, 'world> {
+    interior_collision_space: &'a mut Option<usize>,
+    collision_spaces: &'a mut Vec<CollisionSpace>,
+    generator: &'a mut StructureGeneratorContext<'world>,
+    use_expansion_hack: bool,
+}
+
+struct AttachmentPlacement {
+    target_box: BlockBox,
+    target_collision_box: BlockBox,
+    target_pos: BlockPos,
+    target_projection: JigsawProjection,
+    target_rigid: bool,
+    delta_y: i32,
+    source_jigsaw_base_height: i32,
+    source_jigsaw_local_y: i32,
+    target_jigsaw_local_y: i32,
+    target_box_y: i32,
+    collision_space: usize,
+}
+
+/// Consumes exactly one bounded random value, matching vanilla's weighted
+/// start-element selection.
+fn select_start_element(pool: &TemplatePool, random: &mut impl RandomImpl) -> Option<PoolElement> {
+    let total_weight: u32 = pool.elements.iter().map(|element| element.weight).sum();
+    let mut remaining = random.next_bounded_i32(total_weight as i32) as u32;
+    for element in &pool.elements {
+        if remaining < element.weight {
+            return Some(element.clone());
+        }
+        remaining -= element.weight;
+    }
+    None
+}
+
+/// Pure geometry helper; does not consume random values.
+fn initial_collision_space(
+    center_x: i32,
+    center_y: i32,
+    center_z: i32,
+    max_distance_from_center: i32,
+    min_y: i32,
+    start_box: BlockBox,
+) -> CollisionSpace {
+    CollisionSpace {
+        bounds: BlockBox::new(
+            center_x - max_distance_from_center,
+            (center_y - max_distance_from_center).max(min_y),
+            center_z - max_distance_from_center,
+            center_x + max_distance_from_center,
+            (center_y + max_distance_from_center + 1).min(min_y + WORLD_HEIGHT),
+            center_z + max_distance_from_center,
+        ),
+        occupied: vec![start_box],
+    }
+}
+
+/// Shuffles the primary pool when depth permits and always shuffles the
+/// fallback pool. These are the only random draws performed by this helper.
+fn attachment_candidates(
+    target_pool: &TemplatePool,
+    depth: i32,
+    max_depth: i32,
+    random: &mut impl RandomImpl,
+) -> Vec<PoolElement> {
+    let mut elements = Vec::new();
+    if depth < max_depth {
+        elements.extend(shuffled_templates(target_pool, random));
+    }
+    if let Some(fallback_pool) = TemplatePool::discover(&target_pool.fallback) {
+        elements.extend(shuffled_templates(&fallback_pool, random));
+    }
+    elements
+}
+
+/// Pure expansion-hack geometry; does not consume random values.
+fn expanded_collision_box(
+    mut collision_box: BlockBox,
+    target_box: BlockBox,
+    target_size: Vector3<i32>,
+    target_rotation: Rotation,
+    target_jigsaws: &[JigsawBlock],
+    use_expansion_hack: bool,
+) -> BlockBox {
+    if !use_expansion_hack || (target_box.max.y - target_box.min.y + 1) > 16 {
+        return collision_box;
+    }
+
+    let mut expand_to = 0;
+    for target_jigsaw in target_jigsaws {
+        let facing = rotate_direction(target_jigsaw.facing, target_rotation);
+        let rotated_pos = rotate_pos(target_jigsaw.pos.0, target_rotation);
+        let rotated_target_pos = rotated_pos.add(&facing.to_vector());
+        let unexpanded_box = rotated_box(BlockPos::new(0, 0, 0), target_size, target_rotation);
+        if !unexpanded_box.contains(
+            rotated_target_pos.x,
+            rotated_target_pos.y,
+            rotated_target_pos.z,
+        ) {
+            continue;
+        }
+        let child_pool_id = &target_jigsaw.pool;
+        let child_pool_max_y = get_pool_max_y_size(child_pool_id);
+        let child_fallback_max_y = TemplatePool::discover(child_pool_id)
+            .map_or(0, |pool| get_pool_max_y_size(&pool.fallback));
+        expand_to = expand_to.max(child_pool_max_y).max(child_fallback_max_y);
+    }
+    if expand_to > 0 {
+        let max_y_offset = (expand_to + 1).max(collision_box.max.y - collision_box.min.y);
+        collision_box.max.y = collision_box.min.y + max_y_offset;
+    }
+    collision_box
+}
+
+/// Computes and reserves one attachment without consuming random values.
+fn try_attach_piece(
+    source: SourceAttachment,
+    source_jigsaw: &JigsawBlock,
+    target: TargetAttachment<'_>,
+    context: AttachmentContext<'_, '_>,
+) -> Option<AttachmentPlacement> {
+    if !can_attach(source_jigsaw, target.jigsaw, target.rotation) {
+        return None;
+    }
+
+    let target_projection = target.element.projection;
+    let target_rigid = target_projection == JigsawProjection::Rigid;
+    let source_facing = source_jigsaw.facing;
+    let source_jigsaw_pos = source_jigsaw.pos;
+    let target_jigsaw_pos = source_jigsaw_pos.add(
+        source_facing.to_vector().x,
+        source_facing.to_vector().y,
+        source_facing.to_vector().z,
+    );
+    let source_jigsaw_local_y = source_jigsaw_pos.0.y - source.box_.min.y;
+    let target_jigsaw_local_pos = rotate_pos(target.jigsaw.pos.0, target.rotation);
+    let target_jigsaw_local_y = target_jigsaw_local_pos.y;
+    let delta_y = source_jigsaw_local_y - target_jigsaw_local_y + source_facing.to_vector().y;
+    let mut source_jigsaw_base_height = i32::MIN;
+    let target_box_y = if source.rigid && target_rigid {
+        source.box_.min.y + delta_y
+    } else {
+        source_jigsaw_base_height = context
+            .generator
+            .height_sampler
+            .as_mut()
+            .map_or(source_jigsaw_pos.0.y, |sampler| {
+                sampler.estimate_height(source_jigsaw_pos.0.x, source_jigsaw_pos.0.z)
+            });
+        source_jigsaw_base_height - target_jigsaw_local_y
+    };
+    let raw_target_pos = BlockPos::new(
+        target_jigsaw_pos.0.x - target_jigsaw_local_pos.x,
+        target_jigsaw_pos.0.y - target_jigsaw_local_pos.y,
+        target_jigsaw_pos.0.z - target_jigsaw_local_pos.z,
+    );
+    let mut target_pos = raw_target_pos;
+    target_pos.0.y += target_box_y - raw_target_pos.0.y;
+    let target_box = rotated_box(target_pos, target.size, target.rotation);
+    let target_collision_box = expanded_collision_box(
+        target_box,
+        target_box,
+        target.size,
+        target.rotation,
+        target.all_jigsaws,
+        context.use_expansion_hack,
+    );
+
+    let collision_space = if source.collision_box.contains(
+        target_jigsaw_pos.0.x,
+        target_jigsaw_pos.0.y,
+        target_jigsaw_pos.0.z,
+    ) {
+        *context.interior_collision_space.get_or_insert_with(|| {
+            context.collision_spaces.push(CollisionSpace {
+                bounds: source.collision_box,
+                occupied: Vec::new(),
+            });
+            context.collision_spaces.len() - 1
+        })
+    } else {
+        source.collision_space
+    };
+    let space = &context.collision_spaces[collision_space];
+    if !is_box_inside(&space.bounds, &target_collision_box)
+        || space
+            .occupied
+            .iter()
+            .any(|box_| boxes_intersect(box_, &target_collision_box))
+    {
+        return None;
+    }
+    context.collision_spaces[collision_space]
+        .occupied
+        .push(target_collision_box);
+
+    Some(AttachmentPlacement {
+        target_box,
+        target_collision_box,
+        target_pos,
+        target_projection,
+        target_rigid,
+        delta_y,
+        source_jigsaw_base_height,
+        source_jigsaw_local_y,
+        target_jigsaw_local_y,
+        target_box_y,
+        collision_space,
+    })
+}
+
+#[derive(Clone, Copy)]
 pub struct SurfaceJigsawConfig<'a> {
     pub start_pool: &'a str,
     pub size: i32,
@@ -294,19 +525,7 @@ pub fn generate_surface_jigsaw_position(
     let max_depth = size.clamp(0, 20);
     let pool = TemplatePool::discover(start_pool)?;
     let rotation = Rotation::from_index(context.random.next_bounded_i32(4) as u8);
-    let element = {
-        let total_weight: u32 = pool.elements.iter().map(|e| e.weight).sum();
-        let mut r = context.random.next_bounded_i32(total_weight as i32) as u32;
-        let mut picked = &pool.elements[0];
-        for element in &pool.elements {
-            if r < element.weight {
-                picked = element;
-                break;
-            }
-            r -= element.weight;
-        }
-        picked.clone()
-    };
+    let element = select_start_element(&pool, &mut context.random)?;
     let template = element.first_template()?;
 
     let position = BlockPos::new(
@@ -340,18 +559,6 @@ pub fn generate_surface_jigsaw_position(
     // isStartTooCloseToWorldHeightLimits returns false without checking.
 
     let center_y = bottom_y;
-    // Vanilla builds the initial free space from the start position plus
-    // `maxDistance` in every axis (horizontal and vertical share the same
-    // value), not the ancient-city ±384 extent; a ravine candidate at y24
-    // falls outside the village's ±80 Y window and is rejected.
-    let global_bounding_box = BlockBox::new(
-        center_x - max_distance_from_center,
-        (center_y - max_distance_from_center).max(context.min_y),
-        center_z - max_distance_from_center,
-        center_x + max_distance_from_center,
-        (center_y + max_distance_from_center + 1).min(context.min_y + WORLD_HEIGHT),
-        center_z + max_distance_from_center,
-    );
 
     let mut jigsaw_blocks = Vec::new();
     for mut jigsaw in get_jigsaw_blocks(&template) {
@@ -378,10 +585,14 @@ pub fn generate_surface_jigsaw_position(
     let mut pieces = vec![first_piece];
     let mut piece_collision_boxes = vec![box_];
     let mut piece_projections = vec![element.projection];
-    let mut collision_spaces = vec![CollisionSpace {
-        bounds: global_bounding_box,
-        occupied: vec![box_],
-    }];
+    let mut collision_spaces = vec![initial_collision_space(
+        center_x,
+        center_y,
+        center_z,
+        max_distance_from_center,
+        context.min_y,
+        box_,
+    )];
 
     if max_depth > 0 {
         let mut placing = PriorityQueue::new();
@@ -410,6 +621,15 @@ pub fn generate_surface_jigsaw_position(
             let source_collision_box = piece_collision_boxes[source_piece_idx];
             let source_projection = piece_projections[source_piece_idx];
             let source_rigid = source_projection == JigsawProjection::Rigid;
+            let source = SourceAttachment {
+                piece_idx: source_piece_idx,
+                depth,
+                collision_space: state.collision_space,
+                box_: source_box,
+                collision_box: source_collision_box,
+                projection: source_projection,
+                rigid: source_rigid,
+            };
 
             let mut interior_collision_space = None;
 
@@ -423,23 +643,13 @@ pub fn generate_surface_jigsaw_position(
                     continue;
                 };
 
-                let mut target_elements = Vec::new();
-                if depth < max_depth {
-                    target_elements.extend(shuffled_templates(&target_pool, &mut context.random));
-                }
-
-                let fallback_pool_id = target_pool.fallback.clone();
-                if let Some(fallback_pool) = TemplatePool::discover(&fallback_pool_id) {
-                    target_elements.extend(shuffled_templates(&fallback_pool, &mut context.random));
-                }
+                let target_elements =
+                    attachment_candidates(&target_pool, depth, max_depth, &mut context.random);
 
                 for element in target_elements {
                     if element.is_empty() {
                         break;
                     }
-
-                    let target_projection = element.projection;
-                    let target_rigid = target_projection == JigsawProjection::Rigid;
 
                     let mut rotations = [
                         Rotation::None,
@@ -468,224 +678,113 @@ pub fn generate_surface_jigsaw_position(
                             .sort_by_key(|jigsaw| std::cmp::Reverse(jigsaw.selection_priority));
 
                         for target_jigsaw in target_jigsaws_shuffled {
-                            if !can_attach(source_jigsaw, &target_jigsaw, target_rotation) {
+                            let Some(attachment) = try_attach_piece(
+                                source,
+                                source_jigsaw,
+                                TargetAttachment {
+                                    element: &element,
+                                    size: target_size,
+                                    rotation: target_rotation,
+                                    jigsaw: &target_jigsaw,
+                                    all_jigsaws: &target_jigsaws,
+                                },
+                                AttachmentContext {
+                                    interior_collision_space: &mut interior_collision_space,
+                                    collision_spaces: &mut collision_spaces,
+                                    generator: context,
+                                    use_expansion_hack,
+                                },
+                            ) else {
                                 continue;
-                            }
+                            };
 
-                            let source_facing = source_jigsaw.facing;
                             let source_jigsaw_pos = source_jigsaw.pos;
+                            let source_facing = source_jigsaw.facing;
                             let target_jigsaw_pos = source_jigsaw_pos.add(
                                 source_facing.to_vector().x,
                                 source_facing.to_vector().y,
                                 source_facing.to_vector().z,
                             );
-
-                            let source_jigsaw_local_y = source_jigsaw_pos.0.y - source_box.min.y;
-                            let target_jigsaw_local_pos =
-                                rotate_pos(target_jigsaw.pos.0, target_rotation);
-                            let target_jigsaw_local_y = target_jigsaw_local_pos.y;
-
-                            let delta_y = source_jigsaw_local_y - target_jigsaw_local_y
-                                + source_facing.to_vector().y;
-
-                            let mut source_jigsaw_base_height = i32::MIN;
-
-                            let target_box_y = if source_rigid && target_rigid {
-                                source_box.min.y + delta_y
-                            } else {
-                                if source_jigsaw_base_height == i32::MIN {
-                                    source_jigsaw_base_height = context
-                                        .height_sampler
-                                        .as_mut()
-                                        .map_or(source_jigsaw_pos.0.y, |sampler| {
-                                            sampler.estimate_height(
-                                                source_jigsaw_pos.0.x,
-                                                source_jigsaw_pos.0.z,
-                                            )
-                                        });
-                                }
-                                source_jigsaw_base_height - target_jigsaw_local_y
-                            };
-
-                            let raw_target_pos = BlockPos::new(
-                                target_jigsaw_pos.0.x - target_jigsaw_local_pos.x,
-                                target_jigsaw_pos.0.y - target_jigsaw_local_pos.y,
-                                target_jigsaw_pos.0.z - target_jigsaw_local_pos.z,
-                            );
-                            let y_offset = target_box_y - raw_target_pos.0.y;
-                            let mut target_pos = raw_target_pos;
-                            target_pos.0.y += y_offset;
-
-                            let target_box = rotated_box(target_pos, target_size, target_rotation);
-                            let mut target_collision_box = target_box;
-
-                            if use_expansion_hack {
-                                let mut expand_to = 0;
-                                if (target_box.max.y - target_box.min.y + 1) <= 16 {
-                                    for tj in &target_jigsaws {
-                                        let tj_facing =
-                                            rotate_direction(tj.facing, target_rotation);
-                                        let rotated_tj_pos = rotate_pos(tj.pos.0, target_rotation);
-                                        let rotated_tj_target_pos =
-                                            rotated_tj_pos.add(&tj_facing.to_vector());
-
-                                        let hack_box = rotated_box(
-                                            BlockPos::new(0, 0, 0),
-                                            target_size,
-                                            target_rotation,
-                                        );
-                                        if hack_box.contains(
-                                            rotated_tj_target_pos.x,
-                                            rotated_tj_target_pos.y,
-                                            rotated_tj_target_pos.z,
-                                        ) {
-                                            let child_pool_id = &tj.pool;
-                                            let child_pool_max_y =
-                                                get_pool_max_y_size(child_pool_id);
-                                            let child_fallback_max_y =
-                                                TemplatePool::discover(child_pool_id)
-                                                    .map_or(0, |cp| {
-                                                        get_pool_max_y_size(&cp.fallback)
-                                                    });
-                                            expand_to = expand_to
-                                                .max(child_pool_max_y)
-                                                .max(child_fallback_max_y);
-                                        }
-                                    }
-                                }
-
-                                if expand_to > 0 {
-                                    let max_y_offset = (expand_to + 1).max(
-                                        target_collision_box.max.y - target_collision_box.min.y,
-                                    );
-                                    target_collision_box.max.y =
-                                        target_collision_box.min.y + max_y_offset;
-                                }
+                            let mut child_jigsaw_blocks = Vec::new();
+                            for mut child_jigsaw in get_element_jigsaw_blocks(&element) {
+                                let rotated_pos = rotate_pos(child_jigsaw.pos.0, target_rotation);
+                                child_jigsaw.pos = BlockPos(rotated_pos).add(
+                                    attachment.target_pos.0.x,
+                                    attachment.target_pos.0.y,
+                                    attachment.target_pos.0.z,
+                                );
+                                child_jigsaw.facing =
+                                    rotate_direction(child_jigsaw.facing, target_rotation);
+                                child_jigsaw.up =
+                                    rotate_direction(child_jigsaw.up, target_rotation);
+                                child_jigsaw_blocks.push(child_jigsaw);
                             }
 
-                            // Vanilla checks `sourceBox.isInside` against the
-                            // piece's bounding box, which includes the
-                            // expansion-hack growth; use the expanded
-                            // collision box here so jigsaws near the top of a
-                            // street's expansion stay in the interior space.
-                            let collision_space = if source_collision_box.contains(
-                                target_jigsaw_pos.0.x,
-                                target_jigsaw_pos.0.y,
-                                target_jigsaw_pos.0.z,
-                            ) {
-                                *interior_collision_space.get_or_insert_with(|| {
-                                    collision_spaces.push(CollisionSpace {
-                                        bounds: source_collision_box,
-                                        occupied: Vec::new(),
-                                    });
-                                    collision_spaces.len() - 1
-                                })
+                            let source_ground_level_delta =
+                                pieces[source.piece_idx].ground_level_delta;
+                            let target_ground_level_delta = if attachment.target_rigid {
+                                source_ground_level_delta - attachment.delta_y
                             } else {
-                                state.collision_space
+                                1
                             };
-                            let space = &collision_spaces[collision_space];
-                            let can_place = is_box_inside(&space.bounds, &target_collision_box)
-                                && !space
-                                    .occupied
-                                    .iter()
-                                    .any(|box_| boxes_intersect(box_, &target_collision_box));
+                            let target_piece = PoolElementStructurePiece {
+                                piece: StructurePiece::new(
+                                    StructurePieceType::Jigsaw,
+                                    attachment.target_box,
+                                    source.depth as u32 + 1,
+                                ),
+                                element: element.clone(),
+                                pos: attachment.target_pos,
+                                rotation: target_rotation,
+                                mirror: Mirror::None,
+                                jigsaw_blocks: child_jigsaw_blocks,
+                                junctions: Vec::new(),
+                                ground_level_delta: target_ground_level_delta,
+                                liquid_settings:
+                                    pumpkin_world::generation::structure::structures::jigsaw_placement::LiquidSettings::ApplyWaterlog,
+                                projection: attachment.target_projection,
+                            };
 
-                            if can_place {
-                                collision_spaces[collision_space]
-                                    .occupied
-                                    .push(target_collision_box);
-                                let mut child_jigsaw_blocks = Vec::new();
-                                for mut cj in get_element_jigsaw_blocks(&element) {
-                                    let rotated_pos = rotate_pos(cj.pos.0, target_rotation);
-                                    cj.pos = BlockPos(rotated_pos).add(
-                                        target_pos.0.x,
-                                        target_pos.0.y,
-                                        target_pos.0.z,
-                                    );
-                                    cj.facing = rotate_direction(cj.facing, target_rotation);
-                                    cj.up = rotate_direction(cj.up, target_rotation);
-                                    child_jigsaw_blocks.push(cj);
-                                }
+                            let target_piece_idx = pieces.len();
+                            pieces.push(target_piece);
+                            piece_collision_boxes.push(attachment.target_collision_box);
+                            piece_projections.push(attachment.target_projection);
 
-                                let source_ground_level_delta =
-                                    pieces[source_piece_idx].ground_level_delta;
-                                let target_ground_level_delta = if target_rigid {
-                                    source_ground_level_delta - delta_y
-                                } else {
-                                    1
-                                };
+                            let junction_y = if source.rigid {
+                                source.box_.min.y + attachment.delta_y
+                            } else if attachment.target_rigid {
+                                attachment.target_box_y + attachment.target_jigsaw_local_y
+                            } else {
+                                attachment.source_jigsaw_base_height + attachment.delta_y / 2
+                            };
+                            pieces[source.piece_idx].add_junction(JigsawJunction {
+                                source_x: target_jigsaw_pos.0.x,
+                                source_ground_y: junction_y - attachment.source_jigsaw_local_y
+                                    + source_ground_level_delta,
+                                source_z: target_jigsaw_pos.0.z,
+                                delta_y: attachment.delta_y,
+                                projection: attachment.target_projection,
+                            });
+                            pieces[target_piece_idx].add_junction(JigsawJunction {
+                                source_x: source_jigsaw_pos.0.x,
+                                source_ground_y: junction_y - attachment.target_jigsaw_local_y
+                                    + target_ground_level_delta,
+                                source_z: source_jigsaw_pos.0.z,
+                                delta_y: -attachment.delta_y,
+                                projection: source.projection,
+                            });
 
-                                let target_piece = PoolElementStructurePiece {
-                                    piece: StructurePiece::new(
-                                        StructurePieceType::Jigsaw,
-                                        target_box,
-                                        depth as u32 + 1,
-                                    ),
-                                    element: element.clone(),
-                                    pos: target_pos,
-                                    rotation: target_rotation,
-                                    mirror: Mirror::None,
-                                    jigsaw_blocks: child_jigsaw_blocks,
-                                    junctions: Vec::new(),
-                                    ground_level_delta: target_ground_level_delta,
-                                    liquid_settings:
-                                        pumpkin_world::generation::structure::structures::jigsaw_placement::LiquidSettings::ApplyWaterlog,
-                                    projection: target_projection,
-                                };
-
-                                let target_piece_idx = pieces.len();
-                                pieces.push(target_piece);
-                                piece_collision_boxes.push(target_collision_box);
-                                piece_projections.push(target_projection);
-
-                                let junction_y = if source_rigid {
-                                    source_box.min.y + delta_y
-                                } else if target_rigid {
-                                    target_box_y + target_jigsaw_local_y
-                                } else {
-                                    if source_jigsaw_base_height == i32::MIN {
-                                        source_jigsaw_base_height = context
-                                            .height_sampler
-                                            .as_mut()
-                                            .map_or(source_jigsaw_pos.0.y, |sampler| {
-                                                sampler.estimate_height(
-                                                    source_jigsaw_pos.0.x,
-                                                    source_jigsaw_pos.0.z,
-                                                )
-                                            });
-                                    }
-                                    source_jigsaw_base_height + delta_y / 2
-                                };
-
-                                pieces[source_piece_idx].add_junction(JigsawJunction {
-                                    source_x: target_jigsaw_pos.0.x,
-                                    source_ground_y: junction_y - source_jigsaw_local_y
-                                        + source_ground_level_delta,
-                                    source_z: target_jigsaw_pos.0.z,
-                                    delta_y,
-                                    projection: target_projection,
+                            if source.depth < max_depth {
+                                let child_state_idx = states.len();
+                                states.push(PieceState {
+                                    piece_idx: target_piece_idx,
+                                    depth: source.depth + 1,
+                                    collision_space: attachment.collision_space,
                                 });
-                                pieces[target_piece_idx].add_junction(JigsawJunction {
-                                    source_x: source_jigsaw_pos.0.x,
-                                    source_ground_y: junction_y - target_jigsaw_local_y
-                                        + target_ground_level_delta,
-                                    source_z: source_jigsaw_pos.0.z,
-                                    delta_y: -delta_y,
-                                    projection: source_projection,
-                                });
-
-                                if depth < max_depth {
-                                    let child_state_idx = states.len();
-                                    states.push(PieceState {
-                                        piece_idx: target_piece_idx,
-                                        depth: depth + 1,
-                                        collision_space,
-                                    });
-                                    placing.add(source_jigsaw.placement_priority, child_state_idx);
-                                }
-
-                                continue 'jigsaw_loop;
+                                placing.add(source_jigsaw.placement_priority, child_state_idx);
                             }
+
+                            continue 'jigsaw_loop;
                         }
                     }
                 }
