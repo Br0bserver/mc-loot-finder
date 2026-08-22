@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 mod kind;
-pub use kind::Kind;
-mod stubs;
-use crate::catalog::ContainerSeedShortcut;
+use crate::catalog::{CandidateStructure, ContainerSeedShortcut, ScanKind, VILLAGE_PLACEMENT};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
+use crate::placement;
 use crate::random::LegacyRandom48;
 use crate::surface_height::ColumnHeightSampler;
 use crate::village_jigsaw;
@@ -44,31 +43,7 @@ const NETHER_MIN_Y: i32 = 0;
 const OVERWORLD_SEA_LEVEL: i32 = 63;
 const NETHER_SEA_LEVEL: i32 = 32;
 const PILLAGER_FREQUENCY: f32 = 0.2;
-const VILLAGE_SPACING: i32 = 34;
-const VILLAGE_SEPARATION: i32 = 8;
-const VILLAGE_SALT: i64 = 10_387_312;
 const VILLAGE_EXCLUSION_RADIUS: i32 = 10;
-const REGION_X_MULTIPLIER: i64 = 341_873_128_712;
-const REGION_Z_MULTIPLIER: i64 = 132_897_987_541;
-
-fn is_village_placement_chunk(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
-    let spacing = VILLAGE_SPACING;
-    let separation = VILLAGE_SEPARATION;
-    let salt = VILLAGE_SALT;
-    let limit = spacing - separation;
-    let region_x = chunk_x.div_euclid(spacing);
-    let region_z = chunk_z.div_euclid(spacing);
-    let placement_seed = world_seed
-        .wrapping_add(i64::from(region_x).wrapping_mul(REGION_X_MULTIPLIER))
-        .wrapping_add(i64::from(region_z).wrapping_mul(REGION_Z_MULTIPLIER))
-        .wrapping_add(salt);
-    let mut random = LegacyRandom48::new(placement_seed);
-    let offset_x = random.next_int(limit);
-    let offset_z = random.next_int(limit);
-    let potential_x = region_x * spacing + offset_x;
-    let potential_z = region_z * spacing + offset_z;
-    chunk_x == potential_x && chunk_z == potential_z
-}
 
 fn has_village_nearby(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
     let radius = VILLAGE_EXCLUSION_RADIUS;
@@ -76,7 +51,7 @@ fn has_village_nearby(world_seed: i64, chunk_x: i32, chunk_z: i32) -> bool {
         for dz in -radius..=radius {
             let other_x = chunk_x + dx;
             let other_z = chunk_z + dz;
-            if is_village_placement_chunk(world_seed, other_x, other_z) {
+            if placement::is_placement_chunk(world_seed, other_x, other_z, VILLAGE_PLACEMENT) {
                 return true;
             }
         }
@@ -94,21 +69,6 @@ fn pillager_frequency_passes(world_seed: i64, chunk_x: i32, chunk_z: i32) -> boo
     random.next_int(bound) == 0
 }
 
-const fn hash_block_pos(x: i32, y: i32, z: i32) -> i64 {
-    let l = ((x.wrapping_mul(3129871)) as i64) ^ ((z as i64).wrapping_mul(116129781)) ^ (y as i64);
-    let l = l
-        .wrapping_mul(l)
-        .wrapping_mul(42317861)
-        .wrapping_add(l.wrapping_mul(11));
-    l >> 16
-}
-
-fn buried_treasure_loot_seed(x: i32, y: i32, z: i32) -> i64 {
-    let hash = hash_block_pos(x, y, z);
-    let mut random = LegacyRandom48::new(hash);
-    random.next_long()
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Chest {
     pub structure_chunk_x: i32,
@@ -116,7 +76,7 @@ pub struct Chest {
     pub x: i32,
     pub y: i32,
     pub z: i32,
-    pub loot_table: &'static str,
+    pub loot_table: String,
     pub ordinal: i32,
     pub loot_seed: i64,
 }
@@ -129,43 +89,32 @@ pub struct Scan {
 
 pub struct Scanner {
     world_seed: i64,
-    kind: Kind,
+    kind: ScanKind,
     generator: VanillaGenerator,
     valid_biomes: &'static [&'static str],
     fortress_biomes: &'static [&'static str],
 }
 
 impl Scanner {
-    pub fn for_structure(structure_name: &str, world_seed: i64) -> Result<Self, Error> {
-        let kind = match structure_name {
-            "ancient_city" => Kind::AncientCity,
-            "bastion_remnant" => Kind::BastionRemnant,
-            "desert_pyramid" => Kind::DesertPyramid,
-            "igloo" => Kind::Igloo,
-            "village" => Kind::Village,
-            "pillager_outpost" => Kind::PillagerOutpost,
-            "buried_treasure" => Kind::BuriedTreasure,
-            "shipwreck" | "shipwreck_beached" => Kind::Shipwreck,
-            "end_city" => Kind::EndCity,
-            "woodland_mansion" | "mansion" => Kind::WoodlandMansion,
-            _ => {
-                return Err(Error::Structure(format!(
-                    "Rust chests and find do not support {structure_name} yet"
-                )));
-            }
-        };
+    pub fn for_structure(structure: &CandidateStructure, world_seed: i64) -> Result<Self, Error> {
+        let kind = structure.scan_kind.ok_or_else(|| {
+            Error::Structure(format!(
+                "Rust chests and find do not support {} yet",
+                structure.name
+            ))
+        })?;
         Ok(Self::new(world_seed, kind))
     }
 
     #[must_use]
-    pub fn new(world_seed: i64, kind: Kind) -> Self {
+    pub fn new(world_seed: i64, kind: ScanKind) -> Self {
         let structure = kind.structure();
         Self {
             world_seed,
             kind,
             generator: VanillaGenerator::new(Seed(world_seed as u64), kind.dimension()),
             valid_biomes: structure_biomes(&structure),
-            fortress_biomes: if kind == Kind::BastionRemnant {
+            fortress_biomes: if kind == ScanKind::BastionRemnant {
                 structure_biomes(&Structure::FORTRESS)
             } else {
                 &[]
@@ -192,31 +141,18 @@ impl Scanner {
         chunk_z: i32,
         sampler: &mut MultiNoiseSampler<'_>,
     ) -> Result<Scan, Error> {
-        if self.kind == Kind::DesertPyramid {
-            return self.scan_desert_pyramid(chunk_x, chunk_z, sampler);
+        match self.kind {
+            ScanKind::AncientCity | ScanKind::BastionRemnant => {}
+            ScanKind::DesertPyramid => {
+                return self.scan_desert_pyramid(chunk_x, chunk_z, sampler);
+            }
+            ScanKind::Igloo => return self.scan_igloo(chunk_x, chunk_z, sampler),
+            ScanKind::Village => return self.scan_village(chunk_x, chunk_z, sampler),
+            ScanKind::PillagerOutpost => {
+                return self.scan_pillager_outpost(chunk_x, chunk_z, sampler);
+            }
         }
-        if self.kind == Kind::Igloo {
-            return self.scan_igloo(chunk_x, chunk_z, sampler);
-        }
-        if self.kind == Kind::Village {
-            return self.scan_village(chunk_x, chunk_z, sampler);
-        }
-        if self.kind == Kind::PillagerOutpost {
-            return self.scan_pillager_outpost(chunk_x, chunk_z, sampler);
-        }
-        if self.kind == Kind::BuriedTreasure {
-            return self.scan_buried_treasure(chunk_x, chunk_z, sampler);
-        }
-        if self.kind == Kind::Shipwreck {
-            return self.scan_shipwreck(chunk_x, chunk_z, sampler);
-        }
-        if self.kind == Kind::EndCity {
-            return self.scan_end_city(chunk_x, chunk_z, sampler);
-        }
-        if self.kind == Kind::WoodlandMansion {
-            return self.scan_woodland_mansion(chunk_x, chunk_z, sampler);
-        }
-        if self.kind == Kind::BastionRemnant
+        if self.kind == ScanKind::BastionRemnant
             && !self.bastion_reached_in_weighted_selection(chunk_x, chunk_z, sampler)?
         {
             return Ok(invalid_scan());
@@ -397,7 +333,7 @@ impl Scanner {
                 x: chest_world_x(facing, &adjusted_box, local_x, local_z),
                 y: base_y - 11,
                 z: chest_world_z(facing, &adjusted_box, local_x, local_z),
-                loot_table: "minecraft:chests/desert_pyramid",
+                loot_table: "minecraft:chests/desert_pyramid".to_owned(),
                 ordinal: ordinal as i32,
                 loot_seed,
             });
@@ -491,7 +427,7 @@ impl Scanner {
                 x: min_x + chest_rel_x,
                 y: chest_y,
                 z: min_z - 2 + chest_rel_z,
-                loot_table: "minecraft:chests/igloo_chest",
+                loot_table: "minecraft:chests/igloo_chest".to_owned(),
                 ordinal: 0,
                 loot_seed,
             }],
@@ -763,76 +699,6 @@ impl Scanner {
             chests: visible,
         })
     }
-    fn scan_buried_treasure(
-        &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        _sampler: &mut MultiNoiseSampler<'_>,
-    ) -> Result<Scan, Error> {
-        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
-            return Ok(scan);
-        }
-        let min_x = chunk_x
-            .checked_mul(16)
-            .ok_or_else(|| Error::Worldgen("buried treasure chunk x overflowed".to_owned()))?;
-        let min_z = chunk_z
-            .checked_mul(16)
-            .ok_or_else(|| Error::Worldgen("buried treasure chunk z overflowed".to_owned()))?;
-        let center_x = min_x + 8;
-        let center_z = min_z + 8;
-        let chest_x = center_x + 1;
-        let chest_z = center_z + 1;
-        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
-        let y = heights.first_occupied_height(chest_x, chest_z) + 1;
-        let chest_y = y;
-        let loot_seed = buried_treasure_loot_seed(chest_x, chest_y, chest_z);
-        Ok(Scan {
-            valid_structure: true,
-            chests: vec![Chest {
-                structure_chunk_x: chunk_x,
-                structure_chunk_z: chunk_z,
-                x: chest_x,
-                y: chest_y,
-                z: chest_z,
-                loot_table: "minecraft:chests/buried_treasure",
-                ordinal: 0,
-                loot_seed,
-            }],
-        })
-    }
-    fn scan_shipwreck(
-        &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        _sampler: &mut MultiNoiseSampler<'_>,
-    ) -> Result<Scan, Error> {
-        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
-            return Ok(scan);
-        }
-        Ok(invalid_scan())
-    }
-    fn scan_end_city(
-        &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        _sampler: &mut MultiNoiseSampler<'_>,
-    ) -> Result<Scan, Error> {
-        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
-            return Ok(scan);
-        }
-        Ok(invalid_scan())
-    }
-    fn scan_woodland_mansion(
-        &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        _sampler: &mut MultiNoiseSampler<'_>,
-    ) -> Result<Scan, Error> {
-        if let Some(scan) = stubs::stub_scan(self.kind, chunk_x, chunk_z) {
-            return Ok(scan);
-        }
-        Ok(invalid_scan())
-    }
 
     fn context(&self, chunk_x: i32, chunk_z: i32) -> StructureGeneratorContext<'_> {
         StructureGeneratorContext {
@@ -948,61 +814,9 @@ struct RawChest {
     x: i32,
     y: i32,
     z: i32,
-    loot_table: &'static str,
+    loot_table: String,
 }
 
-fn static_loot_table(table: &str) -> &'static str {
-    match table {
-        "minecraft:chests/ancient_city" => "minecraft:chests/ancient_city",
-        "minecraft:chests/bastion_bridge" => "minecraft:chests/bastion_bridge",
-        "minecraft:chests/bastion_hoglin_stable" => "minecraft:chests/bastion_hoglin_stable",
-        "minecraft:chests/bastion_other" => "minecraft:chests/bastion_other",
-        "minecraft:chests/bastion_treasure" => "minecraft:chests/bastion_treasure",
-        "minecraft:chests/desert_pyramid" => "minecraft:chests/desert_pyramid",
-        "minecraft:chests/igloo_chest" => "minecraft:chests/igloo_chest",
-        "minecraft:chests/buried_treasure" => "minecraft:chests/buried_treasure",
-        "minecraft:chests/shipwreck_supply" => "minecraft:chests/shipwreck_supply",
-        "minecraft:chests/shipwreck_treasure" => "minecraft:chests/shipwreck_treasure",
-        "minecraft:chests/shipwreck_map" => "minecraft:chests/shipwreck_map",
-        "minecraft:chests/end_city_treasure" => "minecraft:chests/end_city_treasure",
-        "minecraft:chests/woodland_mansion" => "minecraft:chests/woodland_mansion",
-        "minecraft:chests/pillager_outpost" => "minecraft:chests/pillager_outpost",
-        "minecraft:chests/village/village_armorer" => "minecraft:chests/village/village_armorer",
-        "minecraft:chests/village/village_butcher" => "minecraft:chests/village/village_butcher",
-        "minecraft:chests/village/village_cartographer" => {
-            "minecraft:chests/village/village_cartographer"
-        }
-        "minecraft:chests/village/village_desert_house" => {
-            "minecraft:chests/village/village_desert_house"
-        }
-        "minecraft:chests/village/village_fisher" => "minecraft:chests/village/village_fisher",
-        "minecraft:chests/village/village_fletcher" => "minecraft:chests/village/village_fletcher",
-        "minecraft:chests/village/village_mason" => "minecraft:chests/village/village_mason",
-        "minecraft:chests/village/village_plains_house" => {
-            "minecraft:chests/village/village_plains_house"
-        }
-        "minecraft:chests/village/village_savanna_house" => {
-            "minecraft:chests/village/village_savanna_house"
-        }
-        "minecraft:chests/village/village_shepherd" => "minecraft:chests/village/village_shepherd",
-        "minecraft:chests/village/village_snowy_house" => {
-            "minecraft:chests/village/village_snowy_house"
-        }
-        "minecraft:chests/village/village_taiga_house" => {
-            "minecraft:chests/village/village_taiga_house"
-        }
-        "minecraft:chests/village/village_tannery" => "minecraft:chests/village/village_tannery",
-        "minecraft:chests/village/village_temple" => "minecraft:chests/village/village_temple",
-        "minecraft:chests/village/village_toolsmith" => {
-            "minecraft:chests/village/village_toolsmith"
-        }
-        "minecraft:chests/village/village_weaponsmith" => {
-            "minecraft:chests/village/village_weaponsmith"
-        }
-        "" => "",
-        _ => "",
-    }
-}
 fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawChest>) {
     let origin = piece.pos.0;
     piece.element.for_each_template(|_, _, _, template| {
@@ -1030,8 +844,8 @@ fn collect_piece_chests(piece: &PoolElementStructurePiece, output: &mut Vec<RawC
                 .nbt
                 .as_ref()
                 .and_then(|nbt| nbt.get_string("LootTable"))
-                .map(static_loot_table)
-                .unwrap_or("");
+                .unwrap_or_default()
+                .to_owned();
             output.push(RawChest {
                 x: world.x,
                 y: world.y,
@@ -1092,12 +906,12 @@ fn dedup_and_seed_chests(
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[allow(unused_imports)]
+    use crate::catalog::candidate_structure;
     use std::collections::HashSet;
 
     #[test]
     fn scans_known_26_1_2_cities() {
-        let scanner = Scanner::new(114514, Kind::AncientCity);
+        let scanner = Scanner::new(114514, ScanKind::AncientCity);
         let scans = scanner
             .scan_many([(96, 5), (244, 171)])
             .expect("scan known cities");
@@ -1125,7 +939,7 @@ mod tests {
 
     #[test]
     fn scans_known_26_1_2_bastions() {
-        let scanner = Scanner::new(0, Kind::BastionRemnant);
+        let scanner = Scanner::new(0, ScanKind::BastionRemnant);
         let scans = scanner
             .scan_many([(11, -14), (-27, -10), (62, 32)])
             .expect("scan known bastions");
@@ -1145,7 +959,7 @@ mod tests {
                 x: 180,
                 y: 80,
                 z: -233,
-                loot_table: "minecraft:chests/bastion_bridge",
+                loot_table: "minecraft:chests/bastion_bridge".to_owned(),
                 ordinal: 0,
                 loot_seed: 1_335_123_538_721_756_194,
             })
@@ -1158,7 +972,7 @@ mod tests {
                 x: -428,
                 y: 35,
                 z: -189,
-                loot_table: "minecraft:chests/bastion_other",
+                loot_table: "minecraft:chests/bastion_other".to_owned(),
                 ordinal: 0,
                 loot_seed: -5_513_880_696_554_537_352,
             })
@@ -1171,7 +985,7 @@ mod tests {
                 x: 1011,
                 y: 35,
                 z: 496,
-                loot_table: "minecraft:chests/bastion_treasure",
+                loot_table: "minecraft:chests/bastion_treasure".to_owned(),
                 ordinal: 0,
                 loot_seed: -6_403_023_197_147_397_919,
             })
@@ -1180,7 +994,7 @@ mod tests {
         let tables = scans
             .iter()
             .flat_map(|scan| scan.chests.iter())
-            .map(|chest| chest.loot_table)
+            .map(|chest| chest.loot_table.as_str())
             .collect::<HashSet<_>>();
         assert_eq!(
             tables,
@@ -1195,7 +1009,7 @@ mod tests {
 
     #[test]
     fn scans_known_26_1_2_desert_pyramids() {
-        let scanner = Scanner::new(0, Kind::DesertPyramid);
+        let scanner = Scanner::new(0, ScanKind::DesertPyramid);
         // Seed 0: three valid pyramids and six candidates rejected by the
         // vanilla sea-level corner check (some corner below the sea level).
         let scans = scanner
@@ -1253,7 +1067,7 @@ mod tests {
                 .iter()
                 .map(|chest| {
                     (
-                        chest.loot_table,
+                        chest.loot_table.as_str(),
                         (chest.x, chest.y, chest.z, chest.loot_seed),
                     )
                 })
@@ -1268,7 +1082,7 @@ mod tests {
 
     #[test]
     fn scans_known_26_1_2_igloos() {
-        let scanner = Scanner::new(0, Kind::Igloo);
+        let scanner = Scanner::new(0, ScanKind::Igloo);
         // Seed 0: three igloos with basements (chest vectors from the vanilla
         // 26.1.2 placement run) and three valid igloos without a basement.
         let scans = scanner
@@ -1310,7 +1124,7 @@ mod tests {
         // region must use the village's max-distance (80) Y extent so ravine
         // candidates at y24 are rejected; the interior-expansion house
         // snowy_small_house_6 (y72-80) then attaches and its chest appears.
-        let scanner = Scanner::new(0, Kind::Village);
+        let scanner = Scanner::new(0, ScanKind::Village);
         let scans = scanner
             .scan_many([(-114i32, 290i32)])
             .expect("scan village");
@@ -1344,7 +1158,7 @@ mod tests {
 
     #[test]
     fn scans_known_26_1_2_villages() {
-        let scanner = Scanner::new(0, Kind::Village);
+        let scanner = Scanner::new(0, ScanKind::Village);
         // Seed 0: a savanna village at (38,45) with five chests and a plains
         // village at (17,59) with two chests (vectors from the vanilla
         // 26.1.2 placement run, including variant indices 23 and 22).
@@ -1385,7 +1199,7 @@ mod tests {
         // from the Rust scanner with placement filters enabled and matches
         // the Java direct generation for the same chunk (except the
         // placement filters).
-        let scanner = Scanner::new(0, Kind::PillagerOutpost);
+        let scanner = Scanner::new(0, ScanKind::PillagerOutpost);
         let scans = scanner.scan_many([(-51, 70)]).expect("scan pillager");
         assert_eq!(scans.len(), 1);
         let scan = &scans[0];
@@ -1408,7 +1222,7 @@ mod tests {
         // placement frequency check, and finds one chest at (566,84,1657).
         // For world scans `isStructurePlacementChunk` rejects 36,103
         // (legacy_type_1), so the Rust scanner must report it as invalid.
-        let scanner = Scanner::new(0, Kind::PillagerOutpost);
+        let scanner = Scanner::new(0, ScanKind::PillagerOutpost);
         let scans = scanner.scan_many([(36, 103)]).expect("scan pillager");
         assert_eq!(scans.len(), 1);
         assert!(
@@ -1418,119 +1232,20 @@ mod tests {
         assert!(scans[0].chests.is_empty());
     }
     #[test]
-    fn scans_known_26_1_2_buried_treasure() {
-        let scanner = Scanner::new(0, Kind::BuriedTreasure);
-        let scans = scanner.scan_many([(0, -22)]).expect("scan buried");
-        assert_eq!(scans.len(), 1);
-        let scan = &scans[0];
-        assert!(scan.valid_structure);
-        assert_eq!(scan.chests.len(), 1);
-        let chest = &scan.chests[0];
-        assert_eq!((chest.x, chest.y, chest.z), (9, 63, -343));
-        assert_eq!(chest.loot_table, "minecraft:chests/buried_treasure");
-        assert_eq!(chest.loot_seed, -2156648588641602659);
-        assert_eq!(chest.ordinal, 0);
-    }
-    #[test]
-    fn scans_known_26_1_2_shipwreck() {
-        let scanner = Scanner::new(0, Kind::Shipwreck);
-        let scans = scanner.scan_many([(14, 8)]).expect("scan shipwreck");
-        assert_eq!(scans.len(), 1);
-        let scan = &scans[0];
-        assert!(scan.valid_structure);
-        assert_eq!(scan.chests.len(), 3);
-        let expected = [
-            (
-                219,
-                60,
-                142,
-                "minecraft:chests/shipwreck_treasure",
-                8114931824729312727_i64,
-                0,
-            ),
-            (
-                235,
-                61,
-                144,
-                "minecraft:chests/shipwreck_supply",
-                -3774492170699737302_i64,
-                0,
-            ),
-            (
-                224,
-                61,
-                145,
-                "minecraft:chests/shipwreck_map",
-                -2986182992758690057_i64,
-                1,
-            ),
-        ];
-        for (chest, (x, y, z, table, seed, ord)) in scan.chests.iter().zip(expected) {
-            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
-            assert_eq!(chest.loot_table, table);
-            assert_eq!(chest.loot_seed, seed);
-            assert_eq!(chest.ordinal, ord);
+    fn candidates_only_structures_fail_closed() {
+        for name in [
+            "buried_treasure",
+            "shipwreck",
+            "end_city",
+            "woodland_mansion",
+        ] {
+            let structure = candidate_structure(name).expect("catalog structure");
+            assert!(!structure.supports_full_scan());
+            let Err(error) = Scanner::for_structure(structure, 0) else {
+                panic!("{name} unexpectedly constructed a full scanner");
+            };
+            assert!(matches!(error, Error::Structure(_)));
+            assert!(error.to_string().contains(name));
         }
-    }
-    #[test]
-    fn scans_known_26_1_2_end_city() {
-        let scanner = Scanner::new(0, Kind::EndCity);
-        let scans = scanner.scan_many([(86, 64)]).expect("scan end city");
-        assert_eq!(scans.len(), 1);
-        let scan = &scans[0];
-        assert!(scan.valid_structure);
-        assert_eq!(scan.chests.len(), 2);
-        let expected = [
-            (1390, 106, 1033, -8159403464680465500_i64, 0),
-            (1392, 106, 1031, 7731847916610423894_i64, 0),
-        ];
-        for (chest, (x, y, z, seed, ord)) in scan.chests.iter().zip(expected) {
-            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
-            assert_eq!(chest.loot_table, "minecraft:chests/end_city_treasure");
-            assert_eq!(chest.loot_seed, seed);
-            assert_eq!(chest.ordinal, ord);
-        }
-    }
-    #[test]
-    fn scans_known_26_1_2_woodland_mansion() {
-        let scanner = Scanner::new(0, Kind::WoodlandMansion);
-        let scans = scanner.scan_many([(-221, -52)]).expect("scan mansion");
-        assert_eq!(scans.len(), 1);
-        let scan = &scans[0];
-        assert!(scan.valid_structure);
-        assert_eq!(scan.chests.len(), 7);
-        let expected = [
-            (-3534, 69, -817, 901766045902888527_i64, 0),
-            (-3507, 69, -820, -8848498207950452855_i64, 0),
-            (-3510, 91, -814, -4018319632420834225_i64, 8),
-            (-3510, 91, -802, -6821191583928121953_i64, 9),
-            (-3510, 91, -798, -5138943431233530681_i64, 0),
-            (-3510, 91, -786, -109245569350193768_i64, 1),
-            (-3509, 66, -774, 3860057794113135919_i64, 1),
-        ];
-        for (chest, (x, y, z, seed, ord)) in scan.chests.iter().zip(expected) {
-            assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
-            assert_eq!(chest.loot_table, "minecraft:chests/woodland_mansion");
-            assert_eq!(chest.loot_seed, seed);
-            assert_eq!(chest.ordinal, ord);
-        }
-    }
-    #[allow(clippy::identity_op)]
-    #[test]
-    fn hash_block_pos_is_i32_wrapped() {
-        // pumpkin-util 24702a1: x is i32-wrapped before cast, z is i64-wrapped.
-        // 9,63,-343 is the buried treasure vector; hash must be 24503658047811
-        // (verified against pumpkin_util::random::hash_block_pos).
-        assert_eq!(hash_block_pos(9, 63, -343), 24503658047811);
-        assert_eq!(hash_block_pos(9, 62, -343), 75975561363974);
-        // negative x wrapping check: -2 *3129871 wraps differently than (x as i64)*3129871
-        let x = -2_000_000_000_i32;
-        let wrapped = (x.wrapping_mul(3129871) as i64) ^ ((0_i64).wrapping_mul(116129781)) ^ 0_i64;
-        let expected = wrapped
-            .wrapping_mul(wrapped)
-            .wrapping_mul(42317861)
-            .wrapping_add(wrapped.wrapping_mul(11))
-            >> 16;
-        assert_eq!(hash_block_pos(x, 0, 0), expected);
     }
 }

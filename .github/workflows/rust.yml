@@ -52,8 +52,8 @@ jobs:
         run: cargo fmt --check
       - name: Lint with clippy
         run: cargo clippy --all-targets -- -D warnings
-      - name: Lint with clippy pedantic (non-blocking)
-        run: cargo clippy --all-targets -- -W clippy::pedantic || true
+      - name: Lint with clippy pedantic
+        run: cargo clippy --all-targets -- -D warnings -W clippy::pedantic
       - name: Check Rust CLI
         run: cargo check --locked
       - name: Test Rust CLI
@@ -302,6 +302,31 @@ jobs:
           if actual != expected:
               raise SystemExit(f"unexpected pillager find result: {result}")
           PY
+      - name: Check candidates-only structures fail closed
+        run: |
+          for structure in buried_treasure shipwreck end_city woodland_mansion; do
+            if output=$(target/x86_64-unknown-linux-musl/release/mc-loot-finder chests \
+              --seed 0 \
+              --structure "$structure" \
+              --radius 0 \
+              --json 2>&1); then
+              status=0
+            else
+              status=$?
+            fi
+            if test "$status" -eq 0; then
+              echo "$structure unexpectedly allowed full scanning" >&2
+              exit 1
+            fi
+            test "$status" -eq 2
+            case "$output" in
+              *"do not support $structure"*) ;;
+              *)
+                echo "unexpected $structure error: $output" >&2
+                exit 1
+                ;;
+            esac
+          done
       - uses: actions/upload-artifact@v7
         with:
           name: ancient-city-chests
@@ -504,6 +529,28 @@ jobs:
               $result.checked_chests -ne 10 -or
               $result.hits -ne 1) {
             throw "unexpected pillager find result: $json"
+          }
+      - name: Check candidates-only structures fail closed
+        shell: pwsh
+        run: |
+          foreach ($structure in @(
+            "buried_treasure",
+            "shipwreck",
+            "end_city",
+            "woodland_mansion"
+          )) {
+            $output = & target\release\mc-loot-finder.exe chests `
+              --seed 0 `
+              --structure $structure `
+              --radius 0 `
+              --json 2>&1
+            $status = $LASTEXITCODE
+            if ($status -ne 2) {
+              throw "$structure exited with status $status instead of 2"
+            }
+            if (($output -join "`n") -notmatch "do not support $structure") {
+              throw "unexpected $structure error: $output"
+            }
           }
       - name: Prepare Windows binary
         shell: pwsh

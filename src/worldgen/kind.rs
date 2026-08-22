@@ -1,3 +1,5 @@
+use crate::catalog::ScanKind;
+
 use pumpkin_data::{
     dimension::Dimension,
     structures::{Structure, StructureKeys},
@@ -6,21 +8,7 @@ use pumpkin_world::biome::MultiNoiseBiomeSupplier;
 
 use super::{NETHER_MIN_Y, NETHER_SEA_LEVEL, OVERWORLD_MIN_Y, OVERWORLD_SEA_LEVEL};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Kind {
-    AncientCity,
-    BastionRemnant,
-    DesertPyramid,
-    Igloo,
-    Village,
-    PillagerOutpost,
-    BuriedTreasure,
-    Shipwreck,
-    EndCity,
-    WoodlandMansion,
-}
-
-impl Kind {
+impl ScanKind {
     fn profile(self) -> KindProfile {
         match self {
             Self::AncientCity => KindProfile {
@@ -75,42 +63,6 @@ impl Kind {
                 min_y: OVERWORLD_MIN_Y,
                 sea_level: OVERWORLD_SEA_LEVEL,
                 decoration: (9, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::BuriedTreasure => KindProfile {
-                structure: Structure::BURIED_TREASURE,
-                key: StructureKeys::BuriedTreasure,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (0, 0),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::Shipwreck => KindProfile {
-                structure: Structure::SHIPWRECK,
-                key: StructureKeys::Shipwreck,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (17, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::EndCity => KindProfile {
-                structure: Structure::END_CITY,
-                key: StructureKeys::EndCity,
-                dimension: Dimension::THE_END,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (2, 4),
-                biome: MultiNoiseBiomeSupplier::OVERWORLD,
-            },
-            Self::WoodlandMansion => KindProfile {
-                structure: Structure::MANSION,
-                key: StructureKeys::Mansion,
-                dimension: Dimension::OVERWORLD,
-                min_y: OVERWORLD_MIN_Y,
-                sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (5, 4),
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
         }

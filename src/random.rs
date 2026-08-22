@@ -13,12 +13,7 @@ impl LegacyRandom48 {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn set_seed(&mut self, seed: i64) {
-        self.seed = (seed as u64 ^ MULTIPLIER) & MASK;
-    }
-
-    pub fn next(&mut self, bits: u32) -> i32 {
+    fn next(&mut self, bits: u32) -> i32 {
         self.seed = self.seed.wrapping_mul(MULTIPLIER).wrapping_add(ADDEND) & MASK;
         (self.seed >> (48 - bits)) as i32
     }
@@ -41,29 +36,8 @@ impl LegacyRandom48 {
         self.next(32)
     }
 
-    pub fn next_long(&mut self) -> i64 {
-        ((self.next(32) as i64) << 32) + (self.next(32) as i64)
-    }
-
-    #[allow(dead_code)]
-    pub fn next_double(&mut self) -> f64 {
-        let high = self.next(26) as i64;
-        let low = self.next(27) as i64;
-        ((high << 27) + low) as f64 / (1i64 << 53) as f64
-    }
-
-    #[allow(dead_code)]
     pub fn next_float(&mut self) -> f32 {
         self.next(24) as f32 * 2_f32.powi(-24)
-    }
-
-    #[allow(dead_code)]
-    pub fn set_large_feature_seed(&mut self, seed: i64, chunk_x: i32, chunk_z: i32) {
-        self.set_seed(seed);
-        let a = self.next_long();
-        let b = self.next_long();
-        let c = (i64::from(chunk_x).wrapping_mul(a)) ^ (i64::from(chunk_z).wrapping_mul(b)) ^ seed;
-        self.set_seed(c);
     }
 }
 
@@ -72,13 +46,11 @@ const SILVER_RATIO_64: u64 = 0x6A09_E667_F3BC_C909;
 const STAFFORD_MIX_1: u64 = 0xBF58_476D_1CE4_E5B9;
 const STAFFORD_MIX_2: u64 = 0x94D0_49BB_1331_11EB;
 
-#[allow(dead_code)]
 pub struct Xoroshiro128PlusPlus {
     seed_lo: u64,
     seed_hi: u64,
 }
 
-#[allow(dead_code)]
 impl Xoroshiro128PlusPlus {
     pub fn new(seed: i64) -> Self {
         let mut random = Self {

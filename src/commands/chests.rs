@@ -39,7 +39,7 @@ pub fn run(args: SearchArgs) -> Result<u8, Error> {
                     x: chest.x,
                     y: chest.y,
                     z: chest.z,
-                    loot_table: chest.loot_table.to_owned(),
+                    loot_table: chest.loot_table.clone(),
                     loot_seed: chest.loot_seed,
                     start_chunk_x: chest.structure_chunk_x,
                     start_chunk_z: chest.structure_chunk_z,

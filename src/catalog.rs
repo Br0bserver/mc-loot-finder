@@ -15,12 +15,23 @@ pub struct Placement {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScanKind {
+    AncientCity,
+    BastionRemnant,
+    DesertPyramid,
+    Igloo,
+    Village,
+    PillagerOutpost,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CandidateStructure {
     pub name: &'static str,
     pub structure_id: &'static str,
     pub structure_path: &'static str,
     pub dimension: &'static str,
     pub placement: Placement,
+    pub scan_kind: Option<ScanKind>,
     pub decoration_step: i32,
     pub structure_index: i32,
     pub container_seed: ContainerSeedShortcut,
@@ -45,6 +56,8 @@ const fn linear(spacing: i32, separation: i32, salt: i64) -> Placement {
     }
 }
 
+pub const VILLAGE_PLACEMENT: Placement = linear(34, 8, 10_387_312);
+
 const fn triangular(spacing: i32, separation: i32, salt: i64) -> Placement {
     Placement {
         spacing,
@@ -57,6 +70,7 @@ const fn triangular(spacing: i32, separation: i32, salt: i64) -> Placement {
 pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     CandidateStructure {
         name: "ancient_city",
+        scan_kind: Some(ScanKind::AncientCity),
         structure_id: "minecraft:ancient_city",
         structure_path: "ancient_city",
         dimension: "minecraft:overworld",
@@ -70,6 +84,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "bastion_remnant",
+        scan_kind: Some(ScanKind::BastionRemnant),
         structure_id: "minecraft:bastion_remnant",
         structure_path: "bastion_remnant",
         dimension: "minecraft:the_nether",
@@ -88,6 +103,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "desert_pyramid",
+        scan_kind: Some(ScanKind::DesertPyramid),
         structure_id: "minecraft:desert_pyramid",
         structure_path: "desert_pyramid",
         dimension: "minecraft:overworld",
@@ -101,6 +117,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "jungle_pyramid",
+        scan_kind: None,
         structure_id: "minecraft:jungle_pyramid",
         structure_path: "jungle_pyramid",
         dimension: "minecraft:overworld",
@@ -117,6 +134,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "igloo",
+        scan_kind: Some(ScanKind::Igloo),
         structure_id: "minecraft:igloo",
         structure_path: "igloo",
         dimension: "minecraft:overworld",
@@ -130,6 +148,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "end_city",
+        scan_kind: None,
         structure_id: "minecraft:end_city",
         structure_path: "end_city",
         dimension: "minecraft:the_end",
@@ -143,6 +162,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "ruined_portal",
+        scan_kind: None,
         structure_id: "minecraft:ruined_portal",
         structure_path: "ruined_portal",
         dimension: "minecraft:overworld",
@@ -156,6 +176,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "ruined_portal_nether",
+        scan_kind: None,
         structure_id: "minecraft:ruined_portal_nether",
         structure_path: "ruined_portal_nether",
         dimension: "minecraft:the_nether",
@@ -169,6 +190,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "trial_chambers",
+        scan_kind: None,
         structure_id: "minecraft:trial_chambers",
         structure_path: "trial_chambers",
         dimension: "minecraft:overworld",
@@ -193,6 +215,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "shipwreck",
+        scan_kind: None,
         structure_id: "minecraft:shipwreck",
         structure_path: "shipwreck",
         dimension: "minecraft:overworld",
@@ -210,6 +233,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "ocean_ruin",
+        scan_kind: None,
         structure_id: "minecraft:ocean_ruin_cold",
         structure_path: "ocean_ruin_cold",
         dimension: "minecraft:overworld",
@@ -226,6 +250,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "nether_fortress",
+        scan_kind: None,
         structure_id: "minecraft:fortress",
         structure_path: "fortress",
         dimension: "minecraft:the_nether",
@@ -239,10 +264,11 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "village",
+        scan_kind: Some(ScanKind::Village),
         structure_id: "minecraft:village_plains",
         structure_path: "village_plains",
         dimension: "minecraft:overworld",
-        placement: linear(34, 8, 10_387_312),
+        placement: VILLAGE_PLACEMENT,
         decoration_step: -1,
         structure_index: -1,
         container_seed: ContainerSeedShortcut::None,
@@ -269,6 +295,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "buried_treasure",
+        scan_kind: None,
         structure_id: "minecraft:buried_treasure",
         structure_path: "buried_treasure",
         dimension: "minecraft:overworld",
@@ -282,6 +309,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "pillager_outpost",
+        scan_kind: Some(ScanKind::PillagerOutpost),
         structure_id: "minecraft:pillager_outpost",
         structure_path: "pillager_outpost",
         dimension: "minecraft:overworld",
@@ -295,6 +323,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "woodland_mansion",
+        scan_kind: None,
         structure_id: "minecraft:mansion",
         structure_path: "mansion",
         dimension: "minecraft:overworld",
@@ -309,21 +338,9 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
 ];
 
 impl CandidateStructure {
-    /// Whether `chests` and `find` are fully supported for this structure.
-    pub fn supports_full_scan(&self) -> bool {
-        matches!(
-            self.name,
-            "ancient_city"
-                | "bastion_remnant"
-                | "desert_pyramid"
-                | "igloo"
-                | "village"
-                | "pillager_outpost"
-                | "buried_treasure"
-                | "shipwreck"
-                | "end_city"
-                | "woodland_mansion"
-        )
+    /// Whether `chests` and `find` have an exact world-generation scanner.
+    pub const fn supports_full_scan(&self) -> bool {
+        self.scan_kind.is_some()
     }
 }
 
