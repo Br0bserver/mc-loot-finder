@@ -2,7 +2,7 @@
 
 > 这是基于 Pumpkin fork 的实验性 Rust 分支，只维护源码并通过 GitHub Actions 验证，不发布正式 Release。
 
-`mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市、堡垒遗迹、沙漠神殿、冰屋、村庄和掠夺者前哨站，列出其中的容器，并搜索指定战利品。
+`mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市、堡垒遗迹、沙漠神殿、冰屋、村庄、埋藏宝藏和掠夺者前哨站，列出其中的容器，并搜索指定战利品。
 
 程序不读取存档，也不需要安装 Java。GitHub Actions 生成的 Linux 和 Windows 构建产物只用于 CI 验证，可能随时失效或被清理，不作为正式发行版本提供。
 
@@ -39,11 +39,33 @@ mc-loot-finder chests \
   --radius 5000
 ```
 
+搜索埋藏宝藏中的海洋之心：
+
+```bash
+mc-loot-finder find \
+  --seed 0 \
+  --structure buried_treasure \
+  --item minecraft:heart_of_the_sea \
+  --center-x 8 \
+  --center-z -344 \
+  --radius 0
+```
+
+按结构区块重算同一个宝箱的 LootTableSeed：
+
+```bash
+mc-loot-finder container-seed \
+  --seed 0 \
+  --structure buried_treasure \
+  --chunk-x 0 \
+  --chunk-z -22
+```
+
 运行 `mc-loot-finder help` 查看命令，运行 `mc-loot-finder explain` 查看默认参数和支持范围。脚本调用时可加 `--json`；`--limit` 只限制显示条数，不会缩小实际搜索范围。
 
 ## 当前范围
 
-- 精确支持 Minecraft Java 26.1.2 的远古城市、堡垒遗迹、沙漠神殿、冰屋、村庄和掠夺者前哨站的定位、结构布局、方块容器和战利品。
+- 精确支持 Minecraft Java 26.1.2 的远古城市、堡垒遗迹、沙漠神殿、冰屋、村庄、埋藏宝藏和掠夺者前哨站的定位、结构布局、方块容器和战利品。
 - `candidates` 可以快速计算其他已登记结构的候选区块，但不验证结构是否实际生成。
 - 不读取已有世界，不处理数据包，也不处理箱子矿车等实体容器。
 - 固定世界种子、箱子位置、LootTableSeed 和战利品结果均通过原版结果回归测试。
@@ -52,10 +74,11 @@ mc-loot-finder chests \
 
 ## 开发
 
-- 模块结构：`src/catalog.rs` 是扫描能力和静态装饰种子参数的唯一来源；
-  `src/worldgen.rs` 只保留扫描器入口，`src/worldgen/{chests,jigsaw_scan,single_piece,profile}.rs`
-  分别负责容器、Jigsaw、单体结构和 Pumpkin 运行时配置；`src/surface_jigsaw.rs`
-  实现村庄/前哨站共用的原版地表 Jigsaw，其他 CLI、输出、战利品和随机流逻辑按职责分模块。
+- 模块结构：`src/catalog.rs` 是扫描能力和容器种子策略的唯一来源；
+  `src/worldgen.rs` 只保留扫描器入口，`src/worldgen/{buried_treasure,chests,jigsaw_scan,single_piece,profile}.rs`
+  分别负责埋藏宝藏、容器、Jigsaw、单体结构和 Pumpkin 运行时配置；
+  `src/surface_jigsaw.rs` 实现村庄/前哨站共用的原版地表 Jigsaw，其他 CLI、输出、
+  战利品和随机流逻辑按职责分模块。
 - 本机内存不足以编译 Pumpkin 依赖树，因此本地只允许 `cargo fmt` 和
   `cargo generate-lockfile`；编译、测试、clippy 全部由 GitHub Actions 验证。
   Linux 和 Windows 均调用 `ci/smoke.py` 执行同一组行为断言；CI 通过后可用
