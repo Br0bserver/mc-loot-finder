@@ -1,4 +1,4 @@
-use super::{Chest, Scan, Scanner, invalid_scan};
+use super::{Chest, Scan, Scanner, invalid_scan, terrain::TerrainSampler};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 
@@ -8,9 +8,7 @@ use pumpkin_util::{
     math::vector3::Vector3,
     random::{RandomImpl, get_region_seed, legacy_rand::LegacyRand},
 };
-use pumpkin_world::{
-    ProtoChunk, generation::noise::router::multi_noise_sampler::MultiNoiseSampler,
-};
+use pumpkin_world::generation::noise::router::multi_noise_sampler::MultiNoiseSampler;
 
 const FREQUENCY_SALT: u32 = 10_387_320;
 const FREQUENCY: f32 = 0.01;
@@ -61,21 +59,10 @@ impl Scanner {
             return Ok(invalid_scan());
         }
 
-        let mut chunk = ProtoChunk::new(chunk_x, chunk_z, &self.generator);
-        let generator = self.generator();
-        chunk.step_to_biomes(generator);
-        chunk.set_structure_starts(generator);
-        chunk.set_structure_references(generator);
-        chunk.step_to_noise(generator);
-        chunk.step_to_surface(generator);
-        chunk.step_to_carvers(generator);
-
-        let top_y = chunk.get_top_y(&HeightMap::OceanFloorWg, chest_x, chest_z);
-        let chest_y = (i32::from(chunk.bottom_y())..=top_y).rev().find(|&y| {
-            let down = chunk
-                .get_block_state(&Vector3::new(chest_x, y - 1, chest_z))
-                .to_block_id();
-            is_buried_treasure_support(down)
+        let mut terrain = TerrainSampler::new(&self.generator);
+        let top_y = terrain.height(HeightMap::OceanFloorWg, chest_x, chest_z);
+        let chest_y = (self.kind.min_y()..=top_y).rev().find(|&y| {
+            is_buried_treasure_support(terrain.block_state(chest_x, y - 1, chest_z).to_block_id())
         });
         let Some(chest_y) = chest_y else {
             return Ok(Scan {

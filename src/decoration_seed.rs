@@ -2,7 +2,7 @@ use crate::catalog::{ContainerSeedShortcut, DecorationSeedSpec};
 use crate::error::Error;
 use crate::random::Xoroshiro128PlusPlus;
 
-struct DecorationRandom {
+pub(crate) struct DecorationRandom {
     random: Xoroshiro128PlusPlus,
 }
 
@@ -17,6 +17,22 @@ impl DecorationRandom {
         Self {
             random: Xoroshiro128PlusPlus::new(0),
         }
+    }
+
+    pub(crate) fn for_feature(
+        world_seed: i64,
+        chunk_x: i32,
+        chunk_z: i32,
+        spec: DecorationSeedSpec,
+    ) -> Self {
+        let mut random = Self::new();
+        let decoration_seed = random.set_decoration_seed(
+            world_seed,
+            chunk_x.wrapping_mul(16),
+            chunk_z.wrapping_mul(16),
+        );
+        random.set_feature_seed(decoration_seed, spec.structure_index, spec.step);
+        random
     }
 
     fn set_decoration_seed(&mut self, world_seed: i64, block_x: i32, block_z: i32) -> i64 {
@@ -39,13 +55,13 @@ impl DecorationRandom {
         );
     }
 
-    fn next_long(&mut self) -> i64 {
+    pub(crate) fn next_long(&mut self) -> i64 {
         let high = (self.random.next_long() >> 32) as i32;
         let low = (self.random.next_long() >> 32) as i32;
         (i64::from(high) << 32).wrapping_add(i64::from(low))
     }
 
-    fn next_int(&mut self, bound: i32) -> i32 {
+    pub(crate) fn next_int(&mut self, bound: i32) -> i32 {
         assert!(bound > 0, "bound must be positive");
         if bound & (bound - 1) == 0 {
             return ((i64::from(bound) * i64::from(self.next_bits(31))) >> 31) as i32;
@@ -76,17 +92,16 @@ pub fn container_loot_seed(
             "container ordinal must be non-negative".to_owned(),
         ));
     }
+    if spec.shortcut == ContainerSeedShortcut::Unavailable {
+        return Err(Error::Usage(
+            "container seed requires exact structure placement".to_owned(),
+        ));
+    }
     let effective_ordinal = ordinal
         .checked_add(spec.ordinal_offset)
         .ok_or_else(|| Error::Usage("container ordinal overflowed".to_owned()))?;
 
-    let mut random = DecorationRandom::new();
-    let decoration_seed = random.set_decoration_seed(
-        world_seed,
-        chunk_x.wrapping_mul(16),
-        chunk_z.wrapping_mul(16),
-    );
-    random.set_feature_seed(decoration_seed, spec.structure_index, spec.step);
+    let mut random = DecorationRandom::for_feature(world_seed, chunk_x, chunk_z, spec);
     if spec.shortcut == ContainerSeedShortcut::DesertPyramid {
         random.next_int(3);
     }
@@ -159,6 +174,24 @@ mod tests {
             .unwrap(),
             -7_862_992_963_971_781_551
         );
+    }
+
+    #[test]
+    fn unavailable_shortcut_requires_structure_placement() {
+        let error = container_loot_seed(
+            0,
+            14,
+            8,
+            DecorationSeedSpec {
+                structure_index: 18,
+                step: 4,
+                ordinal_offset: 0,
+                shortcut: ContainerSeedShortcut::Unavailable,
+            },
+            0,
+        )
+        .expect_err("shipwreck seed must require exact template placement");
+        assert!(matches!(error, Error::Usage(_)));
     }
 
     #[test]

@@ -15,6 +15,7 @@ FULL_SCAN_STRUCTURES = [
     "bastion_remnant",
     "desert_pyramid",
     "igloo",
+    "shipwreck",
     "village",
     "buried_treasure",
     "pillager_outpost",
@@ -222,6 +223,93 @@ def check_structure_pair(
     return chests
 
 
+def check_shipwreck(binary: Path) -> None:
+    search = [
+        "--seed",
+        "0",
+        "--structure",
+        "shipwreck",
+        "--center-x",
+        "232",
+        "--center-z",
+        "136",
+        "--radius",
+        "0",
+        "--json",
+    ]
+    chests = run_json(binary, "chests", *search)
+    assert_fields(
+        "shipwreck chests",
+        chests,
+        {"placement_candidates": 1, "valid_structures": 1, "chest_count": 3},
+    )
+    expected_chests = [
+        {
+            "x": 219,
+            "y": 61,
+            "z": 142,
+            "loot_table": "minecraft:chests/shipwreck_treasure",
+            "loot_seed": -756_378_412_031_281_064,
+            "start_chunk_x": 14,
+            "start_chunk_z": 8,
+            "ordinal": 0,
+        },
+        {
+            "x": 235,
+            "y": 62,
+            "z": 144,
+            "loot_table": "minecraft:chests/shipwreck_supply",
+            "loot_seed": -3_774_492_170_699_737_302,
+            "start_chunk_x": 14,
+            "start_chunk_z": 8,
+            "ordinal": 0,
+        },
+        {
+            "x": 224,
+            "y": 62,
+            "z": 145,
+            "loot_table": "minecraft:chests/shipwreck_map",
+            "loot_seed": -2_986_182_992_758_690_057,
+            "start_chunk_x": 14,
+            "start_chunk_z": 8,
+            "ordinal": 1,
+        },
+    ]
+    if chests.get("chests") != expected_chests:
+        raise SystemExit(f"unexpected shipwreck chests: expected {expected_chests}, got {chests}")
+
+    found = run_json(
+        binary,
+        "find",
+        *search[:-1],
+        "--item",
+        "minecraft:map",
+        "--json",
+    )
+    assert_fields(
+        "shipwreck find",
+        found,
+        {"placement_candidates": 1, "valid_structures": 1, "checked_chests": 3, "hits": 1},
+    )
+
+    unavailable = run(
+        binary,
+        "container-seed",
+        "--seed",
+        "0",
+        "--structure",
+        "shipwreck",
+        "--chunk-x",
+        "14",
+        "--chunk-z",
+        "8",
+        expected_status=2,
+    )
+    unavailable_error = unavailable.stdout + unavailable.stderr
+    if "container-seed is not available for shipwreck" not in unavailable_error:
+        raise SystemExit(f"unexpected shipwreck container-seed error: {unavailable_error}")
+
+
 def check_buried_treasure(binary: Path) -> None:
     search = [
         "--seed",
@@ -364,6 +452,7 @@ def main() -> None:
         {"placement_candidates": 299, "valid_structures": 26, "chest_count": 14},
         {"placement_candidates": 299, "valid_structures": 26, "checked_chests": 14, "hits": 14},
     )
+    check_shipwreck(binary)
     check_structure_pair(
         binary,
         "village",

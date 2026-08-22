@@ -2,7 +2,10 @@ mod buried_treasure;
 mod chests;
 mod jigsaw_scan;
 mod profile;
+mod shipwreck;
 mod single_piece;
+mod template_scan;
+mod terrain;
 use crate::catalog::{CandidateStructure, DecorationSeedSpec, ScanKind, ScanSupport};
 use crate::error::Error;
 use pumpkin_data::{
@@ -127,6 +130,7 @@ impl Scanner {
             ScanKind::Village => self.scan_village(chunk_x, chunk_z, sampler),
             ScanKind::PillagerOutpost => self.scan_pillager_outpost(chunk_x, chunk_z, sampler),
             ScanKind::BuriedTreasure => self.scan_buried_treasure(chunk_x, chunk_z, sampler),
+            ScanKind::Shipwreck => self.scan_shipwreck(chunk_x, chunk_z, sampler),
         }
     }
 
