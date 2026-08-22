@@ -556,6 +556,7 @@ jobs:
               throw "unexpected $structure error: $output"
             }
           }
+          exit 0
       - name: Prepare Windows binary
         shell: pwsh
         run: |
