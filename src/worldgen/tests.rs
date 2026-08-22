@@ -196,7 +196,7 @@ fn scans_known_26_1_2_desert_pyramids() {
             .collect::<Vec<_>>();
         assert_eq!(actual, wanted);
     }
-    assert_static_seed_contract(&scanner, &scans);
+    assert_static_seed_contract(&scanner, scans);
 }
 
 #[test]
