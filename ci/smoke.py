@@ -59,22 +59,25 @@ def check_capabilities(binary: Path) -> None:
     structures = result.get("structures")
     if not isinstance(structures, list):
         raise SystemExit(f"explain returned invalid structures list: {result}")
-    full_scan = [
-        structure.get("name")
-        for structure in structures
-        if isinstance(structure, dict) and structure.get("full_scan") is True
-    ]
+    capabilities: list[tuple[str, bool]] = []
+    for structure in structures:
+        if not isinstance(structure, dict):
+            raise SystemExit(f"explain returned invalid structure entry: {structure!r}")
+        name = structure.get("name")
+        supports_full_scan = structure.get("full_scan")
+        if not isinstance(name, str) or not isinstance(supports_full_scan, bool):
+            raise SystemExit(f"explain returned invalid structure capability: {structure}")
+        capabilities.append((name, supports_full_scan))
+
+    full_scan = [name for name, supports_full_scan in capabilities if supports_full_scan]
     if full_scan != FULL_SCAN_STRUCTURES:
         raise SystemExit(
             f"unexpected full-scan capability list: expected {FULL_SCAN_STRUCTURES}, got {full_scan}"
         )
 
-    for structure in structures:
-        if not isinstance(structure, dict) or structure.get("full_scan") is not False:
+    for name, supports_full_scan in capabilities:
+        if supports_full_scan:
             continue
-        name = structure.get("name")
-        if not isinstance(name, str):
-            raise SystemExit(f"candidate-only structure has invalid name: {structure}")
         result = run(
             binary,
             "chests",
@@ -93,7 +96,7 @@ def check_capabilities(binary: Path) -> None:
 
 
 def check_ancient_city(binary: Path, ancient_output: Path | None) -> None:
-    if ancient_output is not None:
+    if ancient_output:
         chests = run_json(
             binary,
             "chests",
@@ -231,7 +234,7 @@ def check_pillager_seed_contract(binary: Path, chests: dict[str, Any]) -> None:
         ),
         None,
     )
-    if chest is None:
+    if not isinstance(chest, dict):
         raise SystemExit(f"known pillager chest is missing: {chests}")
     expected_seed = chest.get("loot_seed")
     ordinal = chest.get("ordinal")
