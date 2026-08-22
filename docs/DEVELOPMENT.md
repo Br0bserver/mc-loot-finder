@@ -79,8 +79,7 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
 
 1. `src/catalog.rs`：目录条目（若无）；只有完成精确扫描的结构才能使用
    `ScanSupport::Full(ScanKind::...)`，仅支持候选定位的结构必须使用
-   `Option<ContainerSeedSpec>`；装饰流使用 `Decoration(DecorationSeedSpec)`，必须执行
-   精确结构才能得到种子的结构使用 `StructureScan`。禁止用 `-1` 或字符串表达内部状态。
+   `Option<DecorationSeedSpec>`；禁止用 `-1` 或字符串表达内部状态。
 2. `src/worldgen/profile.rs`：为 `ScanKind` 补齐 Pumpkin 的
    structure/key/dimension/min_y/sea_level/biome 配置。静态 decoration 参数只能
    来自 catalog；村庄等运行时变体使用命名的 `DecorationSeedSpec`。
@@ -90,12 +89,12 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
    `src/worldgen/tests.rs`，禁止进入生产扫描路径。
 4. 地表锚定结构使用 `src/surface_height.rs`。村庄和前哨站式 Jigsaw 复用
    `src/surface_jigsaw.rs` 与 `SurfaceJigsawConfig`；不得复制或重新实现随机流。
-5. 装饰流容器种子统一传递 `DecorationSeedSpec`；模板放置在可见箱子前消耗的随机值
-   必须写入 `ordinal_offset`（例如冰屋为 1），使 `Chest.ordinal` 可直接用于
-   `container-seed` 重算。位置哈希种子等非装饰流必须使用
-   `ContainerSeedSpec::StructureScan`，由精确 Scanner 返回结果，不得伪造 decoration
-   index/step。`Chest.loot_table` 保留原始拥有所有权的字符串，未知表不得静默转为空值。
-   测试必须验证 Scanner 的每个 LootTableSeed 可由 catalog 策略重算。
+5. 容器种子统一传递 `DecorationSeedSpec`；模板放置在可见箱子前消耗的随机值必须写入
+   `ordinal_offset`（例如冰屋为 1），使 `Chest.ordinal` 可直接用于
+   `container-seed` 重算。必须从原版运行时 registry 顺序确认 decoration step/index：
+   埋藏宝藏虽然 Pumpkin 实现按方块位置哈希种子，原版 26.1.2 实际仍使用结构装饰流
+   step 3/index 0。`Chest.loot_table` 保留原始拥有所有权的字符串，未知表不得静默
+   转为空值。测试必须验证 Scanner 的每个 LootTableSeed 可由 catalog spec 重算。
 6. 对拍测试锁定位置、y、loot seed、ordinal 和无效候选，并至少增加一个不同世界
    种子或大范围 aggregate 向量。Catalog 测试自动遍历全部 `ScanSupport`，确保
    candidates-only 失败关闭、full entry 可构造 Scanner。

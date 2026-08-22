@@ -6,7 +6,7 @@ use std::collections::HashSet;
 fn assert_static_seed_contract(scanner: &Scanner, scans: &[Scan]) {
     let decoration = scanner
         .structure
-        .decoration()
+        .decoration
         .expect("scanner must have static decoration metadata");
     for chest in scans.iter().flat_map(|scan| &scan.chests) {
         let predicted = container_loot_seed(
@@ -378,6 +378,7 @@ fn scans_known_26_1_2_buried_treasures() {
         assert_eq!(chest.loot_seed, loot_seed);
         assert_eq!(chest.loot_table, "minecraft:chests/buried_treasure");
         assert_eq!(chest.ordinal, 0);
+        assert_static_seed_contract(&scanner, &scans);
     }
 }
 
@@ -399,13 +400,9 @@ fn catalog_scan_support_matches_scanner_construction() {
                     .expect("full catalog entry must construct a scanner");
                 assert_eq!(scanner.kind, kind);
                 assert!(
-                    structure.container_seed.is_some() || kind == ScanKind::Village,
-                    "{} has no container-seed strategy",
+                    structure.decoration.is_some() || kind == ScanKind::Village,
+                    "{} has no decoration seed specification",
                     structure.name
-                );
-                assert!(
-                    structure.decoration().is_some()
-                        || matches!(kind, ScanKind::Village | ScanKind::BuriedTreasure)
                 );
             }
         }

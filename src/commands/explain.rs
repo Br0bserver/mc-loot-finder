@@ -81,14 +81,12 @@ pub fn run(args: ExplainArgs) -> Result<u8, Error> {
                     SpreadType::Triangular => "TRIANGULAR",
                 },
             },
-            decoration_step: structure.decoration().map_or(-1, |spec| spec.step),
-            decoration_index: structure
-                .decoration()
-                .map_or(-1, |spec| spec.structure_index),
+            decoration_step: structure.decoration.map_or(-1, |spec| spec.step),
+            decoration_index: structure.decoration.map_or(-1, |spec| spec.structure_index),
             scanner: structure.reference_scanner.as_str(),
             container_seed_shortcut: structure
-                .container_seed
-                .map_or("NONE", |spec| spec.as_str()),
+                .decoration
+                .map_or("NONE", |spec| spec.shortcut.as_str()),
             loot_tables: structure.loot_tables.to_vec(),
         };
         print_json(&output);
@@ -99,13 +97,11 @@ pub fn run(args: ExplainArgs) -> Result<u8, Error> {
         SpreadType::Linear => "LINEAR",
         SpreadType::Triangular => "TRIANGULAR",
     };
-    let decoration_step = structure.decoration().map_or(-1, |spec| spec.step);
-    let structure_index = structure
-        .decoration()
-        .map_or(-1, |spec| spec.structure_index);
+    let decoration_step = structure.decoration.map_or(-1, |spec| spec.step);
+    let structure_index = structure.decoration.map_or(-1, |spec| spec.structure_index);
     let shortcut = structure
-        .container_seed
-        .map_or("NONE", |spec| spec.as_str());
+        .decoration
+        .map_or("NONE", |spec| spec.shortcut.as_str());
     println!("Minecraft Java 26.1.2");
     println!("Structure: {}", structure.name);
     println!("Structure ID: {}", structure.structure_id);

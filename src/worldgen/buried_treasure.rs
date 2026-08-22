@@ -1,11 +1,12 @@
 use super::{Chest, Scan, Scanner, invalid_scan};
+use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 
 use pumpkin_data::BlockId;
 use pumpkin_util::{
     HeightMap,
     math::vector3::Vector3,
-    random::{RandomImpl, get_region_seed, hash_block_pos, legacy_rand::LegacyRand},
+    random::{RandomImpl, get_region_seed, legacy_rand::LegacyRand},
 };
 use pumpkin_world::{
     ProtoChunk, generation::noise::router::multi_noise_sampler::MultiNoiseSampler,
@@ -83,7 +84,8 @@ impl Scanner {
             });
         };
 
-        let mut random = LegacyRand::from_seed(hash_block_pos(chest_x, chest_y, chest_z) as u64);
+        let loot_seed =
+            container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 0)?;
         Ok(Scan {
             valid_structure: true,
             chests: vec![Chest {
@@ -94,7 +96,7 @@ impl Scanner {
                 z: chest_z,
                 loot_table: LOOT_TABLE.to_owned(),
                 ordinal: 0,
-                loot_seed: random.next_i64(),
+                loot_seed,
             }],
         })
     }

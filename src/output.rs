@@ -128,8 +128,8 @@ pub struct ContainerSeedOutput {
     pub world_seed: i64,
     pub chunk_x: i32,
     pub chunk_z: i32,
-    pub structure_index: Option<i32>,
-    pub step: Option<i32>,
+    pub structure_index: i32,
+    pub step: i32,
     pub ordinal: i32,
     pub loot_table_seed: i64,
 }
@@ -301,8 +301,8 @@ mod tests {
             world_seed: 0,
             chunk_x: -188,
             chunk_z: 0,
-            structure_index: Some(1),
-            step: Some(4),
+            structure_index: 1,
+            step: 4,
             ordinal: 2,
             loot_table_seed: 3_899_282_274_470_656_331,
         };
@@ -310,22 +310,6 @@ mod tests {
         assert_eq!(
             json,
             r#"{"version":"26.1.2","structure":"desert_pyramid","world_seed":0,"chunk_x":-188,"chunk_z":0,"structure_index":1,"step":4,"ordinal":2,"loot_table_seed":3899282274470656331}"#
-        );
-
-        let scan_output = ContainerSeedOutput {
-            version: "26.1.2",
-            structure: "buried_treasure",
-            world_seed: 0,
-            chunk_x: 0,
-            chunk_z: -22,
-            structure_index: None,
-            step: None,
-            ordinal: 0,
-            loot_table_seed: -2_156_648_588_641_602_659,
-        };
-        assert_eq!(
-            serde_json::to_string(&scan_output).unwrap(),
-            r#"{"version":"26.1.2","structure":"buried_treasure","world_seed":0,"chunk_x":0,"chunk_z":-22,"structure_index":null,"step":null,"ordinal":0,"loot_table_seed":-2156648588641602659}"#
         );
     }
 

@@ -290,29 +290,10 @@ def check_buried_treasure(binary: Path) -> None:
     )
     if (
         predicted.get("loot_table_seed") != expected_chest["loot_seed"]
-        or predicted.get("structure_index") is not None
-        or predicted.get("step") is not None
+        or predicted.get("structure_index") != 0
+        or predicted.get("step") != 3
     ):
         raise SystemExit(f"buried treasure seed contract mismatch: {predicted}")
-
-    invalid_override = run(
-        binary,
-        "container-seed",
-        "--seed",
-        "0",
-        "--structure",
-        "buried_treasure",
-        "--chunk-x",
-        "0",
-        "--chunk-z",
-        "-22",
-        "--structure-index",
-        "0",
-        expected_status=2,
-    )
-    override_error = invalid_override.stdout + invalid_override.stderr
-    if "--structure-index and --step do not apply" not in override_error:
-        raise SystemExit(f"unexpected buried treasure override error: {override_error}")
 
 
 def check_pillager_seed_contract(binary: Path, chests: dict[str, Any]) -> None:

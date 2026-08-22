@@ -74,7 +74,7 @@ mc-loot-finder container-seed \
 
 ## 开发
 
-- 模块结构：`src/catalog.rs` 是扫描能力和容器种子策略的唯一来源；
+- 模块结构：`src/catalog.rs` 是扫描能力和装饰种子参数的唯一来源；
   `src/worldgen.rs` 只保留扫描器入口，`src/worldgen/{buried_treasure,chests,jigsaw_scan,single_piece,profile}.rs`
   分别负责埋藏宝藏、容器、Jigsaw、单体结构和 Pumpkin 运行时配置；
   `src/surface_jigsaw.rs` 实现村庄/前哨站共用的原版地表 Jigsaw，其他 CLI、输出、

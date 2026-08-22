@@ -150,7 +150,7 @@ impl Scanner {
     }
 
     fn decoration(&self) -> Result<DecorationSeedSpec, Error> {
-        self.structure.decoration().ok_or_else(|| {
+        self.structure.decoration.ok_or_else(|| {
             Error::Worldgen(format!(
                 "{} scanner has no static decoration seed specification",
                 self.structure.name
