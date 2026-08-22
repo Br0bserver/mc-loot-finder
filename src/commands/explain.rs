@@ -35,8 +35,14 @@ pub fn run(args: ExplainArgs) -> Result<u8, Error> {
         println!("  chests: ancient_city, center (0, 0), radius 2,000, limit 100");
         println!("  find: ancient_city, center (0, 0), radius 5,000, limit 20");
         println!("  loot: minecraft:chests/ancient_city\n");
+        let full_scan_names = CANDIDATE_STRUCTURES
+            .iter()
+            .filter(|structure| structure.supports_full_scan())
+            .map(|structure| structure.name)
+            .collect::<Vec<_>>()
+            .join(", ");
         println!("Structure capabilities:");
-        println!("  ancient_city and bastion_remnant support chests and find.");
+        println!("  Full scans: {full_scan_names}.");
         println!("  Other entries support candidate calculation only.");
         for (index, structure) in CANDIDATE_STRUCTURES.iter().enumerate() {
             println!("\n[{}] {}", index + 1, structure.name);
