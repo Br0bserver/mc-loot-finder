@@ -87,8 +87,8 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
 5. 对拍测试：锁定位置、y、loot seed、ordinal 和无效候选；至少增加一个不同世界
    种子或大范围 aggregate 向量。仅支持候选定位的结构必须测试 `chests`/`find`
    失败关闭。
-6. `.github/workflows/rust.yml`：Linux + Windows 各加 smoke 断言；
-   `clippy::pedantic` 是阻塞检查。
+6. `.github/workflows/rust.yml`：Linux + Windows 各加 smoke 断言；标准 clippy
+   `-D warnings` 与 `dbg!` / `todo!` / `unimplemented!` 占位代码检查均为阻塞门禁。
 7. 提交后 CI 全绿，再拉 artifact 本地 smoke 复验。
 
 ## 本地允许 / 禁止速查

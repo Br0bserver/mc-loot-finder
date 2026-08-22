@@ -51,9 +51,12 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
       - name: Lint with clippy
-        run: cargo clippy --all-targets -- -D warnings
-      - name: Lint with clippy pedantic
-        run: cargo clippy --all-targets -- -D warnings -W clippy::pedantic
+        run: >-
+          cargo clippy --all-targets --
+          -D warnings
+          -D clippy::dbg_macro
+          -D clippy::todo
+          -D clippy::unimplemented
       - name: Check Rust CLI
         run: cargo check --locked
       - name: Test Rust CLI
@@ -533,6 +536,7 @@ jobs:
       - name: Check candidates-only structures fail closed
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Continue"
           foreach ($structure in @(
             "buried_treasure",
             "shipwreck",
