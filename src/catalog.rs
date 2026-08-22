@@ -49,6 +49,21 @@ pub struct DecorationSeedSpec {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ContainerSeedSpec {
+    Decoration(DecorationSeedSpec),
+    StructureScan,
+}
+
+impl ContainerSeedSpec {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Decoration(spec) => spec.shortcut.as_str(),
+            Self::StructureScan => "STRUCTURE_SCAN",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ScanSupport {
     CandidatesOnly,
     Full(ScanKind),
@@ -77,7 +92,7 @@ pub struct CandidateStructure {
     pub dimension: &'static str,
     pub placement: Placement,
     pub support: ScanSupport,
-    pub decoration: Option<DecorationSeedSpec>,
+    pub container_seed: Option<ContainerSeedSpec>,
     pub reference_scanner: ScannerBackend,
     pub loot_tables: &'static [&'static str],
     pub default_item: &'static str,
@@ -111,12 +126,12 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "ancient_city",
         dimension: "minecraft:overworld",
         placement: linear(24, 8, 20_083_232),
-        decoration: Some(DecorationSeedSpec {
+        container_seed: Some(ContainerSeedSpec::Decoration(DecorationSeedSpec {
             structure_index: 0,
             step: 7,
             ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::Direct,
-        }),
+        })),
         reference_scanner: ScannerBackend::JigsawFast,
         loot_tables: &["minecraft:chests/ancient_city"],
         default_item: "minecraft:silence_armor_trim_smithing_template",
@@ -128,12 +143,12 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "bastion_remnant",
         dimension: "minecraft:the_nether",
         placement: linear(27, 4, 30_084_232),
-        decoration: Some(DecorationSeedSpec {
+        container_seed: Some(ContainerSeedSpec::Decoration(DecorationSeedSpec {
             structure_index: 0,
             step: 4,
             ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::Direct,
-        }),
+        })),
         reference_scanner: ScannerBackend::JigsawFast,
         loot_tables: &[
             "minecraft:chests/bastion_bridge",
@@ -150,12 +165,12 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "desert_pyramid",
         dimension: "minecraft:overworld",
         placement: linear(32, 8, 14_357_617),
-        decoration: Some(DecorationSeedSpec {
+        container_seed: Some(ContainerSeedSpec::Decoration(DecorationSeedSpec {
             structure_index: 1,
             step: 4,
             ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::DesertPyramid,
-        }),
+        })),
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/desert_pyramid"],
         default_item: "minecraft:dune_armor_trim_smithing_template",
@@ -167,7 +182,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "jungle_pyramid",
         dimension: "minecraft:overworld",
         placement: linear(32, 8, 14_357_619),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &[
             "minecraft:chests/jungle_temple",
@@ -182,12 +197,12 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "igloo",
         dimension: "minecraft:overworld",
         placement: linear(32, 8, 14_357_618),
-        decoration: Some(DecorationSeedSpec {
+        container_seed: Some(ContainerSeedSpec::Decoration(DecorationSeedSpec {
             structure_index: 3,
             step: 4,
             ordinal_offset: 1,
             shortcut: ContainerSeedShortcut::Direct,
-        }),
+        })),
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/igloo_chest"],
         default_item: "minecraft:golden_apple",
@@ -199,7 +214,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "end_city",
         dimension: "minecraft:the_end",
         placement: triangular(20, 11, 10_387_313),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/end_city_treasure"],
         default_item: "minecraft:spire_armor_trim_smithing_template",
@@ -211,7 +226,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "ruined_portal",
         dimension: "minecraft:overworld",
         placement: linear(40, 15, 34_222_645),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/ruined_portal"],
         default_item: "minecraft:enchanted_golden_apple",
@@ -223,7 +238,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "ruined_portal_nether",
         dimension: "minecraft:the_nether",
         placement: linear(40, 15, 34_222_645),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/ruined_portal"],
         default_item: "minecraft:enchanted_golden_apple",
@@ -235,7 +250,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "trial_chambers",
         dimension: "minecraft:overworld",
         placement: linear(34, 12, 94_251_327),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &[
             "minecraft:chests/trial_chambers/corridor",
@@ -258,7 +273,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "shipwreck",
         dimension: "minecraft:overworld",
         placement: linear(24, 4, 165_745_295),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &[
             "minecraft:chests/shipwreck_map",
@@ -274,7 +289,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "ocean_ruin_cold",
         dimension: "minecraft:overworld",
         placement: linear(20, 8, 14_357_621),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &[
             "minecraft:chests/underwater_ruin_big",
@@ -289,7 +304,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "fortress",
         dimension: "minecraft:the_nether",
         placement: linear(27, 4, 30_084_232),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/nether_bridge"],
         default_item: "minecraft:diamond",
@@ -301,7 +316,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "village_plains",
         dimension: "minecraft:overworld",
         placement: VILLAGE_PLACEMENT,
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::JigsawFast,
         loot_tables: &[
             "minecraft:chests/village/village_armorer",
@@ -330,7 +345,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "buried_treasure",
         dimension: "minecraft:overworld",
         placement: linear(1, 0, 0),
-        decoration: None,
+        container_seed: Some(ContainerSeedSpec::StructureScan),
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/buried_treasure"],
         default_item: "minecraft:heart_of_the_sea",
@@ -342,12 +357,12 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "pillager_outpost",
         dimension: "minecraft:overworld",
         placement: linear(32, 8, 165_745_296),
-        decoration: Some(DecorationSeedSpec {
+        container_seed: Some(ContainerSeedSpec::Decoration(DecorationSeedSpec {
             structure_index: 4,
             step: 9,
             ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::Direct,
-        }),
+        })),
         reference_scanner: ScannerBackend::JigsawFast,
         loot_tables: &["minecraft:chests/pillager_outpost"],
         default_item: "minecraft:sentry_armor_trim_smithing_template",
@@ -359,7 +374,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         structure_path: "mansion",
         dimension: "minecraft:overworld",
         placement: triangular(80, 20, 10_387_319),
-        decoration: None,
+        container_seed: None,
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/woodland_mansion"],
         default_item: "minecraft:vex_armor_trim_smithing_template",
@@ -370,6 +385,13 @@ impl CandidateStructure {
     /// Whether `chests` and `find` have an exact world-generation scanner.
     pub const fn supports_full_scan(&self) -> bool {
         matches!(self.support, ScanSupport::Full(_))
+    }
+
+    pub const fn decoration(&self) -> Option<DecorationSeedSpec> {
+        match self.container_seed {
+            Some(ContainerSeedSpec::Decoration(spec)) => Some(spec),
+            Some(ContainerSeedSpec::StructureScan) | None => None,
+        }
     }
 }
 

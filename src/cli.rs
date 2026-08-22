@@ -92,10 +92,10 @@ pub struct ContainerSeedArgs {
     /// World seed.
     #[arg(long, allow_hyphen_values = true)]
     pub seed: i64,
-    /// Decoration chunk X coordinate.
+    /// Structure or decoration chunk X coordinate.
     #[arg(long, allow_hyphen_values = true, default_value_t = 0)]
     pub chunk_x: i32,
-    /// Decoration chunk Z coordinate.
+    /// Structure or decoration chunk Z coordinate.
     #[arg(long, allow_hyphen_values = true, default_value_t = 0)]
     pub chunk_z: i32,
     /// Structure index override.

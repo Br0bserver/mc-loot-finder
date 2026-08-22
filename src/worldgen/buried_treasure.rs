@@ -5,10 +5,7 @@ use pumpkin_data::BlockId;
 use pumpkin_util::{
     HeightMap,
     math::vector3::Vector3,
-    random::{
-        RandomGenerator, RandomImpl, get_region_seed, hash_block_pos, legacy_rand::LegacyRand,
-        xoroshiro128::Xoroshiro,
-    },
+    random::{RandomImpl, get_region_seed, hash_block_pos, legacy_rand::LegacyRand},
 };
 use pumpkin_world::{
     ProtoChunk, generation::noise::router::multi_noise_sampler::MultiNoiseSampler,
@@ -24,7 +21,7 @@ pub(super) fn buried_treasure_frequency_passes(
     chunk_z: i32,
 ) -> bool {
     let region_seed = get_region_seed(world_seed as u64, chunk_x, chunk_z, FREQUENCY_SALT);
-    let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(region_seed));
+    let mut random = LegacyRand::from_seed(region_seed);
     random.next_f32() < FREQUENCY
 }
 
