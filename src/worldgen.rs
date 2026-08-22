@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 mod kind;
 use crate::catalog::{
-    CANDIDATE_STRUCTURES, CandidateStructure, ContainerSeedShortcut, DecorationSeedSpec, ScanKind,
-    ScanSupport, VILLAGE_PLACEMENT,
+    CandidateStructure, ContainerSeedShortcut, DecorationSeedSpec, ScanKind, ScanSupport,
+    VILLAGE_PLACEMENT,
 };
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
@@ -113,6 +113,7 @@ impl Scanner {
         Ok(Self::from_structure(world_seed, structure, kind))
     }
 
+    #[cfg(test)]
     #[must_use]
     pub fn new(world_seed: i64, kind: ScanKind) -> Self {
         let structure = CANDIDATE_STRUCTURES
@@ -909,6 +910,7 @@ fn dedup_and_seed_chests(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::catalog::CANDIDATE_STRUCTURES;
     use std::collections::HashSet;
 
     #[test]
