@@ -22,6 +22,7 @@ pub enum ScanKind {
     Igloo,
     Village,
     PillagerOutpost,
+    BuriedTreasure,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -324,7 +325,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "buried_treasure",
-        support: ScanSupport::CandidatesOnly,
+        support: ScanSupport::Full(ScanKind::BuriedTreasure),
         structure_id: "minecraft:buried_treasure",
         structure_path: "buried_treasure",
         dimension: "minecraft:overworld",

@@ -89,7 +89,7 @@ impl Scanner {
         let min_z = chunk_z
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("desert pyramid chunk z overflowed".to_owned()))?;
-        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let mut heights = ColumnHeightSampler::new(self.generator(), min_x, min_z);
 
         let corner_lowest = [
             (min_x, min_z),
@@ -217,7 +217,7 @@ impl Scanner {
         let min_z = chunk_z
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("igloo chunk z overflowed".to_owned()))?;
-        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let mut heights = ColumnHeightSampler::new(self.generator(), min_x, min_z);
 
         let mid_x = min_x + 8;
         let mid_z = min_z + 8;
