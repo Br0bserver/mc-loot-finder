@@ -1,6 +1,4 @@
-use crate::catalog::{
-    CANDIDATE_STRUCTURES, ContainerSeedShortcut, SpreadType, candidate_structure,
-};
+use crate::catalog::{CANDIDATE_STRUCTURES, SpreadType, candidate_structure};
 use crate::cli::{ExplainArgs, require_version};
 use crate::error::Error;
 use crate::output::{
@@ -83,14 +81,12 @@ pub fn run(args: ExplainArgs) -> Result<u8, Error> {
                     SpreadType::Triangular => "TRIANGULAR",
                 },
             },
-            decoration_step: structure.decoration_step,
-            decoration_index: structure.structure_index,
-            scanner: structure.scanner,
-            container_seed_shortcut: match structure.container_seed {
-                ContainerSeedShortcut::Direct => "DIRECT",
-                ContainerSeedShortcut::DesertPyramid => "DESERT_PYRAMID",
-                ContainerSeedShortcut::None => "NONE",
-            },
+            decoration_step: structure.decoration.map_or(-1, |spec| spec.step),
+            decoration_index: structure.decoration.map_or(-1, |spec| spec.structure_index),
+            scanner: structure.reference_scanner.as_str(),
+            container_seed_shortcut: structure
+                .decoration
+                .map_or("NONE", |spec| spec.shortcut.as_str()),
             loot_tables: structure.loot_tables.to_vec(),
         };
         print_json(&output);
@@ -101,11 +97,11 @@ pub fn run(args: ExplainArgs) -> Result<u8, Error> {
         SpreadType::Linear => "LINEAR",
         SpreadType::Triangular => "TRIANGULAR",
     };
-    let shortcut = match structure.container_seed {
-        ContainerSeedShortcut::Direct => "DIRECT",
-        ContainerSeedShortcut::DesertPyramid => "DESERT_PYRAMID",
-        ContainerSeedShortcut::None => "NONE",
-    };
+    let decoration_step = structure.decoration.map_or(-1, |spec| spec.step);
+    let structure_index = structure.decoration.map_or(-1, |spec| spec.structure_index);
+    let shortcut = structure
+        .decoration
+        .map_or("NONE", |spec| spec.shortcut.as_str());
     println!("Minecraft Java 26.1.2");
     println!("Structure: {}", structure.name);
     println!("Structure ID: {}", structure.structure_id);
@@ -125,9 +121,9 @@ pub fn run(args: ExplainArgs) -> Result<u8, Error> {
     println!("  Salt: {}", structure.placement.salt);
     println!("  Spread: {spread}\n");
     println!("Container calculation:");
-    println!("  Decoration step: {}", structure.decoration_step);
-    println!("  Structure index: {}", structure.structure_index);
-    println!("  Scanner: {}", structure.scanner);
+    println!("  Decoration step: {decoration_step}");
+    println!("  Structure index: {structure_index}");
+    println!("  Scanner: {}", structure.reference_scanner.as_str());
     println!("  Seed shortcut: {shortcut}\n");
     println!("Loot tables:");
     for table in structure.loot_tables {

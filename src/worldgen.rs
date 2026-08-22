@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 mod kind;
-use crate::catalog::{CandidateStructure, ContainerSeedShortcut, ScanKind, VILLAGE_PLACEMENT};
+use crate::catalog::{
+    CANDIDATE_STRUCTURES, CandidateStructure, ContainerSeedShortcut, DecorationSeedSpec, ScanKind,
+    ScanSupport, VILLAGE_PLACEMENT,
+};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::placement;
@@ -89,6 +92,7 @@ pub struct Scan {
 
 pub struct Scanner {
     world_seed: i64,
+    structure: &'static CandidateStructure,
     kind: ScanKind,
     generator: VanillaGenerator,
     valid_biomes: &'static [&'static str],
@@ -96,24 +100,40 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn for_structure(structure: &CandidateStructure, world_seed: i64) -> Result<Self, Error> {
-        let kind = structure.scan_kind.ok_or_else(|| {
-            Error::Structure(format!(
+    pub fn for_structure(
+        structure: &'static CandidateStructure,
+        world_seed: i64,
+    ) -> Result<Self, Error> {
+        let ScanSupport::Full(kind) = structure.support else {
+            return Err(Error::Structure(format!(
                 "Rust chests and find do not support {} yet",
                 structure.name
-            ))
-        })?;
-        Ok(Self::new(world_seed, kind))
+            )));
+        };
+        Ok(Self::from_structure(world_seed, structure, kind))
     }
 
     #[must_use]
     pub fn new(world_seed: i64, kind: ScanKind) -> Self {
-        let structure = kind.structure();
+        let structure = CANDIDATE_STRUCTURES
+            .iter()
+            .find(|structure| structure.support == ScanSupport::Full(kind))
+            .expect("every scan kind must have one catalog entry");
+        Self::from_structure(world_seed, structure, kind)
+    }
+
+    fn from_structure(
+        world_seed: i64,
+        structure: &'static CandidateStructure,
+        kind: ScanKind,
+    ) -> Self {
+        let runtime_structure = kind.structure();
         Self {
             world_seed,
+            structure,
             kind,
             generator: VanillaGenerator::new(Seed(world_seed as u64), kind.dimension()),
-            valid_biomes: structure_biomes(&structure),
+            valid_biomes: structure_biomes(&runtime_structure),
             fortress_biomes: if kind == ScanKind::BastionRemnant {
                 structure_biomes(&Structure::FORTRESS)
             } else {
@@ -194,15 +214,8 @@ impl Scanner {
             collect_piece_chests(piece, &mut raw);
         }
 
-        let (decoration_step, structure_index) = self.kind.decoration_coordinates();
-        let visible = dedup_and_seed_chests(
-            self.world_seed,
-            raw,
-            (chunk_x, chunk_z),
-            structure_index,
-            decoration_step,
-            ContainerSeedShortcut::Direct,
-        )?;
+        let visible =
+            dedup_and_seed_chests(self.world_seed, raw, (chunk_x, chunk_z), self.decoration()?)?;
 
         Ok(Scan {
             valid_structure: true,
@@ -312,7 +325,7 @@ impl Scanner {
             ),
         };
 
-        let (structure_index, decoration_step) = self.kind.decoration_coordinates();
+        let decoration = self.decoration()?;
         let mut chests = Vec::with_capacity(4);
         for (ordinal, (local_x, local_z)) in [(10, 8), (12, 10), (10, 12), (8, 10)]
             .into_iter()
@@ -322,10 +335,8 @@ impl Scanner {
                 self.world_seed,
                 chunk_x,
                 chunk_z,
-                structure_index,
-                decoration_step,
+                decoration,
                 ordinal as i32,
-                ContainerSeedShortcut::DesertPyramid,
             )?;
             chests.push(Chest {
                 structure_chunk_x: chunk_x,
@@ -408,16 +419,8 @@ impl Scanner {
         let chest_y = surface_y - ladder_segments * 3 - 3;
         let (chest_rel_x, chest_rel_z) = rotate_around_pivot(rotation_index, 1, 6, 3, 7);
 
-        let (structure_index, decoration_step) = self.kind.decoration_coordinates();
-        let loot_seed = container_loot_seed(
-            self.world_seed,
-            chunk_x,
-            chunk_z,
-            structure_index,
-            decoration_step,
-            1,
-            ContainerSeedShortcut::Direct,
-        )?;
+        let loot_seed =
+            container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 1)?;
 
         Ok(Scan {
             valid_structure: true,
@@ -577,9 +580,11 @@ impl Scanner {
             self.world_seed,
             raw,
             (chunk_x, chunk_z),
-            index,
-            4,
-            ContainerSeedShortcut::Direct,
+            DecorationSeedSpec {
+                structure_index: index,
+                step: 4,
+                shortcut: ContainerSeedShortcut::Direct,
+            },
         )?;
 
         Ok(Scan {
@@ -684,15 +689,8 @@ impl Scanner {
             collect_piece_chests(piece, &mut raw);
         }
 
-        let (decoration_step, structure_index) = self.kind.decoration_coordinates();
-        let visible = dedup_and_seed_chests(
-            self.world_seed,
-            raw,
-            (chunk_x, chunk_z),
-            structure_index,
-            decoration_step,
-            ContainerSeedShortcut::Direct,
-        )?;
+        let visible =
+            dedup_and_seed_chests(self.world_seed, raw, (chunk_x, chunk_z), self.decoration()?)?;
 
         Ok(Scan {
             valid_structure: true,
@@ -711,6 +709,15 @@ impl Scanner {
             height_sampler: None,
             structure_key: Some(self.kind.structure_key()),
         }
+    }
+
+    fn decoration(&self) -> Result<DecorationSeedSpec, Error> {
+        self.structure.decoration.ok_or_else(|| {
+            Error::Worldgen(format!(
+                "{} scanner has no static decoration seed specification",
+                self.structure.name
+            ))
+        })
     }
 
     fn bastion_reached_in_weighted_selection(
@@ -859,9 +866,7 @@ fn dedup_and_seed_chests(
     world_seed: i64,
     raw: Vec<RawChest>,
     structure_chunk: (i32, i32),
-    structure_index: i32,
-    decoration_step: i32,
-    shortcut: ContainerSeedShortcut,
+    decoration: DecorationSeedSpec,
 ) -> Result<Vec<Chest>, Error> {
     let mut next_ordinal_by_chunk = HashMap::with_capacity(4);
     let mut visible = Vec::with_capacity(raw.len());
@@ -878,10 +883,8 @@ fn dedup_and_seed_chests(
             world_seed,
             chest_chunk_x,
             chest_chunk_z,
-            structure_index,
-            decoration_step,
+            decoration,
             current_ordinal,
-            shortcut,
         )?;
         let prediction = Chest {
             structure_chunk_x: structure_chunk.0,
@@ -906,7 +909,6 @@ fn dedup_and_seed_chests(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::candidate_structure;
     use std::collections::HashSet;
 
     #[test]
@@ -1213,6 +1215,18 @@ mod tests {
             "pillager chest vector: {:?}",
             chest
         );
+        let predicted_seed = container_loot_seed(
+            0,
+            chest.x.div_euclid(16),
+            chest.z.div_euclid(16),
+            scanner
+                .structure
+                .decoration
+                .expect("pillager has static decoration metadata"),
+            chest.ordinal,
+        )
+        .expect("recompute pillager seed from catalog");
+        assert_eq!(predicted_seed, chest.loot_seed);
     }
 
     #[test]
@@ -1232,20 +1246,25 @@ mod tests {
         assert!(scans[0].chests.is_empty());
     }
     #[test]
-    fn candidates_only_structures_fail_closed() {
-        for name in [
-            "buried_treasure",
-            "shipwreck",
-            "end_city",
-            "woodland_mansion",
-        ] {
-            let structure = candidate_structure(name).expect("catalog structure");
-            assert!(!structure.supports_full_scan());
-            let Err(error) = Scanner::for_structure(structure, 0) else {
-                panic!("{name} unexpectedly constructed a full scanner");
-            };
-            assert!(matches!(error, Error::Structure(_)));
-            assert!(error.to_string().contains(name));
+    fn catalog_scan_support_matches_scanner_construction() {
+        for structure in CANDIDATE_STRUCTURES {
+            match structure.support {
+                ScanSupport::CandidatesOnly => {
+                    assert!(!structure.supports_full_scan());
+                    let Err(error) = Scanner::for_structure(structure, 0) else {
+                        panic!("{} unexpectedly constructed a full scanner", structure.name);
+                    };
+                    assert!(matches!(error, Error::Structure(_)));
+                    assert!(error.to_string().contains(structure.name));
+                }
+                ScanSupport::Full(kind) => {
+                    assert!(structure.supports_full_scan());
+                    let scanner = Scanner::for_structure(structure, 0)
+                        .expect("full catalog entry must construct a scanner");
+                    assert_eq!(scanner.kind, kind);
+                    assert!(structure.decoration.is_some() || kind == ScanKind::Village);
+                }
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::catalog::ContainerSeedShortcut;
+use crate::catalog::{ContainerSeedShortcut, DecorationSeedSpec};
 use crate::error::Error;
 use crate::random::Xoroshiro128PlusPlus;
 
@@ -68,19 +68,12 @@ pub fn container_loot_seed(
     world_seed: i64,
     chunk_x: i32,
     chunk_z: i32,
-    structure_index: i32,
-    decoration_step: i32,
+    spec: DecorationSeedSpec,
     ordinal: i32,
-    shortcut: ContainerSeedShortcut,
 ) -> Result<i64, Error> {
     if ordinal < 0 {
         return Err(Error::Usage(
             "container ordinal must be non-negative".to_owned(),
-        ));
-    }
-    if shortcut == ContainerSeedShortcut::None {
-        return Err(Error::Usage(
-            "container seed shortcut is unavailable".to_owned(),
         ));
     }
 
@@ -90,8 +83,8 @@ pub fn container_loot_seed(
         chunk_x.wrapping_mul(16),
         chunk_z.wrapping_mul(16),
     );
-    random.set_feature_seed(decoration_seed, structure_index, decoration_step);
-    if shortcut == ContainerSeedShortcut::DesertPyramid {
+    random.set_feature_seed(decoration_seed, spec.structure_index, spec.step);
+    if spec.shortcut == ContainerSeedShortcut::DesertPyramid {
         random.next_int(3);
     }
     let mut result = 0;
@@ -108,7 +101,18 @@ mod tests {
     #[test]
     fn matches_known_ancient_city_seed() {
         assert_eq!(
-            container_loot_seed(0, 0, 0, 0, 7, 0, ContainerSeedShortcut::Direct).unwrap(),
+            container_loot_seed(
+                0,
+                0,
+                0,
+                DecorationSeedSpec {
+                    structure_index: 0,
+                    step: 7,
+                    shortcut: ContainerSeedShortcut::Direct,
+                },
+                0,
+            )
+            .unwrap(),
             6_384_546_642_282_394_621
         );
     }
@@ -116,8 +120,38 @@ mod tests {
     #[test]
     fn matches_known_desert_pyramid_seed() {
         assert_eq!(
-            container_loot_seed(0, -188, 0, 1, 4, 2, ContainerSeedShortcut::DesertPyramid).unwrap(),
+            container_loot_seed(
+                0,
+                -188,
+                0,
+                DecorationSeedSpec {
+                    structure_index: 1,
+                    step: 4,
+                    shortcut: ContainerSeedShortcut::DesertPyramid,
+                },
+                2,
+            )
+            .unwrap(),
             3_899_282_274_470_656_331
+        );
+    }
+
+    #[test]
+    fn matches_known_pillager_outpost_seed() {
+        assert_eq!(
+            container_loot_seed(
+                0,
+                -52,
+                69,
+                DecorationSeedSpec {
+                    structure_index: 4,
+                    step: 9,
+                    shortcut: ContainerSeedShortcut::Direct,
+                },
+                1,
+            )
+            .unwrap(),
+            -638_836_315_418_230_144
         );
     }
 }

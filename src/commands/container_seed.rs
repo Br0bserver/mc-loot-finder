@@ -1,4 +1,4 @@
-use crate::catalog::{ContainerSeedShortcut, candidate_structure};
+use crate::catalog::{DecorationSeedSpec, candidate_structure};
 use crate::cli::{ContainerSeedArgs, require_version};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
@@ -7,27 +7,22 @@ use crate::output::{ContainerSeedOutput, print_json};
 pub fn run(args: ContainerSeedArgs) -> Result<u8, Error> {
     require_version(&args.common.version)?;
     let structure = candidate_structure(&args.structure)?;
-    if structure.container_seed == ContainerSeedShortcut::None {
-        return Err(Error::Usage(format!(
+    let mut decoration = structure.decoration.ok_or_else(|| {
+        Error::Usage(format!(
             "container-seed is not available for {}; use 'chests' to execute vanilla placement",
             structure.name
-        )));
-    }
+        ))
+    })?;
     let world_seed = args.seed;
     let chunk_x = args.chunk_x;
     let chunk_z = args.chunk_z;
-    let structure_index = args.structure_index.unwrap_or(structure.structure_index);
-    let step = args.step.unwrap_or(structure.decoration_step);
+    decoration = DecorationSeedSpec {
+        structure_index: args.structure_index.unwrap_or(decoration.structure_index),
+        step: args.step.unwrap_or(decoration.step),
+        ..decoration
+    };
     let ordinal = args.ordinal;
-    let loot_table_seed = container_loot_seed(
-        world_seed,
-        chunk_x,
-        chunk_z,
-        structure_index,
-        step,
-        ordinal,
-        structure.container_seed,
-    )?;
+    let loot_table_seed = container_loot_seed(world_seed, chunk_x, chunk_z, decoration, ordinal)?;
 
     if args.common.json {
         let output = ContainerSeedOutput {
@@ -36,8 +31,8 @@ pub fn run(args: ContainerSeedArgs) -> Result<u8, Error> {
             world_seed,
             chunk_x,
             chunk_z,
-            structure_index,
-            step,
+            structure_index: decoration.structure_index,
+            step: decoration.step,
             ordinal,
             loot_table_seed,
         };

@@ -17,7 +17,6 @@ impl ScanKind {
                 dimension: Dimension::OVERWORLD,
                 min_y: OVERWORLD_MIN_Y,
                 sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (7, 0),
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
             Self::BastionRemnant => KindProfile {
@@ -26,7 +25,6 @@ impl ScanKind {
                 dimension: Dimension::THE_NETHER,
                 min_y: NETHER_MIN_Y,
                 sea_level: NETHER_SEA_LEVEL,
-                decoration: (4, 0),
                 biome: MultiNoiseBiomeSupplier::NETHER,
             },
             Self::DesertPyramid => KindProfile {
@@ -35,7 +33,6 @@ impl ScanKind {
                 dimension: Dimension::OVERWORLD,
                 min_y: OVERWORLD_MIN_Y,
                 sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (1, 4),
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
             Self::Igloo => KindProfile {
@@ -44,7 +41,6 @@ impl ScanKind {
                 dimension: Dimension::OVERWORLD,
                 min_y: OVERWORLD_MIN_Y,
                 sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (3, 4),
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
             Self::Village => KindProfile {
@@ -53,7 +49,6 @@ impl ScanKind {
                 dimension: Dimension::OVERWORLD,
                 min_y: OVERWORLD_MIN_Y,
                 sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (22, 4),
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
             Self::PillagerOutpost => KindProfile {
@@ -62,7 +57,6 @@ impl ScanKind {
                 dimension: Dimension::OVERWORLD,
                 min_y: OVERWORLD_MIN_Y,
                 sea_level: OVERWORLD_SEA_LEVEL,
-                decoration: (9, 4),
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
         }
@@ -82,9 +76,6 @@ impl ScanKind {
     pub(crate) fn sea_level(self) -> i32 {
         self.profile().sea_level
     }
-    pub(crate) fn decoration_coordinates(self) -> (i32, i32) {
-        self.profile().decoration
-    }
     pub(crate) fn biome_supplier(self) -> MultiNoiseBiomeSupplier {
         self.profile().biome
     }
@@ -96,6 +87,5 @@ struct KindProfile {
     dimension: Dimension,
     min_y: i32,
     sea_level: i32,
-    decoration: (i32, i32),
     biome: MultiNoiseBiomeSupplier,
 }
