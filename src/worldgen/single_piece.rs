@@ -254,7 +254,7 @@ impl Scanner {
         let (chest_rel_x, chest_rel_z) = rotate_around_pivot(rotation_index, 1, 6, 3, 7);
 
         let loot_seed =
-            container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 1)?;
+            container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 0)?;
 
         Ok(Scan {
             valid_structure: true,

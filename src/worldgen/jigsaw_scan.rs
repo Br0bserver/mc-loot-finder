@@ -232,6 +232,7 @@ impl Scanner {
             DecorationSeedSpec {
                 structure_index: index,
                 step: 4,
+                ordinal_offset: 0,
                 shortcut: ContainerSeedShortcut::Direct,
             },
         )?;

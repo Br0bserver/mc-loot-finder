@@ -76,6 +76,9 @@ pub fn container_loot_seed(
             "container ordinal must be non-negative".to_owned(),
         ));
     }
+    let effective_ordinal = ordinal
+        .checked_add(spec.ordinal_offset)
+        .ok_or_else(|| Error::Usage("container ordinal overflowed".to_owned()))?;
 
     let mut random = DecorationRandom::new();
     let decoration_seed = random.set_decoration_seed(
@@ -88,7 +91,7 @@ pub fn container_loot_seed(
         random.next_int(3);
     }
     let mut result = 0;
-    for _ in 0..=ordinal {
+    for _ in 0..=effective_ordinal {
         result = random.next_long();
     }
     Ok(result)
@@ -108,6 +111,7 @@ mod tests {
                 DecorationSeedSpec {
                     structure_index: 0,
                     step: 7,
+                    ordinal_offset: 0,
                     shortcut: ContainerSeedShortcut::Direct,
                 },
                 0,
@@ -127,12 +131,33 @@ mod tests {
                 DecorationSeedSpec {
                     structure_index: 1,
                     step: 4,
+                    ordinal_offset: 0,
                     shortcut: ContainerSeedShortcut::DesertPyramid,
                 },
                 2,
             )
             .unwrap(),
             3_899_282_274_470_656_331
+        );
+    }
+
+    #[test]
+    fn applies_igloo_template_ordinal_offset() {
+        assert_eq!(
+            container_loot_seed(
+                0,
+                98,
+                192,
+                DecorationSeedSpec {
+                    structure_index: 3,
+                    step: 4,
+                    ordinal_offset: 1,
+                    shortcut: ContainerSeedShortcut::Direct,
+                },
+                0,
+            )
+            .unwrap(),
+            -7_862_992_963_971_781_551
         );
     }
 
@@ -146,6 +171,7 @@ mod tests {
                 DecorationSeedSpec {
                     structure_index: 4,
                     step: 9,
+                    ordinal_offset: 0,
                     shortcut: ContainerSeedShortcut::Direct,
                 },
                 1,

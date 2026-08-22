@@ -43,6 +43,7 @@ impl ContainerSeedShortcut {
 pub struct DecorationSeedSpec {
     pub structure_index: i32,
     pub step: i32,
+    pub ordinal_offset: i32,
     pub shortcut: ContainerSeedShortcut,
 }
 
@@ -112,6 +113,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         decoration: Some(DecorationSeedSpec {
             structure_index: 0,
             step: 7,
+            ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::Direct,
         }),
         reference_scanner: ScannerBackend::JigsawFast,
@@ -128,6 +130,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         decoration: Some(DecorationSeedSpec {
             structure_index: 0,
             step: 4,
+            ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::Direct,
         }),
         reference_scanner: ScannerBackend::JigsawFast,
@@ -149,6 +152,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         decoration: Some(DecorationSeedSpec {
             structure_index: 1,
             step: 4,
+            ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::DesertPyramid,
         }),
         reference_scanner: ScannerBackend::VanillaPlacement,
@@ -180,6 +184,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         decoration: Some(DecorationSeedSpec {
             structure_index: 3,
             step: 4,
+            ordinal_offset: 1,
             shortcut: ContainerSeedShortcut::Direct,
         }),
         reference_scanner: ScannerBackend::VanillaPlacement,
@@ -339,6 +344,7 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
         decoration: Some(DecorationSeedSpec {
             structure_index: 4,
             step: 9,
+            ordinal_offset: 0,
             shortcut: ContainerSeedShortcut::Direct,
         }),
         reference_scanner: ScannerBackend::JigsawFast,

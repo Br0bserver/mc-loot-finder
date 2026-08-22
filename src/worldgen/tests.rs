@@ -3,6 +3,28 @@ use crate::catalog::CANDIDATE_STRUCTURES;
 use crate::decoration_seed::container_loot_seed;
 use std::collections::HashSet;
 
+fn assert_static_seed_contract(scanner: &Scanner, scans: &[Scan]) {
+    let decoration = scanner
+        .structure
+        .decoration
+        .expect("scanner must have static decoration metadata");
+    for chest in scans.iter().flat_map(|scan| &scan.chests) {
+        let predicted = container_loot_seed(
+            scanner.world_seed,
+            chest.x.div_euclid(16),
+            chest.z.div_euclid(16),
+            decoration,
+            chest.ordinal,
+        )
+        .expect("recompute chest seed from catalog metadata");
+        assert_eq!(
+            predicted, chest.loot_seed,
+            "{} seed contract failed for chest {:?}",
+            scanner.structure.name, chest
+        );
+    }
+}
+
 #[test]
 fn scans_known_26_1_2_cities() {
     let scanner = Scanner::new(114514, ScanKind::AncientCity);
@@ -29,6 +51,7 @@ fn scans_known_26_1_2_cities() {
             && chest.loot_table == "minecraft:chests/ancient_city"
             && chest.loot_seed == -5_503_126_436_529_563_106
     }));
+    assert_static_seed_contract(&scanner, &scans);
 }
 
 #[test]
@@ -99,6 +122,7 @@ fn scans_known_26_1_2_bastions() {
             "minecraft:chests/bastion_treasure",
         ])
     );
+    assert_static_seed_contract(&scanner, &scans);
 }
 
 #[test]
@@ -172,6 +196,7 @@ fn scans_known_26_1_2_desert_pyramids() {
             .collect::<Vec<_>>();
         assert_eq!(actual, wanted);
     }
+    assert_static_seed_contract(&scanner, &scans);
 }
 
 #[test]
@@ -210,6 +235,7 @@ fn scans_known_26_1_2_igloos() {
             "igloo without basement must have no chests"
         );
     }
+    assert_static_seed_contract(&scanner, &scans);
 }
 
 #[test]
@@ -307,18 +333,7 @@ fn scans_known_26_1_2_pillager_outpost() {
         "pillager chest vector: {:?}",
         chest
     );
-    let predicted_seed = container_loot_seed(
-        0,
-        chest.x.div_euclid(16),
-        chest.z.div_euclid(16),
-        scanner
-            .structure
-            .decoration
-            .expect("pillager has static decoration metadata"),
-        chest.ordinal,
-    )
-    .expect("recompute pillager seed from catalog");
-    assert_eq!(predicted_seed, chest.loot_seed);
+    assert_static_seed_contract(&scanner, &scans);
 }
 
 #[test]

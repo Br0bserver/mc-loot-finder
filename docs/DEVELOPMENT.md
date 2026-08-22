@@ -85,9 +85,11 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
    `src/worldgen/tests.rs`，禁止进入生产扫描路径。
 4. 地表锚定结构使用 `src/surface_height.rs`。村庄和前哨站式 Jigsaw 复用
    `src/surface_jigsaw.rs` 与 `SurfaceJigsawConfig`；不得复制或重新实现随机流。
-5. 容器种子统一传递 `DecorationSeedSpec`；`Chest.loot_table` 保留原始拥有所有权
-   的字符串，未知表不得静默转为空值。测试必须验证 Scanner 的 LootTableSeed 可由
-   catalog spec 重算。
+5. 容器种子统一传递 `DecorationSeedSpec`；模板放置在可见箱子前消耗的随机值必须写入
+   `ordinal_offset`（例如冰屋为 1），使 `Chest.ordinal` 可直接用于
+   `container-seed` 重算。`Chest.loot_table` 保留原始拥有所有权的字符串，未知表
+   不得静默转为空值。测试必须验证 Scanner 的每个 LootTableSeed 可由 catalog spec
+   重算。
 6. 对拍测试锁定位置、y、loot seed、ordinal 和无效候选，并至少增加一个不同世界
    种子或大范围 aggregate 向量。Catalog 测试自动遍历全部 `ScanSupport`，确保
    candidates-only 失败关闭、full entry 可构造 Scanner。
