@@ -116,7 +116,7 @@ impl Scanner {
     #[cfg(test)]
     #[must_use]
     pub fn new(world_seed: i64, kind: ScanKind) -> Self {
-        let structure = CANDIDATE_STRUCTURES
+        let structure = crate::catalog::CANDIDATE_STRUCTURES
             .iter()
             .find(|structure| structure.support == ScanSupport::Full(kind))
             .expect("every scan kind must have one catalog entry");
