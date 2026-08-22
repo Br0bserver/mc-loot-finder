@@ -12,10 +12,7 @@ use pumpkin_world::generation::structure::structures::{
 };
 use pumpkin_world::generation::{
     noise::router::multi_noise_sampler::MultiNoiseSampler,
-    structure::{
-        generate_structure_position,
-        structures::{StructureGeneratorContext, create_chunk_random},
-    },
+    structure::{generate_structure_position, structures::create_chunk_random},
 };
 const DESERT_PYRAMID_WIDTH: i32 = 21;
 const DESERT_PYRAMID_HEIGHT: i32 = 15;
