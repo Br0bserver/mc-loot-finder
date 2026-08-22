@@ -16,6 +16,7 @@ FULL_SCAN_STRUCTURES = [
     "desert_pyramid",
     "igloo",
     "village",
+    "buried_treasure",
     "pillager_outpost",
 ]
 
@@ -221,6 +222,80 @@ def check_structure_pair(
     return chests
 
 
+def check_buried_treasure(binary: Path) -> None:
+    search = [
+        "--seed",
+        "0",
+        "--structure",
+        "buried_treasure",
+        "--center-x",
+        "8",
+        "--center-z",
+        "-344",
+        "--radius",
+        "0",
+        "--json",
+    ]
+    chests = run_json(binary, "chests", *search)
+    assert_fields(
+        "buried treasure chests",
+        chests,
+        {"placement_candidates": 1, "valid_structures": 1, "chest_count": 1},
+    )
+    entries = chests.get("chests")
+    if not isinstance(entries, list) or len(entries) != 1 or not isinstance(entries[0], dict):
+        raise SystemExit(f"buried treasure returned invalid chest list: {chests}")
+    chest = entries[0]
+    expected_chest = {
+        "x": 9,
+        "y": 59,
+        "z": -343,
+        "loot_table": "minecraft:chests/buried_treasure",
+        "loot_seed": -2_156_648_588_641_602_659,
+        "start_chunk_x": 0,
+        "start_chunk_z": -22,
+        "ordinal": 0,
+    }
+    if chest != expected_chest:
+        raise SystemExit(f"unexpected buried treasure chest: expected {expected_chest}, got {chest}")
+
+    found = run_json(
+        binary,
+        "find",
+        *search[:-1],
+        "--item",
+        "minecraft:heart_of_the_sea",
+        "--json",
+    )
+    assert_fields(
+        "buried treasure find",
+        found,
+        {"placement_candidates": 1, "valid_structures": 1, "checked_chests": 1, "hits": 1},
+    )
+
+    predicted = run_json(
+        binary,
+        "container-seed",
+        "--seed",
+        "0",
+        "--structure",
+        "buried_treasure",
+        "--chunk-x",
+        "0",
+        "--chunk-z",
+        "-22",
+        "--ordinal",
+        "0",
+        "--json",
+    )
+    if (
+        predicted.get("loot_table_seed") != expected_chest["loot_seed"]
+        or predicted.get("structure_index") != 0
+        or predicted.get("step") != 3
+    ):
+        raise SystemExit(f"buried treasure seed contract mismatch: {predicted}")
+
+
 def check_pillager_seed_contract(binary: Path, chests: dict[str, Any]) -> None:
     entries = chests.get("chests")
     if not isinstance(entries, list):
@@ -296,6 +371,7 @@ def main() -> None:
         {"placement_candidates": 267, "valid_structures": 60, "chest_count": 155},
         {"placement_candidates": 267, "valid_structures": 60, "checked_chests": 155, "hits": 3},
     )
+    check_buried_treasure(binary)
     pillager_chests = check_structure_pair(
         binary,
         "pillager_outpost",

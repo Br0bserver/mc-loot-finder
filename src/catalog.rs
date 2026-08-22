@@ -22,6 +22,7 @@ pub enum ScanKind {
     Igloo,
     Village,
     PillagerOutpost,
+    BuriedTreasure,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -324,12 +325,17 @@ pub const CANDIDATE_STRUCTURES: &[CandidateStructure] = &[
     },
     CandidateStructure {
         name: "buried_treasure",
-        support: ScanSupport::CandidatesOnly,
+        support: ScanSupport::Full(ScanKind::BuriedTreasure),
         structure_id: "minecraft:buried_treasure",
         structure_path: "buried_treasure",
         dimension: "minecraft:overworld",
         placement: linear(1, 0, 0),
-        decoration: None,
+        decoration: Some(DecorationSeedSpec {
+            structure_index: 0,
+            step: 3,
+            ordinal_offset: 0,
+            shortcut: ContainerSeedShortcut::Direct,
+        }),
         reference_scanner: ScannerBackend::VanillaPlacement,
         loot_tables: &["minecraft:chests/buried_treasure"],
         default_item: "minecraft:heart_of_the_sea",

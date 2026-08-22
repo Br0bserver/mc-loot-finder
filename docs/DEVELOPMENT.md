@@ -70,26 +70,31 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
 探针类注意：`VanillaRuntime26_1_2$DimensionContext` 是包私有类，反射调用
 其方法要先 `setAccessible(true)`；结果一律写文件，不要依赖 stdout。
 
+`main` 的 `RecordingWorldGenLevel` 对未写入方块使用通用固体基底，只适合验证结构
+放置随机流，不能作为依赖真实地表材料的 Y 坐标 oracle。埋藏宝藏等结构必须额外生成
+实际 26.1.2 服务端区块并检查方块实体；seed 0 chunk `(0,-22)` 的真实箱子在
+`(9,59,-343)`，不是轻量代理返回的 y=63。
+
 ## 添加新结构的检查清单
 
 1. `src/catalog.rs`：目录条目（若无）；只有完成精确扫描的结构才能使用
    `ScanSupport::Full(ScanKind::...)`，仅支持候选定位的结构必须使用
-   `ScanSupport::CandidatesOnly`。静态容器种子参数使用
    `Option<DecorationSeedSpec>`；禁止用 `-1` 或字符串表达内部状态。
 2. `src/worldgen/profile.rs`：为 `ScanKind` 补齐 Pumpkin 的
    structure/key/dimension/min_y/sea_level/biome 配置。静态 decoration 参数只能
    来自 catalog；村庄等运行时变体使用命名的 `DecorationSeedSpec`。
-3. 在 `src/worldgen/jigsaw_scan.rs` 或 `single_piece.rs` 接入扫描实现，并在
-   `Scanner::scan_with_sampler` 的穷尽 `match` 中路由。模板容器收集、去重和种子
+3. 在 `src/worldgen/jigsaw_scan.rs`、`single_piece.rs` 或专用结构模块接入扫描实现，
+   并在 `Scanner::scan_with_sampler` 的穷尽 `match` 中路由。模板容器收集、去重和种子
    统一复用 `src/worldgen/chests.rs`；固定向量只能存在于
    `src/worldgen/tests.rs`，禁止进入生产扫描路径。
 4. 地表锚定结构使用 `src/surface_height.rs`。村庄和前哨站式 Jigsaw 复用
    `src/surface_jigsaw.rs` 与 `SurfaceJigsawConfig`；不得复制或重新实现随机流。
 5. 容器种子统一传递 `DecorationSeedSpec`；模板放置在可见箱子前消耗的随机值必须写入
    `ordinal_offset`（例如冰屋为 1），使 `Chest.ordinal` 可直接用于
-   `container-seed` 重算。`Chest.loot_table` 保留原始拥有所有权的字符串，未知表
-   不得静默转为空值。测试必须验证 Scanner 的每个 LootTableSeed 可由 catalog spec
-   重算。
+   `container-seed` 重算。必须从原版运行时 registry 顺序确认 decoration step/index：
+   埋藏宝藏虽然 Pumpkin 实现按方块位置哈希种子，原版 26.1.2 实际仍使用结构装饰流
+   step 3/index 0。`Chest.loot_table` 保留原始拥有所有权的字符串，未知表不得静默
+   转为空值。测试必须验证 Scanner 的每个 LootTableSeed 可由 catalog spec 重算。
 6. 对拍测试锁定位置、y、loot seed、ordinal 和无效候选，并至少增加一个不同世界
    种子或大范围 aggregate 向量。Catalog 测试自动遍历全部 `ScanSupport`，确保
    candidates-only 失败关闭、full entry 可构造 Scanner。

@@ -59,6 +59,14 @@ impl ScanKind {
                 sea_level: OVERWORLD_SEA_LEVEL,
                 biome: MultiNoiseBiomeSupplier::OVERWORLD,
             },
+            Self::BuriedTreasure => KindProfile {
+                structure: Structure::BURIED_TREASURE,
+                key: StructureKeys::BuriedTreasure,
+                dimension: Dimension::OVERWORLD,
+                min_y: OVERWORLD_MIN_Y,
+                sea_level: OVERWORLD_SEA_LEVEL,
+                biome: MultiNoiseBiomeSupplier::OVERWORLD,
+            },
         }
     }
     pub(crate) fn structure(self) -> Structure {

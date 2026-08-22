@@ -142,7 +142,7 @@ impl Scanner {
             ),
         ];
         let mut selected: Option<(Structure, StructureKeys, i32)> = None;
-        let mut probe_heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let mut probe_heights = ColumnHeightSampler::new(self.generator(), min_x, min_z);
         while !remaining.is_empty() {
             let choice = random.next_bounded_i32(remaining.len() as i32) as usize;
             let (structure, key, index, biomes) = remaining.swap_remove(choice);
@@ -192,7 +192,7 @@ impl Scanner {
         let Some((structure, key, index)) = selected else {
             return Ok(invalid_scan());
         };
-        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let mut heights = ColumnHeightSampler::new(self.generator(), min_x, min_z);
         let position = surface_jigsaw::generate_surface_jigsaw_position(
             surface_jigsaw::SurfaceJigsawConfig {
                 start_pool: structure.start_pool.ok_or_else(|| {
@@ -262,7 +262,7 @@ impl Scanner {
             .ok_or_else(|| Error::Worldgen("pillager outpost chunk z overflowed".to_owned()))?;
 
         let structure = self.kind.structure();
-        let mut probe_heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let mut probe_heights = ColumnHeightSampler::new(self.generator(), min_x, min_z);
         let mut probe_context = StructureGeneratorContext {
             seed: self.world_seed,
             chunk_x,
@@ -299,7 +299,7 @@ impl Scanner {
         if !self.biome_is_valid(probe.start_pos.0, self.valid_biomes, sampler) {
             return Ok(invalid_scan());
         }
-        let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
+        let mut heights = ColumnHeightSampler::new(self.generator(), min_x, min_z);
         let position = surface_jigsaw::generate_surface_jigsaw_position(
             surface_jigsaw::SurfaceJigsawConfig {
                 start_pool: structure.start_pool.ok_or_else(|| {

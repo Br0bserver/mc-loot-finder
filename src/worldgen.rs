@@ -1,3 +1,4 @@
+mod buried_treasure;
 mod chests;
 mod jigsaw_scan;
 mod profile;
@@ -13,7 +14,7 @@ use pumpkin_world::{
     biome::BiomeSupplier,
     generation::{
         biome_coords,
-        generator::{GeneratorInit, VanillaGenerator},
+        generator::{GeneratorInit, VanillaGenerator, WorldGenerator},
         noise::router::multi_noise_sampler::{MultiNoiseSampler, MultiNoiseSamplerBuilderOptions},
         structure::structures::{StructureGeneratorContext, create_chunk_random},
     },
@@ -46,7 +47,7 @@ pub struct Scanner {
     world_seed: i64,
     structure: &'static CandidateStructure,
     kind: ScanKind,
-    generator: VanillaGenerator,
+    generator: WorldGenerator,
     valid_biomes: &'static [&'static str],
     fortress_biomes: &'static [&'static str],
 }
@@ -85,7 +86,10 @@ impl Scanner {
             world_seed,
             structure,
             kind,
-            generator: VanillaGenerator::new(Seed(world_seed as u64), kind.dimension()),
+            generator: WorldGenerator::Noise(Box::new(VanillaGenerator::new(
+                Seed(world_seed as u64),
+                kind.dimension(),
+            ))),
             valid_biomes: structure_biomes(&runtime_structure),
             fortress_biomes: if kind == ScanKind::BastionRemnant {
                 structure_biomes(&Structure::FORTRESS)
@@ -100,7 +104,7 @@ impl Scanner {
         chunks: impl IntoIterator<Item = (i32, i32)>,
     ) -> Result<Vec<Scan>, Error> {
         let mut sampler = MultiNoiseSampler::generate(
-            &self.generator.base_router.multi_noise,
+            &self.generator().base_router.multi_noise,
             &MultiNoiseSamplerBuilderOptions::new(0, 0, 0),
         );
         chunks
@@ -122,6 +126,7 @@ impl Scanner {
             ScanKind::Igloo => self.scan_igloo(chunk_x, chunk_z, sampler),
             ScanKind::Village => self.scan_village(chunk_x, chunk_z, sampler),
             ScanKind::PillagerOutpost => self.scan_pillager_outpost(chunk_x, chunk_z, sampler),
+            ScanKind::BuriedTreasure => self.scan_buried_treasure(chunk_x, chunk_z, sampler),
         }
     }
 
@@ -136,6 +141,12 @@ impl Scanner {
             height_sampler: None,
             structure_key: Some(self.kind.structure_key()),
         }
+    }
+    fn generator(&self) -> &VanillaGenerator {
+        let WorldGenerator::Noise(generator) = &self.generator else {
+            unreachable!("scanner only constructs noise generators")
+        };
+        generator
     }
 
     fn decoration(&self) -> Result<DecorationSeedSpec, Error> {
