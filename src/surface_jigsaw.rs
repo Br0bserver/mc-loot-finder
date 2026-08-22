@@ -1,4 +1,4 @@
-//! Vanilla 26.1.2 jigsaw placement for villages, implemented in this crate.
+//! Vanilla 26.1.2 surface jigsaw placement for villages and pillager outposts.
 //!
 //! The fork's `JigsawPlacement` cannot place village houses: the
 //! `generate_structure_position` dispatch never enables the expansion hack for
@@ -7,11 +7,10 @@
 //! street's expansion box is rejected. This module ports the vanilla algorithm
 //! exactly:
 //!
-//! - pool shuffling uses vanilla `WeightedPicker.shuffle` semantics: one entry
-//!   per element, weights NOT expanded (the fork expands by weight, which
-//!   consumes a different random stream);
-//! - the expansion hack (`use_expansion_hack` is true for villages) grows the
-//!   candidate collision box by `max(childPoolMaxY, childFallbackMaxY) + 1`;
+//! - template pools are expanded by element weight, then shuffled with
+//!   Fisher-Yates; this ordering and its RNG consumption match vanilla;
+//! - the expansion hack grows the candidate collision box by
+//!   `max(childPoolMaxY, childFallbackMaxY) + 1`;
 //! - the interior collision space is bounded by the *expanded* source
 //!   collision box, so a child fully contained in the source's expansion box
 //!   is accepted (vanilla `ONLY_SECOND` on the source shape);
@@ -19,8 +18,7 @@
 //! - start-piece jigsaw blocks are ordered by (y, x, z) like vanilla's
 //!   block-entity ordering.
 
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use pumpkin_data::Mirror;
@@ -52,61 +50,34 @@ struct PieceState {
 
 /// Vanilla `SequencedPriorityIterator`: highest priority first, FIFO within a
 /// priority level.
+#[derive(Default)]
 struct PriorityQueue {
-    queues: HashMap<i32, VecDeque<usize>>,
-    highest: i32,
+    queues: BTreeMap<i32, VecDeque<usize>>,
 }
 
 impl PriorityQueue {
     fn new() -> Self {
-        Self {
-            queues: HashMap::new(),
-            highest: i32::MIN,
-        }
+        Self::default()
     }
 
     fn add(&mut self, priority: i32, piece_idx: usize) {
-        if priority == self.highest
-            && self
-                .queues
-                .get(&priority)
-                .is_some_and(|queue| !queue.is_empty())
-        {
-            self.queues
-                .get_mut(&priority)
-                .expect("queue exists")
-                .push_back(piece_idx);
-            return;
-        }
-        let queue = self.queues.entry(priority).or_default();
-        queue.push_back(piece_idx);
-        if priority >= self.highest {
-            self.highest = priority;
-        }
+        self.queues
+            .entry(priority)
+            .or_default()
+            .push_back(piece_idx);
     }
 
     fn pop(&mut self) -> Option<usize> {
         loop {
-            let queue = self.queues.get_mut(&self.highest)?;
-            if let Some(piece_idx) = queue.pop_front() {
-                if queue.is_empty() {
-                    self.highest = self
-                        .queues
-                        .iter()
-                        .filter(|(_, q)| !q.is_empty())
-                        .map(|(priority, _)| *priority)
-                        .max()
-                        .unwrap_or(i32::MIN);
-                }
-                return Some(piece_idx);
+            let mut entry = self.queues.last_entry()?;
+            let queue = entry.get_mut();
+            let piece_idx = queue.pop_front();
+            if queue.is_empty() {
+                entry.remove();
             }
-            self.highest = self
-                .queues
-                .iter()
-                .filter(|(_, q)| !q.is_empty())
-                .map(|(priority, _)| *priority)
-                .max()
-                .unwrap_or(i32::MIN);
+            if piece_idx.is_some() {
+                return piece_idx;
+            }
         }
     }
 }
@@ -296,18 +267,30 @@ const fn boxes_intersect(a: &BlockBox, b: &BlockBox) -> bool {
         && a.min.z <= b.max.z
 }
 
-/// Generates a village with the vanilla 26.1.2 jigsaw algorithm and collects
-/// the resulting pieces into a `StructurePosition`.
-#[allow(clippy::too_many_arguments)]
-pub fn generate_village_position(
-    start_pool: &str,
-    size: i32,
-    start_y: i32,
-    project_start_to_heightmap: bool,
-    max_distance_from_center: i32,
-    use_expansion_hack: bool,
+#[derive(Clone, Copy)]
+pub struct SurfaceJigsawConfig<'a> {
+    pub start_pool: &'a str,
+    pub size: i32,
+    pub start_y: i32,
+    pub project_start_to_heightmap: bool,
+    pub max_distance_from_center: i32,
+    pub use_expansion_hack: bool,
+}
+
+/// Generates a surface jigsaw structure with the vanilla 26.1.2 algorithm and
+/// collects the resulting pieces into a `StructurePosition`.
+pub fn generate_surface_jigsaw_position(
+    config: SurfaceJigsawConfig<'_>,
     context: &mut StructureGeneratorContext<'_>,
 ) -> Option<StructurePosition> {
+    let SurfaceJigsawConfig {
+        start_pool,
+        size,
+        start_y,
+        project_start_to_heightmap,
+        max_distance_from_center,
+        use_expansion_hack,
+    } = config;
     let max_depth = size.clamp(0, 20);
     let pool = TemplatePool::discover(start_pool)?;
     let rotation = Rotation::from_index(context.random.next_bounded_i32(4) as u8);

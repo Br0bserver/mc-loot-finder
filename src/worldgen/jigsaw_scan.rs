@@ -5,7 +5,7 @@ use crate::error::Error;
 use crate::placement;
 use crate::random::LegacyRandom48;
 use crate::surface_height::ColumnHeightSampler;
-use crate::village_jigsaw;
+use crate::surface_jigsaw;
 use pumpkin_data::structures::{Structure, StructureKeys};
 use pumpkin_util::random::RandomImpl;
 use pumpkin_world::generation::{
@@ -160,19 +160,25 @@ impl Scanner {
                 height_sampler: Some(&mut probe_heights),
                 structure_key: Some(key),
             };
-            let Some(probe) = village_jigsaw::generate_village_position(
-                probe_structure
-                    .start_pool
-                    .expect("village structures have a start pool"),
-                0,
-                i32::from(
-                    probe_structure
-                        .start_height
-                        .unwrap_or(self.kind.sea_level() as i16),
-                ),
-                probe_structure.project_start_to_heightmap.is_some(),
-                probe_structure.max_distance_from_center.unwrap_or(80),
-                true,
+            let Some(probe) = surface_jigsaw::generate_surface_jigsaw_position(
+                surface_jigsaw::SurfaceJigsawConfig {
+                    start_pool: probe_structure
+                        .start_pool
+                        .expect("village structures have a start pool"),
+                    size: 0,
+                    start_y: i32::from(
+                        probe_structure
+                            .start_height
+                            .unwrap_or(self.kind.sea_level() as i16),
+                    ),
+                    project_start_to_heightmap: probe_structure
+                        .project_start_to_heightmap
+                        .is_some(),
+                    max_distance_from_center: probe_structure
+                        .max_distance_from_center
+                        .unwrap_or(80),
+                    use_expansion_hack: true,
+                },
                 &mut probe_context,
             ) else {
                 continue;
@@ -187,21 +193,23 @@ impl Scanner {
             return Ok(invalid_scan());
         };
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
-        let position = village_jigsaw::generate_village_position(
-            structure.start_pool.ok_or_else(|| {
-                Error::Worldgen("village structures have a start pool".to_owned())
-            })?,
-            structure
-                .size
-                .ok_or_else(|| Error::Worldgen("village structures have a size".to_owned()))?,
-            i32::from(
-                structure
-                    .start_height
-                    .unwrap_or(self.kind.sea_level() as i16),
-            ),
-            structure.project_start_to_heightmap.is_some(),
-            structure.max_distance_from_center.unwrap_or(80),
-            true,
+        let position = surface_jigsaw::generate_surface_jigsaw_position(
+            surface_jigsaw::SurfaceJigsawConfig {
+                start_pool: structure.start_pool.ok_or_else(|| {
+                    Error::Worldgen("village structures have a start pool".to_owned())
+                })?,
+                size: structure
+                    .size
+                    .ok_or_else(|| Error::Worldgen("village structures have a size".to_owned()))?,
+                start_y: i32::from(
+                    structure
+                        .start_height
+                        .unwrap_or(self.kind.sea_level() as i16),
+                ),
+                project_start_to_heightmap: structure.project_start_to_heightmap.is_some(),
+                max_distance_from_center: structure.max_distance_from_center.unwrap_or(80),
+                use_expansion_hack: true,
+            },
             &mut StructureGeneratorContext {
                 seed: self.world_seed,
                 chunk_x,
@@ -268,19 +276,21 @@ impl Scanner {
             size: Some(0),
             ..structure
         };
-        let Some(probe) = village_jigsaw::generate_village_position(
-            probe_structure
-                .start_pool
-                .expect("pillager outpost has a start pool"),
-            0,
-            i32::from(
-                probe_structure
-                    .start_height
-                    .unwrap_or(self.kind.sea_level() as i16),
-            ),
-            probe_structure.project_start_to_heightmap.is_some(),
-            probe_structure.max_distance_from_center.unwrap_or(80),
-            true,
+        let Some(probe) = surface_jigsaw::generate_surface_jigsaw_position(
+            surface_jigsaw::SurfaceJigsawConfig {
+                start_pool: probe_structure
+                    .start_pool
+                    .expect("pillager outpost has a start pool"),
+                size: 0,
+                start_y: i32::from(
+                    probe_structure
+                        .start_height
+                        .unwrap_or(self.kind.sea_level() as i16),
+                ),
+                project_start_to_heightmap: probe_structure.project_start_to_heightmap.is_some(),
+                max_distance_from_center: probe_structure.max_distance_from_center.unwrap_or(80),
+                use_expansion_hack: true,
+            },
             &mut probe_context,
         ) else {
             return Ok(invalid_scan());
@@ -289,21 +299,23 @@ impl Scanner {
             return Ok(invalid_scan());
         }
         let mut heights = ColumnHeightSampler::new(&self.generator, min_x, min_z);
-        let position = village_jigsaw::generate_village_position(
-            structure
-                .start_pool
-                .ok_or_else(|| Error::Worldgen("pillager outpost has a start pool".to_owned()))?,
-            structure
-                .size
-                .ok_or_else(|| Error::Worldgen("pillager outpost has a size".to_owned()))?,
-            i32::from(
-                structure
-                    .start_height
-                    .unwrap_or(self.kind.sea_level() as i16),
-            ),
-            structure.project_start_to_heightmap.is_some(),
-            structure.max_distance_from_center.unwrap_or(80),
-            true,
+        let position = surface_jigsaw::generate_surface_jigsaw_position(
+            surface_jigsaw::SurfaceJigsawConfig {
+                start_pool: structure.start_pool.ok_or_else(|| {
+                    Error::Worldgen("pillager outpost has a start pool".to_owned())
+                })?,
+                size: structure
+                    .size
+                    .ok_or_else(|| Error::Worldgen("pillager outpost has a size".to_owned()))?,
+                start_y: i32::from(
+                    structure
+                        .start_height
+                        .unwrap_or(self.kind.sea_level() as i16),
+                ),
+                project_start_to_heightmap: structure.project_start_to_heightmap.is_some(),
+                max_distance_from_center: structure.max_distance_from_center.unwrap_or(80),
+                use_expansion_hack: true,
+            },
             &mut StructureGeneratorContext {
                 seed: self.world_seed,
                 chunk_x,
