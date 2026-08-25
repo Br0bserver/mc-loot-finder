@@ -3,11 +3,11 @@ use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::random::Random;
 use steel_utils::Direction;
-use steel_worldgen::structure::desert_pyramid::{
-    DESERT_PYRAMID_DEPTH, DESERT_PYRAMID_WIDTH, DesertPyramidStructure,
-};
+use steel_worldgen::structure::desert_pyramid::DesertPyramidStructure;
 use steel_worldgen::structure::igloo::IglooStructure;
 use steel_worldgen::structure::{Structure, StructureGenerationContext, StructurePiecePayload};
+const DESERT_PYRAMID_WIDTH: i32 = 21;
+const DESERT_PYRAMID_DEPTH: i32 = 21;
 
 const HORIZONTAL_DIRECTIONS: [Direction; 4] = [
     Direction::North,
