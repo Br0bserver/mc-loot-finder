@@ -1,6 +1,7 @@
 use glam::IVec3;
-use steel_registry::REGISTRY;
+use steel_registry::{REGISTRY, RegistryExt};
 use steel_utils::{Identifier, Rotation};
+use steel_worldgen::structure::StructureGenerationContext;
 
 use super::template_data::get_template_container_data;
 use super::template_scan::{RandomPrefix, TemplatePlacement};
@@ -147,7 +148,7 @@ impl Scanner {
         while !remaining.is_empty() {
             let choice = selection_random.next_i32_bounded(remaining.len() as i32) as usize;
             let (is_beached, structure_id) = remaining.remove(choice);
-            let structure_data = REGISTRY.structures.get(&structure_id)?;
+            let structure_data = REGISTRY.structures.by_key(&structure_id)?;
             let ocean_floor = !is_beached;
             let y = ctx.base_height(middle_x, middle_z, ocean_floor) - 1;
             let biome = ctx.biome_at(middle_x, y, middle_z);

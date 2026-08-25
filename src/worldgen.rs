@@ -12,10 +12,10 @@ mod tests;
 use glam::IVec3;
 use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
-use steel_registry::REGISTRY;
 use steel_registry::biome::BiomeRef;
 use steel_registry::template_pool::{TemplateData, TemplatePoolData};
 use steel_registry::vanilla_template_pools::{vanilla_template_pools, vanilla_templates};
+use steel_registry::{REGISTRY, RegistryExt, init_vanilla_registry};
 use steel_utils::Identifier;
 use steel_utils::random::legacy_random::LegacyRandom;
 use steel_utils::random::{PositionalRandom, Random, RandomSplitter};
@@ -469,6 +469,7 @@ impl Scanner {
         structure: &'static CandidateStructure,
         kind: ScanKind,
     ) -> Self {
+        init_vanilla_registry();
         let dimension = structure.dimension;
         let is_nether = dimension == "minecraft:the_nether";
         let is_end = dimension == "minecraft:the_end";
@@ -600,7 +601,7 @@ impl Scanner {
 
     pub(crate) fn structure_data(&self) -> Option<&'static StructureData> {
         let id = self.kind.identifier();
-        REGISTRY.structures.get(&id)
+        REGISTRY.structures.by_key(&id)
     }
 
     pub(crate) fn is_valid_biome(&self, biome_id: &Identifier) -> bool {

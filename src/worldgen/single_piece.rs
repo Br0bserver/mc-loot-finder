@@ -4,7 +4,18 @@ use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::random::{LegacyRandom48, Random};
 use steel_utils::{Direction, Rotation};
-use steel_worldgen::structure::random_horizontal_direction;
+use steel_worldgen::structure::StructureGenerationContext;
+
+const HORIZONTAL_DIRECTIONS: [Direction; 4] = [
+    Direction::North,
+    Direction::East,
+    Direction::South,
+    Direction::West,
+];
+
+fn random_horizontal_direction(rng: &mut impl Random) -> Direction {
+    HORIZONTAL_DIRECTIONS[rng.next_i32_bounded(4) as usize]
+}
 
 const DESERT_PYRAMID_WIDTH: i32 = 21;
 const DESERT_PYRAMID_HEIGHT: i32 = 15;

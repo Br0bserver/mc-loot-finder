@@ -4,10 +4,10 @@ use crate::catalog::{ContainerSeedShortcut, DecorationSeedSpec, ScanKind, VILLAG
 use crate::error::Error;
 use crate::placement;
 use crate::random::{LegacyRandom48, Random};
-use steel_registry::REGISTRY;
+use steel_registry::{REGISTRY, RegistryExt};
 use steel_utils::Identifier;
-use steel_worldgen::structure::Structure;
 use steel_worldgen::structure::jigsaw::JigsawStructure;
+use steel_worldgen::structure::{Structure, StructureGenerationContext};
 
 const PILLAGER_FREQUENCY: f32 = 0.2;
 const VILLAGE_EXCLUSION_RADIUS: i32 = 10;
@@ -45,7 +45,7 @@ impl Scanner {
         }
 
         let structure_id = self.kind.identifier();
-        let structure_data = REGISTRY.structures.get(&structure_id).ok_or_else(|| {
+        let structure_data = REGISTRY.structures.by_key(&structure_id).ok_or_else(|| {
             Error::Worldgen(format!(
                 "structure registry missing {}",
                 self.structure.name
@@ -87,7 +87,7 @@ impl Scanner {
         while !remaining.is_empty() {
             let choice = random.next_i32_bounded(remaining.len() as i32) as usize;
             let (structure_id, index) = remaining.swap_remove(choice);
-            let structure_data = REGISTRY.structures.get(&structure_id).ok_or_else(|| {
+            let structure_data = REGISTRY.structures.by_key(&structure_id).ok_or_else(|| {
                 Error::Worldgen(format!("village structure registry missing {structure_id}"))
             })?;
 
@@ -135,10 +135,9 @@ impl Scanner {
         }
 
         let structure_id = self.kind.identifier();
-        let structure_data = REGISTRY.structures.get(&structure_id).ok_or_else(|| {
+        let structure_data = REGISTRY.structures.by_key(&structure_id).ok_or_else(|| {
             Error::Worldgen("pillager outpost structure registry missing".to_owned())
         })?;
-
         let mut ctx = self.generation_context(chunk_x, chunk_z);
         let mut rng = self.feature_random(chunk_x, chunk_z);
 
@@ -179,7 +178,7 @@ impl Scanner {
         let biome = ctx.biome_at(block_x, 64, block_z);
         let fortress_data = REGISTRY
             .structures
-            .get(&Identifier::new_static("minecraft", "fortress"))
+            .by_key(&Identifier::new_static("minecraft", "fortress"))
             .ok_or_else(|| Error::Worldgen("fortress registry entry missing".to_owned()))?;
 
         Ok(!fortress_data.allowed_biomes.contains(&biome.key))

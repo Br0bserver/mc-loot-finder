@@ -1,6 +1,6 @@
 use crate::catalog::{Placement, SpreadType};
 use crate::error::Error;
-use crate::random::LegacyRandom48;
+use crate::random::{LegacyRandom48, Random};
 
 const REGION_X_MULTIPLIER: i64 = 341_873_128_712;
 const REGION_Z_MULTIPLIER: i64 = 132_897_987_541;
@@ -25,14 +25,14 @@ fn candidate_chunk(
         .wrapping_add(i64::from(region_x).wrapping_mul(REGION_X_MULTIPLIER))
         .wrapping_add(i64::from(region_z).wrapping_mul(REGION_Z_MULTIPLIER))
         .wrapping_add(placement.salt);
-    let mut random = LegacyRandom48::new(placement_seed);
-    let mut offset_x = random.next_int(limit);
+    let mut random = LegacyRandom48::from_seed(placement_seed as u64);
+    let mut offset_x = random.next_i32_bounded(limit);
     let offset_z = match placement.spread {
         SpreadType::Triangular => {
-            offset_x = (offset_x + random.next_int(limit)) / 2;
-            (random.next_int(limit) + random.next_int(limit)) / 2
+            offset_x = (offset_x + random.next_i32_bounded(limit)) / 2;
+            (random.next_i32_bounded(limit) + random.next_i32_bounded(limit)) / 2
         }
-        SpreadType::Linear => random.next_int(limit),
+        SpreadType::Linear => random.next_i32_bounded(limit),
     };
     (
         region_x * placement.spacing + offset_x,

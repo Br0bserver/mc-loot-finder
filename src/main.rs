@@ -12,6 +12,7 @@ mod worldgen;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    steel_registry::init_vanilla_registry();
     match cli::run(std::env::args().skip(1)) {
         Ok(code) => ExitCode::from(code),
         Err(error) => {

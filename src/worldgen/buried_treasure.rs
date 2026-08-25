@@ -2,7 +2,7 @@ use super::{Chest, Scan, Scanner, invalid_scan};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::random::{LegacyRandom48, Random};
-use steel_worldgen::structure::ColumnBlock;
+use steel_worldgen::structure::{ColumnBlock, StructureGenerationContext};
 
 const FREQUENCY_SALT: u32 = 10_387_320;
 const FREQUENCY: f32 = 0.01;
