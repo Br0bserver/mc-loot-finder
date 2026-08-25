@@ -74,8 +74,8 @@ impl Scanner {
     pub(super) fn scan_village(&self, chunk_x: i32, chunk_z: i32) -> Result<Scan, Error> {
         let mut random = self.chunk_random(chunk_x, chunk_z);
         let mut remaining = vec![
-            (Identifier::new_static("minecraft", "village_desert"), 21),
-            (Identifier::new_static("minecraft", "village_plains"), 22),
+            (Identifier::new_static("minecraft", "village_plains"), 21),
+            (Identifier::new_static("minecraft", "village_desert"), 22),
             (Identifier::new_static("minecraft", "village_savanna"), 23),
             (Identifier::new_static("minecraft", "village_snowy"), 24),
             (Identifier::new_static("minecraft", "village_taiga"), 25),
@@ -86,7 +86,7 @@ impl Scanner {
 
         while !remaining.is_empty() {
             let choice = random.next_i32_bounded(remaining.len() as i32) as usize;
-            let (structure_id, index) = remaining.swap_remove(choice);
+            let (structure_id, index) = remaining.remove(choice);
             let structure_data = REGISTRY.structures.by_key(&structure_id).ok_or_else(|| {
                 Error::Worldgen(format!("village structure registry missing {structure_id}"))
             })?;

@@ -150,7 +150,15 @@ impl StructureGenerationContext for OverworldScannerContext<'_> {
         &TEMPLATES
     }
     fn base_height(&mut self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        self.with_context(|ctx| ctx.base_height(x, z, ocean_floor))
+        let in_chunk = x >= self.chunk_min_x()
+            && x < self.chunk_min_x() + 16
+            && z >= self.chunk_min_z()
+            && z < self.chunk_min_z() + 16;
+        if in_chunk {
+            self.with_context(|ctx| ctx.base_height(x, z, ocean_floor))
+        } else {
+            self.with_context(|ctx| ctx.terrain_surface_height(x, z, ocean_floor))
+        }
     }
     fn base_height_full(&mut self, x: i32, z: i32, ocean_floor: bool) -> i32 {
         self.with_context(|ctx| ctx.base_height_full(x, z, ocean_floor))
