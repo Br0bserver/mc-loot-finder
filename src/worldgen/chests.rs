@@ -11,7 +11,7 @@ use crate::catalog::DecorationSeedSpec;
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 
-enum RawContainer {
+pub(super) enum RawContainer {
     Hidden {
         x: i32,
         y: i32,

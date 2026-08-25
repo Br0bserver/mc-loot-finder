@@ -547,7 +547,7 @@ impl Scanner {
     pub(crate) fn generation_context(&self, chunk_x: i32, chunk_z: i32) -> ScannerContext<'_> {
         let chunk_min_x = chunk_x * 16;
         let chunk_min_z = chunk_z * 16;
-        let mut biome_sampler = self.biome_source.chunk_sampler();
+        let biome_sampler = self.biome_source.chunk_sampler();
 
         if let Some(noises) = &self.overworld_noises {
             let mut height_cache = OverworldColumnCache::new();
@@ -617,14 +617,6 @@ impl Scanner {
     pub(crate) fn structure_data(&self) -> Option<&'static StructureData> {
         let id = self.kind.identifier();
         REGISTRY.structures.by_key(&id)
-    }
-
-    pub(crate) fn is_valid_biome(&self, biome_id: &Identifier) -> bool {
-        if let Some(structure_data) = self.structure_data() {
-            structure_data.allowed_biomes.contains(biome_id)
-        } else {
-            false
-        }
     }
 
     pub(crate) fn min_y(&self) -> i32 {
