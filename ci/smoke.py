@@ -20,6 +20,24 @@ FULL_SCAN_STRUCTURES = [
     "buried_treasure",
     "pillager_outpost",
 ]
+ALL_STRUCTURES = [
+    "ancient_city",
+    "bastion_remnant",
+    "desert_pyramid",
+    "jungle_pyramid",
+    "igloo",
+    "end_city",
+    "ruined_portal",
+    "ruined_portal_nether",
+    "trial_chambers",
+    "shipwreck",
+    "ocean_ruin",
+    "nether_fortress",
+    "village",
+    "buried_treasure",
+    "pillager_outpost",
+    "woodland_mansion",
+]
 
 
 def run(binary: Path, *args: str, expected_status: int = 0) -> subprocess.CompletedProcess[str]:
@@ -71,6 +89,11 @@ def check_capabilities(binary: Path) -> None:
             raise SystemExit(f"explain returned invalid structure capability: {structure}")
         capabilities.append((name, supports_full_scan))
 
+    names = [name for name, _ in capabilities]
+    if names != ALL_STRUCTURES:
+        raise SystemExit(
+            f"unexpected structure catalog: expected {ALL_STRUCTURES}, got {names}"
+        )
     full_scan = [name for name, supports_full_scan in capabilities if supports_full_scan]
     if full_scan != FULL_SCAN_STRUCTURES:
         raise SystemExit(
@@ -115,7 +138,7 @@ def check_ancient_city(binary: Path, ancient_output: Path | None) -> None:
         assert_fields(
             "ancient city chests",
             chests,
-            {"placement_candidates": 530, "valid_structures": 17, "chest_count": 368},
+            {"placement_candidates": 530, "valid_structures": 17, "chest_count": 358},
         )
         ancient_output.write_text(json.dumps(chests, separators=(",", ":")) + "\n")
 
@@ -246,7 +269,7 @@ def check_shipwreck(binary: Path) -> None:
     expected_chests = [
         {
             "x": 219,
-            "y": 60,
+            "y": 61,
             "z": 142,
             "loot_table": "minecraft:chests/shipwreck_treasure",
             "loot_seed": -756_378_412_031_281_064,
@@ -256,7 +279,7 @@ def check_shipwreck(binary: Path) -> None:
         },
         {
             "x": 235,
-            "y": 61,
+            "y": 62,
             "z": 144,
             "loot_table": "minecraft:chests/shipwreck_supply",
             "loot_seed": -3_774_492_170_699_737_302,
@@ -266,7 +289,7 @@ def check_shipwreck(binary: Path) -> None:
         },
         {
             "x": 224,
-            "y": 61,
+            "y": 62,
             "z": 145,
             "loot_table": "minecraft:chests/shipwreck_map",
             "loot_seed": -2_986_182_992_758_690_057,
@@ -336,7 +359,7 @@ def check_buried_treasure(binary: Path) -> None:
     chest = entries[0]
     expected_chest = {
         "x": 9,
-        "y": 64,
+        "y": 59,
         "z": -343,
         "loot_table": "minecraft:chests/buried_treasure",
         "loot_seed": -2_156_648_588_641_602_659,
@@ -393,7 +416,7 @@ def check_pillager_seed_contract(binary: Path, chests: dict[str, Any]) -> None:
             entry
             for entry in entries
             if isinstance(entry, dict)
-            and (entry.get("x"), entry.get("y"), entry.get("z")) == (-826, 76, 1110)
+            and (entry.get("x"), entry.get("y"), entry.get("z")) == (-826, 77, 1110)
         ),
         None,
     )
@@ -403,6 +426,8 @@ def check_pillager_seed_contract(binary: Path, chests: dict[str, Any]) -> None:
     ordinal = chest.get("ordinal")
     if not isinstance(expected_seed, int) or not isinstance(ordinal, int):
         raise SystemExit(f"known pillager chest has invalid seed metadata: {chest}")
+    if expected_seed != -638_836_315_418_230_144 or ordinal != 1:
+        raise SystemExit(f"unexpected known pillager chest vector: {chest}")
 
     predicted = run_json(
         binary,
@@ -443,22 +468,22 @@ def main() -> None:
         "desert_pyramid",
         "minecraft:dune_armor_trim_smithing_template",
         {"placement_candidates": 307, "valid_structures": 3, "chest_count": 12},
-        {"placement_candidates": 307, "valid_structures": 3, "checked_chests": 12, "hits": 2},
+        {"placement_candidates": 307, "valid_structures": 3, "checked_chests": 12, "hits": 5},
     )
     check_structure_pair(
         binary,
         "igloo",
         "minecraft:golden_apple",
-        {"placement_candidates": 299, "valid_structures": 22, "chest_count": 10},
-        {"placement_candidates": 299, "valid_structures": 22, "checked_chests": 10, "hits": 10},
+        {"placement_candidates": 299, "valid_structures": 26, "chest_count": 14},
+        {"placement_candidates": 299, "valid_structures": 26, "checked_chests": 14, "hits": 14},
     )
     check_shipwreck(binary)
     check_structure_pair(
         binary,
         "village",
         "minecraft:diamond",
-        {"placement_candidates": 267, "valid_structures": 57, "chest_count": 180},
-        {"placement_candidates": 267, "valid_structures": 57, "checked_chests": 180, "hits": 4},
+        {"placement_candidates": 267, "valid_structures": 60, "chest_count": 155},
+        {"placement_candidates": 267, "valid_structures": 60, "checked_chests": 155, "hits": 3},
     )
     check_buried_treasure(binary)
     pillager_chests = check_structure_pair(

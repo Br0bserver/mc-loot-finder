@@ -11,4 +11,5 @@ AGENT.md
 .gh-cache/
 .ghcache/
 .forkdb/
+__pycache__/
 .forktree/

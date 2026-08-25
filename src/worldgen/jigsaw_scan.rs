@@ -1,4 +1,4 @@
-use super::chests::{collect_stub_chests, dedup_and_seed_chests};
+use super::chests::{collect_stub_containers, dedup_and_seed_chests};
 use super::{Scan, Scanner, invalid_scan};
 use crate::catalog::{ContainerSeedShortcut, DecorationSeedSpec, ScanKind, VILLAGE_PLACEMENT};
 use crate::error::Error;
@@ -60,7 +60,7 @@ impl Scanner {
             return Ok(invalid_scan());
         };
 
-        let raw = collect_stub_chests(&stub.pieces);
+        let raw = collect_stub_containers(&stub.pieces);
         let visible =
             dedup_and_seed_chests(self.world_seed, raw, (chunk_x, chunk_z), self.decoration()?)?;
 
@@ -107,7 +107,7 @@ impl Scanner {
             return Ok(invalid_scan());
         };
 
-        let raw = collect_stub_chests(&stub.pieces);
+        let raw = collect_stub_containers(&stub.pieces);
         let visible = dedup_and_seed_chests(
             self.world_seed,
             raw,
@@ -146,7 +146,7 @@ impl Scanner {
             return Ok(invalid_scan());
         };
 
-        let raw = collect_stub_chests(&stub.pieces);
+        let raw = collect_stub_containers(&stub.pieces);
         let visible =
             dedup_and_seed_chests(self.world_seed, raw, (chunk_x, chunk_z), self.decoration()?)?;
 

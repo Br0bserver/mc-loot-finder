@@ -2,7 +2,8 @@ use super::{Chest, Scan, Scanner, invalid_scan};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::random::{LegacyRandom48, Random};
-use steel_worldgen::structure::{ColumnBlock, StructureGenerationContext};
+use steel_worldgen::structure::single_piece::BuriedTreasureStructure;
+use steel_worldgen::structure::{ColumnBlock, Structure, StructureGenerationContext};
 
 const FREQUENCY_SALT: u32 = 10_387_320;
 const FREQUENCY: f32 = 0.01;
@@ -32,22 +33,19 @@ impl Scanner {
             return Ok(invalid_scan());
         }
 
-        let chest_x = chunk_x
-            .checked_mul(16)
-            .and_then(|value| value.checked_add(9))
-            .ok_or_else(|| Error::Worldgen("buried treasure chest x overflowed".to_owned()))?;
-        let chest_z = chunk_z
-            .checked_mul(16)
-            .and_then(|value| value.checked_add(9))
-            .ok_or_else(|| Error::Worldgen("buried treasure chest z overflowed".to_owned()))?;
-
+        let structure_data = self.structure_data().ok_or_else(|| {
+            Error::Worldgen("buried treasure structure registry missing".to_owned())
+        })?;
         let mut ctx = self.generation_context(chunk_x, chunk_z);
-        let ocean_floor_height = ctx.base_height(chest_x, chest_z, true);
-        let biome = ctx.biome_at(chest_x, ocean_floor_height - 1, chest_z);
-        if !self.is_valid_biome(&biome.key) {
+        let mut rng = self.feature_random(chunk_x, chunk_z);
+        let Some(stub) =
+            BuriedTreasureStructure.find_generation_point(&mut ctx, structure_data, &mut rng)
+        else {
             return Ok(invalid_scan());
-        }
-
+        };
+        let chest_x = stub.position.0;
+        let chest_z = stub.position.2;
+        let ocean_floor_height = ctx.base_height(chest_x, chest_z, true);
         let top_y = ocean_floor_height;
         let mut chest_y = None;
         for y in (self.min_y()..=top_y).rev() {

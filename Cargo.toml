@@ -8,11 +8,11 @@ license = "GPL-3.0-only"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
-glam = "0.33"
+glam = "0.32.1"
 rustc-hash = "2"
-steel-registry = { git = "https://github.com/Steel-Foundation/SteelMC.git", branch = "master" }
-steel-utils = { git = "https://github.com/Steel-Foundation/SteelMC.git", branch = "master" }
-steel-worldgen = { git = "https://github.com/Steel-Foundation/SteelMC.git", branch = "master" }
+steel-registry = { git = "https://github.com/Steel-Foundation/SteelMC.git", rev = "d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2" }
+steel-utils = { git = "https://github.com/Steel-Foundation/SteelMC.git", rev = "d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2" }
+steel-worldgen = { git = "https://github.com/Steel-Foundation/SteelMC.git", rev = "d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2" }
 thiserror = "2"
 
 [[bin]]

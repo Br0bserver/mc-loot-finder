@@ -1,15 +1,14 @@
 # mc-loot-finder Rust 分支开发指南
 
-面向 `experimental/pumpkin-rust` 分支。交接与项目状态笔记在 `AGENT.md`
+面向 `experimental/steelmc-rust` 分支。交接与项目状态笔记在 `AGENT.md`
 （工作区符号链接，指向本地私有仓库 `.notes/`，不推送远端）。
 
 ## 形态与依赖
 
-- 独立 Rust CLI，单向消费 Pumpkin fork 的 `pumpkin-world` / `pumpkin-data` /
-  `pumpkin-util`（git 依赖，pin 在 `Cargo.toml`，不要随意更新）。
-- fork 仓库：`https://github.com/Br0bserver/Pumpkin`，分支
-  `mc-loot-finder-26.1.2`。fork 内部 `pub(crate)` 的组件（如
-  `NoiseHeightSampler`）外部 crate 用不了，需要时在 `src/` 里复刻并锁测试。
+- 独立 Rust CLI，使用固定 revision 的 SteelMC `steel-worldgen`、
+  `steel-registry`、`steel-utils` 和 `steel-math`，目标为 Minecraft Java 26.1.2。
+- SteelMC 依赖固定在 `Cargo.toml` 和 `Cargo.lock`；不要改成移动的 branch，
+  也不要在未重新生成原版向量的情况下更新 revision。
 - 本机内存长期紧张（7 GB 总量，可用常不足 1 GB）：**禁止本地跑
   `cargo build/check/test/clippy` 和 JVM 重负载**，这不是纪律而是硬件限制。
 
@@ -18,7 +17,7 @@
 1. 改代码 → `cargo fmt`（本地允许，能抓语法错误）→ `cargo fmt --check`。
 2. 提交（Conventional Commits，一个功能一个提交）→ `git push`。
 3. CI（`.github/workflows/rust.yml`）跑：fmt → clippy → check → test →
-   musl 构建 → 各结构 smoke（古城/堡垒/沙漠神殿，Linux + Windows）。
+   musl 构建 → Linux/Windows 各结构 smoke。
 4. 需要跑 CLI 时：等 CI 绿后拉 artifact 本地 smoke：
 
    ```bash
@@ -78,33 +77,28 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
 
 ## 添加新结构的检查清单
 
-1. `src/catalog.rs`：目录条目（若无）；只有完成精确扫描的结构才能使用
-   `ScanSupport::Full(ScanKind::...)`，仅支持候选定位的结构必须使用
-   `Option<DecorationSeedSpec>`；禁止用 `-1` 或字符串表达内部状态。
-2. `src/worldgen/profile.rs`：为 `ScanKind` 补齐 Pumpkin 的
-   structure/key/dimension/min_y/sea_level/biome 配置。静态 decoration 参数只能
-   来自 catalog；村庄等运行时变体使用命名的 `DecorationSeedSpec`。
-3. 在 `src/worldgen/jigsaw_scan.rs`、`single_piece.rs` 或专用结构模块接入扫描实现，
-   并在 `Scanner::scan_with_sampler` 的穷尽 `match` 中路由。Jigsaw 模板容器收集和
-   去重统一复用 `src/worldgen/chests.rs`；结构模板的数据标记和隐藏方块实体随机消耗
-   统一复用 `src/worldgen/template_scan.rs`。固定向量只能存在于
-   `src/worldgen/tests.rs`，禁止进入生产扫描路径。
-4. 地表锚定结构使用 `src/surface_height.rs`。村庄和前哨站式 Jigsaw 复用
-   `src/surface_jigsaw.rs` 与 `SurfaceJigsawConfig`；不得复制或重新实现随机流。
-5. 静态容器种子统一传递 `DecorationSeedSpec`；模板放置在可见箱子前消耗固定随机值
-   时写入 `ordinal_offset`（例如冰屋为 1）。必须从原版运行时 registry 顺序确认
-   decoration step/index。变体使用不同 index 或每区块有不同随机前缀时，使用 catalog
-   命名配置和 `ContainerSeedShortcut::Unavailable`，Scanner 必须重放完整随机流；
-   沉船 ocean/beached 分别为 step 4/index 17 和 18，模板箱实体先消耗临时 seed，
-   beached 首个相交区块还先消耗 `nextInt(3)`。`Chest.loot_table` 保留原始字符串，
-   未知表不得静默转为空值。
-6. 对拍测试锁定位置、y、loot seed、ordinal 和无效候选，并至少增加一个不同世界
-   种子或大范围 aggregate 向量。Catalog 测试自动遍历全部 `ScanSupport`，确保
-   candidates-only 失败关闭、full entry 可构造 Scanner。
-7. `ci/smoke.py` 是 Linux/Windows 行为断言的唯一来源；新增能力只修改这一份脚本，
-   `.github/workflows/rust.yml` 只负责双平台构建和调用。标准 clippy `-D warnings`
-   与 `dbg!` / `todo!` / `unimplemented!` 检查保持阻塞。
-8. 提交后等待 CI 全绿，再拉 artifact 本地执行同一 smoke 脚本复验。
+1. `src/catalog.rs`：维护结构能力、registry ID、placement 和 decoration seed
+   的单一目录来源。只有完成精确扫描才能使用 `ScanSupport::Full`，候选结构必须
+   fail-closed；禁止用 `-1` 或字符串表达内部状态。
+2. 在 `src/worldgen/jigsaw_scan.rs`、`single_piece.rs` 或专用结构模块接入扫描实现，
+   并在 `src/worldgen.rs` 的穷尽 match 中路由。Jigsaw 模板容器统一经过
+   `src/worldgen/chests.rs` 的容器事件流；模板 marker、隐藏方块实体随机消耗和
+   旋转逻辑统一经过 `src/worldgen/template_scan.rs`。
+3. 地表锚定结构必须使用与 26.1.2 原版一致的 surface/block-state 语义。SteelMC
+   `GenerationContext::base_height` 只表示 base noise，不能直接替代真实 surface
+   方块材质或埋藏宝藏支撑判断。
+4. 静态容器种子统一传递 `DecorationSeedSpec`；模板放置在可见箱子前消耗固定随机值
+   时写入 `ordinal_offset`（例如冰屋为 1）。变体使用不同 index 或每区块有不同
+   随机前缀时，使用命名配置和 `ContainerSeedShortcut::Unavailable`，Scanner 必须
+   重放完整随机流。
+5. 对拍测试锁定位置、Y、LootTable、LootTableSeed、ordinal 和无效候选，并至少增加
+   一个不同世界种子或大范围 aggregate 向量。Catalog 测试自动遍历全部
+   `ScanSupport`，确保 candidates-only 失败关闭、full entry 可构造 Scanner。
+6. `ci/smoke.py` 是 Linux/Windows 行为断言的唯一来源；workflow 只负责构建和调用。
+   smoke 必须断言完整结构目录、退出码、位置、Y、LootTable、LootTableSeed 和命中
+   结果。独立原版/SteelMC probe 不得被同一实现内部的自洽检查替代。
+7. 提交后等待 CI 全绿，再拉 artifact 本地执行同一 smoke 脚本复验。
+8. SteelMC 迁移审查记录和当前风险见 `docs/STEELMC_BACKEND_REVIEW.md`。
 
 ## 本地允许 / 禁止速查
 

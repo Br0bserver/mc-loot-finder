@@ -129,18 +129,54 @@ fn scans_known_26_1_2_bastions() {
 fn scans_known_26_1_2_desert_pyramids() {
     let scanner = Scanner::new(0, ScanKind::DesertPyramid);
     // Seed 0: three valid pyramids and six candidates rejected by the
+    // vanilla sea-level corner check (some corner below the sea level).
     let scans = scanner
-        .scan_many([(0, -188)])
+        .scan_many([
+            (0, -188),
+            (77, -213),
+            (81, -254),
+            (22, -146),
+            (-30, -160),
+            (-10, -178),
+            (98, -155),
+            (102, -224),
+            (105, -246),
+        ])
         .expect("scan desert pyramid candidates");
-    let expected = [(
-        "minecraft:chests/desert_pyramid",
-        [
-            (10, 52, -2996, -5_568_029_752_813_165_272),
-            (12, 52, -2998, 8_612_763_612_274_328_067),
-            (10, 52, -3000, 410_913_108_922_281_890),
-            (8, 52, -2998, -6_529_954_051_122_263_735),
-        ],
-    )];
+    for scan in &scans[3..] {
+        assert!(!scan.valid_structure, "candidate must be rejected");
+        assert!(scan.chests.is_empty(), "rejected candidate has chests");
+    }
+    let scans = &scans[..3];
+    let expected = [
+        (
+            "minecraft:chests/desert_pyramid",
+            [
+                (10, 59, -2996, -5_568_029_752_813_165_272),
+                (12, 59, -2998, 8_612_763_612_274_328_067),
+                (10, 59, -3000, 410_913_108_922_281_890),
+                (8, 59, -2998, -6_529_954_051_122_263_735),
+            ],
+        ),
+        (
+            "minecraft:chests/desert_pyramid",
+            [
+                (1244, 60, -3398, 192_079_748_099_134_926),
+                (1242, 60, -3396, -369_207_723_137_014_054),
+                (1240, 60, -3398, 1_366_626_509_293_417_282),
+                (1242, 60, -3400, 2_864_047_697_517_889_560),
+            ],
+        ),
+        (
+            "minecraft:chests/desert_pyramid",
+            [
+                (1304, 52, -4054, 8_475_396_442_896_426_591),
+                (1306, 52, -4052, -164_227_586_464_969_558),
+                (1308, 52, -4054, -6_884_729_539_475_924_943),
+                (1306, 52, -4056, 5_000_275_533_034_043_386),
+            ],
+        ),
+    ];
     assert_eq!(scans.len(), expected.len());
     for (scan, (loot_table, chests)) in scans.iter().zip(expected) {
         assert!(scan.valid_structure);
@@ -160,7 +196,7 @@ fn scans_known_26_1_2_desert_pyramids() {
             .collect::<Vec<_>>();
         assert_eq!(actual, wanted);
     }
-    assert_static_seed_contract(&scanner, &scans);
+    assert_static_seed_contract(&scanner, scans);
 }
 
 #[test]
@@ -204,13 +240,40 @@ fn scans_known_26_1_2_igloos() {
 
 #[test]
 fn scans_known_26_1_2_snowy_village() {
-    // Biome sampling at elevated terrain in 3D multi-noise identifies
-    // mountainous biomes.
+    // Chunk (-114,290): a snowy village on a ravine edge. The free-space
+    // region must use the village's max-distance (80) Y extent so ravine
+    // candidates at y24 are rejected; the interior-expansion house
+    // snowy_small_house_6 (y72-80) then attaches and its chest appears.
     let scanner = Scanner::new(0, ScanKind::Village);
     let scans = scanner
         .scan_many([(-114i32, 290i32)])
         .expect("scan village");
     assert_eq!(scans.len(), 1);
+    assert!(scans[0].valid_structure);
+    // Chest order follows the vanilla piece/block scan order.
+    let expected_positions = [
+        (-1823, 133, 4655),
+        (-1803, 131, 4655),
+        (-1787, 131, 4681),
+        (-1845, 73, 4613),
+    ];
+    let known_seeds = [
+        8_698_000_211_807_766_173,
+        -6_504_443_412_966_562_273,
+        2_903_910_160_224_306_417,
+    ];
+    assert_eq!(scans[0].chests.len(), expected_positions.len());
+    for (chest, (x, y, z)) in scans[0].chests.iter().zip(expected_positions) {
+        assert_eq!((chest.x, chest.y, chest.z), (x, y, z));
+        assert_eq!(
+            chest.loot_table,
+            "minecraft:chests/village/village_snowy_house"
+        );
+        assert_eq!(chest.ordinal, 0);
+    }
+    for (chest, seed) in scans[0].chests.iter().zip(known_seeds) {
+        assert_eq!(chest.loot_seed, seed);
+    }
 }
 
 #[test]
@@ -226,15 +289,15 @@ fn scans_known_26_1_2_villages() {
     // coordinate order): (613,75,715) is the first cartographer chest.
     let expected = [
         vec![
-            (625, 105, 724, 7_967_509_563_249_290_458),
-            (608, 115, 695, 2_131_031_931_132_950_619),
-            (598, 118, 695, 976_205_080_006_538_047),
-            (623, 114, 698, 3_873_748_437_549_157_240),
-            (595, 109, 765, -7_937_951_963_181_497_523),
+            (613, 75, 715, 7_894_754_405_246_038_683),
+            (629, 74, 724, 7_967_509_563_249_290_458),
+            (634, 74, 736, 412_383_135_729_192_107),
+            (613, 72, 749, -5_741_561_169_428_246_725),
+            (566, 72, 715, -8_360_261_121_396_786_299),
         ],
         vec![
-            (243, 88, 932, -7_275_759_222_418_404_614),
-            (268, 101, 904, -588_457_079_655_156_128),
+            (283, 69, 944, 1_415_882_058_948_058_970),
+            (290, 75, 900, -8_102_066_785_630_644_298),
         ],
     ];
     for (scan, chests) in scans.iter().zip(expected) {
@@ -266,7 +329,7 @@ fn scans_known_26_1_2_pillager_outpost() {
     assert_eq!(chest.loot_table, "minecraft:chests/pillager_outpost");
     assert_eq!(
         (chest.x, chest.y, chest.z, chest.loot_seed, chest.ordinal),
-        (-826, 76, 1110, -638836315418230144, 1),
+        (-826, 77, 1110, -638836315418230144, 1),
         "pillager chest vector: {:?}",
         chest
     );
@@ -294,7 +357,10 @@ fn scans_known_26_1_2_buried_treasures() {
     // Generated by actual vanilla 26.1.2 server chunks. The Java main branch's
     // lightweight RecordingWorldGenLevel reports y=63 for both because it
     // substitutes stone below a motion-blocking height; it is not a terrain oracle.
-    let vectors = [(0, (0, -22), (9, 64, -343), -2_156_648_588_641_602_659)];
+    let vectors = [
+        (0, (0, -22), (9, 59, -343), -2_156_648_588_641_602_659),
+        (1, (-28, -22), (-439, 58, -343), 1_457_846_149_188_384_685),
+    ];
     for (world_seed, chunk, position, loot_seed) in vectors {
         assert!(
             super::buried_treasure::buried_treasure_frequency_passes(world_seed, chunk.0, chunk.1),
@@ -328,26 +394,26 @@ fn scans_known_26_1_2_shipwrecks() {
     let expected = [
         vec![
             (
-                (219, 60, 142),
+                (219, 61, 142),
                 "minecraft:chests/shipwreck_treasure",
                 -756_378_412_031_281_064,
                 0,
             ),
             (
-                (235, 61, 144),
+                (235, 62, 144),
                 "minecraft:chests/shipwreck_supply",
                 -3_774_492_170_699_737_302,
                 0,
             ),
             (
-                (224, 61, 145),
+                (224, 62, 145),
                 "minecraft:chests/shipwreck_map",
                 -2_986_182_992_758_690_057,
                 1,
             ),
         ],
         vec![(
-            (-333, 78, -506),
+            (-333, 50, -506),
             "minecraft:chests/shipwreck_supply",
             2_255_373_725_908_006_481,
             0,

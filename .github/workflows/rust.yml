@@ -26,6 +26,8 @@ on:
     paths:
       - Cargo.toml
       - Cargo.lock
+      - rust-toolchain.toml
+      - .cargo/**
       - src/**
       - ci/**
       - .github/workflows/rust.yml
@@ -33,9 +35,14 @@ on:
     paths:
       - Cargo.toml
       - Cargo.lock
+      - rust-toolchain.toml
+      - .cargo/**
       - src/**
       - ci/**
       - .github/workflows/rust.yml
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -54,7 +61,7 @@ jobs:
         run: cargo fmt --check
       - name: Lint with clippy
         run: >-
-          cargo clippy --all-targets --
+          cargo clippy --locked --all-targets --
           -D warnings
           -D clippy::dbg_macro
           -D clippy::todo
@@ -69,12 +76,24 @@ jobs:
         run: cargo build --release --locked --target x86_64-unknown-linux-musl
       - name: Run requested CLI command (manual dispatch)
         if: github.event_name == 'workflow_dispatch'
+        env:
+          CLI_COMMAND: ${{ inputs.command }}
+          CLI_STRUCTURE: ${{ inputs.structure }}
+          CLI_SEED: ${{ inputs.seed }}
+          CLI_ARGS: ${{ inputs.args }}
         run: |
-          target/x86_64-unknown-linux-musl/release/mc-loot-finder ${{ inputs.command }} \
-            --seed ${{ inputs.seed }} \
-            --structure ${{ inputs.structure }} \
-            ${{ inputs.args }}
-      - name: Run cross-platform smoke tests
+          set -euo pipefail
+          case "$CLI_COMMAND" in
+            candidates|chests|find) ;;
+            *) echo "unsupported CLI command: $CLI_COMMAND" >&2; exit 2 ;;
+          esac
+          read -r -a extra_args <<< "$CLI_ARGS"
+          target/x86_64-unknown-linux-musl/release/mc-loot-finder \
+            "$CLI_COMMAND" \
+            --seed "$CLI_SEED" \
+            --structure "$CLI_STRUCTURE" \
+            "${extra_args[@]}"
+      - name: Run Linux behavior smoke tests
         run: >-
           python3 ci/smoke.py
           --binary target/x86_64-unknown-linux-musl/release/mc-loot-finder
@@ -87,3 +106,32 @@ jobs:
         with:
           name: mc-loot-finder-linux-x86_64
           path: target/x86_64-unknown-linux-musl/release/mc-loot-finder
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Lint with clippy
+        run: >-
+          cargo clippy --locked --all-targets --
+          -D warnings
+          -D clippy::dbg_macro
+          -D clippy::todo
+          -D clippy::unimplemented
+      - name: Check Rust CLI
+        run: cargo check --locked
+      - name: Test Rust CLI
+        run: cargo test --release --locked
+      - name: Build Windows release binary
+        run: cargo build --release --locked
+      - name: Run Windows behavior smoke tests
+        run: python ci/smoke.py --binary target/release/mc-loot-finder.exe
