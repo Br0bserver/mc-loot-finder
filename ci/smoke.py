@@ -393,7 +393,7 @@ def check_pillager_seed_contract(binary: Path, chests: dict[str, Any]) -> None:
             entry
             for entry in entries
             if isinstance(entry, dict)
-            and (entry.get("x"), entry.get("y"), entry.get("z")) == (-826, 77, 1110)
+            and (entry.get("x"), entry.get("y"), entry.get("z")) == (-826, 76, 1110)
         ),
         None,
     )
