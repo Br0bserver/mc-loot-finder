@@ -573,8 +573,8 @@ impl Scanner {
 
     pub(crate) fn chunk_random(&self, chunk_x: i32, chunk_z: i32) -> LegacyRandom {
         let mut random = LegacyRandom::from_seed(self.world_seed as u64);
-        let x_mult = random.next_i64() | 1;
-        let z_mult = random.next_i64() | 1;
+        let x_mult = random.next_i64();
+        let z_mult = random.next_i64();
         let seed = (i64::from(chunk_x).wrapping_mul(x_mult)
             ^ i64::from(chunk_z).wrapping_mul(z_mult)
             ^ self.world_seed) as u64;
