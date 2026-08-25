@@ -458,7 +458,7 @@ def main() -> None:
         "village",
         "minecraft:diamond",
         {"placement_candidates": 267, "valid_structures": 57, "chest_count": 180},
-        {"placement_candidates": 267, "valid_structures": 57, "checked_chests": 180, "hits": 3},
+        {"placement_candidates": 267, "valid_structures": 57, "checked_chests": 180, "hits": 4},
     )
     check_buried_treasure(binary)
     pillager_chests = check_structure_pair(
