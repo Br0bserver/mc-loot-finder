@@ -125,8 +125,7 @@ impl<'a> TemplatePlacement<'a> {
     }
 
     fn world_position(&self, position: IVec3) -> IVec3 {
-        let transformed = self.rotation.transform_pos(position, self.pivot);
-        self.origin + transformed
+        super::transformed_position(self.rotation, position, self.pivot) + self.origin
     }
 }
 

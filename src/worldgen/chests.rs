@@ -1,7 +1,6 @@
 use glam::IVec3;
 use rustc_hash::FxHashMap;
 use steel_registry::template_pool::PoolElement;
-use steel_utils::Identifier;
 use steel_worldgen::structure::{StructurePiece, StructurePiecePayload};
 
 use super::Chest;
@@ -57,7 +56,7 @@ fn collect_template_containers(
     let mut emitted_visible = vec![false; template_data.chests.len()];
     for container in template_data.randomizable_containers {
         let local_pos = IVec3::new(container.x, container.y, container.z);
-        let world_pos = position + rotation.transform_pos(local_pos, IVec3::ZERO);
+        let world_pos = super::transformed_position(rotation, local_pos, IVec3::ZERO) + position;
         let visible_index = template_data
             .chests
             .iter()
@@ -92,7 +91,7 @@ fn collect_template_containers(
             continue;
         }
         let local_pos = IVec3::new(chest.x, chest.y, chest.z);
-        let world_pos = position + rotation.transform_pos(local_pos, IVec3::ZERO);
+        let world_pos = super::transformed_position(rotation, local_pos, IVec3::ZERO) + position;
         output.push(RawContainer::Visible {
             x: world_pos.x,
             y: world_pos.y,
@@ -108,7 +107,12 @@ pub(super) fn collect_stub_containers(pieces: &[StructurePiece]) -> Vec<RawConta
         let StructurePiecePayload::Jigsaw(data) = &piece.payload else {
             continue;
         };
-        collect_element_containers(&data.pool_element, data.position, data.rotation, &mut raw);
+        collect_element_containers(
+            &data.pool_element,
+            IVec3::new(data.position.0, data.position.1, data.position.2),
+            data.rotation,
+            &mut raw,
+        );
     }
     raw
 }

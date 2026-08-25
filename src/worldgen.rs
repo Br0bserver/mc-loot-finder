@@ -9,14 +9,13 @@ mod template_scan;
 #[cfg(test)]
 mod tests;
 
+use glam::IVec3;
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
-use std::sync::LazyLock;
-use steel_registry::biome::BiomeRef;
+use std::sync::{LazyLock, Once};
 use steel_registry::structure::StructureData;
 use steel_registry::template_pool::{TemplateData, TemplatePoolData};
 use steel_registry::vanilla_template_pools::{vanilla_template_pools, vanilla_templates};
-use steel_registry::{REGISTRY, RegistryExt, init_vanilla_registry};
+use steel_registry::{REGISTRY, Registry, RegistryExt};
 use steel_utils::Identifier;
 use steel_utils::random::legacy_random::LegacyRandom;
 use steel_utils::random::{Random, RandomSplitter};
@@ -39,6 +38,21 @@ static TEMPLATE_POOLS: LazyLock<FxHashMap<Identifier, TemplatePoolData>> = LazyL
 
 static TEMPLATES: LazyLock<FxHashMap<Identifier, TemplateData>> =
     LazyLock::new(|| vanilla_templates().into_iter().collect());
+
+static VANILLA_REGISTRY_INIT: Once = Once::new();
+
+pub(crate) fn ensure_vanilla_registry() {
+    VANILLA_REGISTRY_INIT.call_once(|| {
+        let mut registry = Registry::new_vanilla();
+        registry.freeze();
+        let _ = REGISTRY.init(registry);
+    });
+}
+
+fn transformed_position(rotation: steel_utils::Rotation, position: IVec3, pivot: IVec3) -> IVec3 {
+    let (x, y, z) = rotation.transform_pos(position.x, position.y, position.z, pivot.x, pivot.z);
+    IVec3::new(x, y, z)
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Chest {
@@ -464,7 +478,7 @@ impl Scanner {
         structure: &'static CandidateStructure,
         kind: ScanKind,
     ) -> Self {
-        init_vanilla_registry();
+        ensure_vanilla_registry();
         let dimension = structure.dimension;
         let is_nether = dimension == "minecraft:the_nether";
         let is_end = dimension == "minecraft:the_end";
@@ -532,7 +546,6 @@ impl Scanner {
         let chunk_min_x = chunk_x * 16;
         let chunk_min_z = chunk_z * 16;
         let mut biome_sampler = self.biome_source.chunk_sampler();
-        biome_sampler.init_grid(chunk_min_x, chunk_min_z);
 
         if let Some(noises) = &self.overworld_noises {
             let mut height_cache = OverworldColumnCache::new();

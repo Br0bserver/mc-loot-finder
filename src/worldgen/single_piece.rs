@@ -149,12 +149,18 @@ impl Scanner {
 
         let surface_y = ctx.surface_y();
         let chest_local_pos = glam::IVec3::new(1, 1, 6);
-        let transformed = data
-            .rotation
-            .transform_pos(chest_local_pos, data.rotation_pivot);
-        let chest_x = data.template_position.x + transformed.x;
-        let chest_z = data.template_position.z + transformed.z;
-        let chest_y = surface_y - (90 - data.template_position.y) + transformed.y;
+        let transformed = super::transformed_position(
+            data.rotation,
+            chest_local_pos,
+            glam::IVec3::new(
+                data.rotation_pivot.0,
+                data.rotation_pivot.1,
+                data.rotation_pivot.2,
+            ),
+        );
+        let chest_x = data.template_position.0 + transformed.x;
+        let chest_z = data.template_position.2 + transformed.z;
+        let chest_y = surface_y - (90 - data.template_position.1) + transformed.y;
 
         let loot_seed =
             container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 0)?;
