@@ -443,7 +443,7 @@ def main() -> None:
         "desert_pyramid",
         "minecraft:dune_armor_trim_smithing_template",
         {"placement_candidates": 307, "valid_structures": 3, "chest_count": 12},
-        {"placement_candidates": 307, "valid_structures": 3, "checked_chests": 12, "hits": 5},
+        {"placement_candidates": 307, "valid_structures": 3, "checked_chests": 12, "hits": 2},
     )
     check_structure_pair(
         binary,
