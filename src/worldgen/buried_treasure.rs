@@ -9,9 +9,9 @@ const FREQUENCY: f32 = 0.01;
 const LOOT_TABLE: &str = "minecraft:chests/buried_treasure";
 
 pub(super) fn get_region_seed(seed: u64, chunk_x: i32, chunk_z: i32, salt: u32) -> u64 {
-    let mut num = (chunk_x as u64)
+    let mut num = (i64::from(chunk_x) as u64)
         .wrapping_mul(3_418_731_287_123_u64)
-        .wrapping_add((chunk_z as u64).wrapping_mul(132_897_987_541_u64));
+        .wrapping_add((i64::from(chunk_z) as u64).wrapping_mul(132_897_987_541_u64));
     num = num.wrapping_add(seed).wrapping_add(salt as u64);
     num
 }

@@ -148,7 +148,7 @@ impl Scanner {
         };
 
         let surface_y = ctx.surface_y();
-        let chest_local_pos = glam::IVec3::new(1, 1, 2);
+        let chest_local_pos = glam::IVec3::new(1, 1, 6);
         let transformed = data
             .rotation
             .transform_pos(chest_local_pos, data.rotation_pivot);

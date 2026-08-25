@@ -413,7 +413,7 @@ fn scans_known_26_1_2_shipwrecks() {
             ),
         ],
         vec![(
-            (-333, 50, -506),
+            (-333, 78, -506),
             "minecraft:chests/shipwreck_supply",
             2_255_373_725_908_006_481,
             0,
