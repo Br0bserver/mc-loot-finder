@@ -20,6 +20,7 @@ use steel_registry::{REGISTRY, RegistryExt, init_vanilla_registry};
 use steel_utils::Identifier;
 use steel_utils::random::legacy_random::LegacyRandom;
 use steel_utils::random::{Random, RandomSplitter};
+use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler};
 use steel_worldgen::density_functions::nether::{NetherColumnCache, NetherNoises};
 use steel_worldgen::density_functions::overworld::{OverworldColumnCache, OverworldNoises};
 use steel_worldgen::noise::LazyAquifer;
