@@ -42,13 +42,13 @@ impl Scanner {
             .ok_or_else(|| Error::Worldgen("buried treasure chest z overflowed".to_owned()))?;
 
         let mut ctx = self.generation_context(chunk_x, chunk_z);
-        let ocean_floor_y = ctx.base_height(chest_x, chest_z, true) - 1;
-        let biome = ctx.biome_at(chest_x, ocean_floor_y, chest_z);
+        let ocean_floor_height = ctx.base_height(chest_x, chest_z, true);
+        let biome = ctx.biome_at(chest_x, ocean_floor_height - 1, chest_z);
         if !self.is_valid_biome(&biome.key) {
             return Ok(invalid_scan());
         }
 
-        let top_y = ocean_floor_y;
+        let top_y = ocean_floor_height;
         let mut chest_y = None;
         for y in (self.min_y()..=top_y).rev() {
             if ctx.column_state(chest_x, y - 1, chest_z) == ColumnBlock::Solid {
