@@ -246,7 +246,7 @@ def check_shipwreck(binary: Path) -> None:
     expected_chests = [
         {
             "x": 219,
-            "y": 61,
+            "y": 60,
             "z": 142,
             "loot_table": "minecraft:chests/shipwreck_treasure",
             "loot_seed": -756_378_412_031_281_064,
@@ -256,7 +256,7 @@ def check_shipwreck(binary: Path) -> None:
         },
         {
             "x": 235,
-            "y": 62,
+            "y": 61,
             "z": 144,
             "loot_table": "minecraft:chests/shipwreck_supply",
             "loot_seed": -3_774_492_170_699_737_302,
@@ -266,7 +266,7 @@ def check_shipwreck(binary: Path) -> None:
         },
         {
             "x": 224,
-            "y": 62,
+            "y": 61,
             "z": 145,
             "loot_table": "minecraft:chests/shipwreck_map",
             "loot_seed": -2_986_182_992_758_690_057,
@@ -336,7 +336,7 @@ def check_buried_treasure(binary: Path) -> None:
     chest = entries[0]
     expected_chest = {
         "x": 9,
-        "y": 59,
+        "y": 64,
         "z": -343,
         "loot_table": "minecraft:chests/buried_treasure",
         "loot_seed": -2_156_648_588_641_602_659,

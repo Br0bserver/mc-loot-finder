@@ -1,10 +1,13 @@
-use super::template_scan::rotate_around_pivot;
 use super::{Chest, Scan, Scanner, invalid_scan};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::random::Random;
-use steel_utils::{Direction, Rotation};
-use steel_worldgen::structure::StructureGenerationContext;
+use steel_utils::Direction;
+use steel_worldgen::structure::desert_pyramid::{
+    DESERT_PYRAMID_DEPTH, DESERT_PYRAMID_WIDTH, DesertPyramidStructure,
+};
+use steel_worldgen::structure::igloo::IglooStructure;
+use steel_worldgen::structure::{Structure, StructureGenerationContext, StructurePiecePayload};
 
 const HORIZONTAL_DIRECTIONS: [Direction; 4] = [
     Direction::North,
@@ -16,9 +19,6 @@ const HORIZONTAL_DIRECTIONS: [Direction; 4] = [
 fn random_horizontal_direction(rng: &mut impl Random) -> Direction {
     HORIZONTAL_DIRECTIONS[rng.next_i32_bounded(4) as usize]
 }
-
-const DESERT_PYRAMID_WIDTH: i32 = 21;
-const DESERT_PYRAMID_DEPTH: i32 = 21;
 
 /// Vanilla `StructurePiece.getWorldX`: local XZ rotated by the piece facing.
 fn chest_world_x(facing: Direction, min_x: i32, max_x: i32, local_x: i32, local_z: i32) -> i32 {
@@ -43,6 +43,17 @@ fn chest_world_z(facing: Direction, min_z: i32, max_z: i32, local_x: i32, local_
 impl Scanner {
     /// Scans a desert pyramid candidate chunk.
     pub(super) fn scan_desert_pyramid(&self, chunk_x: i32, chunk_z: i32) -> Result<Scan, Error> {
+        let structure_data = self.structure_data().ok_or_else(|| {
+            Error::Worldgen("desert pyramid structure registry missing".to_owned())
+        })?;
+        let mut ctx = self.generation_context(chunk_x, chunk_z);
+        let mut rng = self.feature_random(chunk_x, chunk_z);
+        let Some(stub) =
+            DesertPyramidStructure.find_generation_point(&mut ctx, structure_data, &mut rng)
+        else {
+            return Ok(invalid_scan());
+        };
+
         let min_x = chunk_x
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("desert pyramid chunk x overflowed".to_owned()))?;
@@ -50,30 +61,9 @@ impl Scanner {
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("desert pyramid chunk z overflowed".to_owned()))?;
 
-        let mut ctx = self.generation_context(chunk_x, chunk_z);
-
-        let h0 = ctx.base_height(min_x, min_z, false) - 1;
-        let h1 = ctx.base_height(min_x, min_z + DESERT_PYRAMID_DEPTH, false) - 1;
-        let h2 = ctx.base_height(min_x + DESERT_PYRAMID_WIDTH, min_z, false) - 1;
-        let h3 = ctx.base_height(
-            min_x + DESERT_PYRAMID_WIDTH,
-            min_z + DESERT_PYRAMID_DEPTH,
-            false,
-        ) - 1;
-        if h0.min(h1).min(h2).min(h3) < self.sea_level() {
-            return Ok(invalid_scan());
-        }
-
-        let mid_x = min_x + 8;
-        let mid_z = min_z + 8;
-        let mid_y = ctx.surface_y();
-        let biome = ctx.biome_at(mid_x, mid_y, mid_z);
-        if !self.is_valid_biome(&biome.key) {
-            return Ok(invalid_scan());
-        }
-
+        let facing = stub.pieces[0].orientation.unwrap_or(Direction::North);
         let mut random = self.chunk_random(chunk_x, chunk_z);
-        let facing = random_horizontal_direction(&mut random);
+        let _facing = random_horizontal_direction(&mut random);
         let ground_offset = -random.next_i32_bounded(3);
 
         let mut lowest = i32::MAX;
@@ -126,36 +116,45 @@ impl Scanner {
 
     /// Scans an igloo candidate chunk.
     pub(super) fn scan_igloo(&self, chunk_x: i32, chunk_z: i32) -> Result<Scan, Error> {
-        let min_x = chunk_x
-            .checked_mul(16)
-            .ok_or_else(|| Error::Worldgen("igloo chunk x overflowed".to_owned()))?;
-        let min_z = chunk_z
-            .checked_mul(16)
-            .ok_or_else(|| Error::Worldgen("igloo chunk z overflowed".to_owned()))?;
-
+        let structure_data = self
+            .structure_data()
+            .ok_or_else(|| Error::Worldgen("igloo structure registry missing".to_owned()))?;
         let mut ctx = self.generation_context(chunk_x, chunk_z);
-        let mid_x = min_x + 8;
-        let mid_z = min_z + 8;
-        let mid_y = ctx.surface_y();
-        let biome = ctx.biome_at(mid_x, mid_y, mid_z);
-        if !self.is_valid_biome(&biome.key) {
+        let mut rng = self.feature_random(chunk_x, chunk_z);
+        let Some(stub) = IglooStructure.find_generation_point(&mut ctx, structure_data, &mut rng)
+        else {
             return Ok(invalid_scan());
-        }
+        };
 
-        let mut random = self.chunk_random(chunk_x, chunk_z);
-        let rotation = Rotation::get_random(&mut random);
-        if random.next_f64() >= 0.5 {
+        // If no basement piece was generated, there are no chests.
+        let Some(bottom_piece) = stub.pieces.iter().find(|piece| {
+            if let StructurePiecePayload::Template(data) = &piece.payload {
+                data.template_id.path == "igloo/bottom"
+            } else {
+                false
+            }
+        }) else {
             return Ok(Scan {
                 valid_structure: true,
                 chests: Vec::new(),
             });
-        }
-        let ladder_segments = random.next_i32_bounded(8) + 4;
+        };
 
-        let (ref_x, ref_z) = rotate_around_pivot(rotation, 3, 2, 3, 7);
-        let surface_y = ctx.base_height(min_x + ref_x, min_z - 2 + ref_z, false);
-        let chest_y = surface_y - ladder_segments * 3 - 3;
-        let (chest_rel_x, chest_rel_z) = rotate_around_pivot(rotation, 1, 6, 3, 7);
+        let StructurePiecePayload::Template(data) = &bottom_piece.payload else {
+            return Ok(Scan {
+                valid_structure: true,
+                chests: Vec::new(),
+            });
+        };
+
+        let surface_y = ctx.surface_y();
+        let chest_local_pos = glam::IVec3::new(1, 1, 2);
+        let transformed = data
+            .rotation
+            .transform_pos(chest_local_pos, data.rotation_pivot);
+        let chest_x = data.template_position.x + transformed.x;
+        let chest_z = data.template_position.z + transformed.z;
+        let chest_y = surface_y - (90 - data.template_position.y) + transformed.y;
 
         let loot_seed =
             container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 0)?;
@@ -165,9 +164,9 @@ impl Scanner {
             chests: vec![Chest {
                 structure_chunk_x: chunk_x,
                 structure_chunk_z: chunk_z,
-                x: min_x + chest_rel_x,
+                x: chest_x,
                 y: chest_y,
-                z: min_z - 2 + chest_rel_z,
+                z: chest_z,
                 loot_table: "minecraft:chests/igloo_chest".to_owned(),
                 ordinal: 0,
                 loot_seed,

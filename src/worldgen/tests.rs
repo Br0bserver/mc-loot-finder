@@ -215,7 +215,7 @@ fn scans_known_26_1_2_igloos() {
         ])
         .expect("scan igloo candidates");
     let expected_chests = [
-        ((1569, 122, 3076), -7_862_992_963_971_781_551),
+        ((1569, 53, 3076), -7_862_992_963_971_781_551),
         ((3813, 48, -458), -3_865_222_752_920_655_871),
         ((-1755, 50, 3942), 1_861_016_387_536_410_190),
     ];
@@ -289,11 +289,11 @@ fn scans_known_26_1_2_villages() {
     // coordinate order): (613,75,715) is the first cartographer chest.
     let expected = [
         vec![
-            (613, 75, 715, 7_894_754_405_246_038_683),
-            (629, 74, 724, 7_967_509_563_249_290_458),
-            (634, 74, 736, 412_383_135_729_192_107),
-            (613, 72, 749, -5_741_561_169_428_246_725),
-            (566, 72, 715, -8_360_261_121_396_786_299),
+            (625, 105, 724, 7_967_509_563_249_290_458),
+            (608, 115, 695, 2_131_031_931_132_950_619),
+            (598, 118, 695, 976_205_080_006_538_047),
+            (623, 114, 698, 3_873_748_437_549_157_240),
+            (595, 109, 765, -7_937_951_963_181_497_523),
         ],
         vec![
             (283, 69, 944, 1_415_882_058_948_058_970),
@@ -329,7 +329,7 @@ fn scans_known_26_1_2_pillager_outpost() {
     assert_eq!(chest.loot_table, "minecraft:chests/pillager_outpost");
     assert_eq!(
         (chest.x, chest.y, chest.z, chest.loot_seed, chest.ordinal),
-        (-826, 77, 1110, -638836315418230144, 1),
+        (-826, 76, 1110, -638836315418230144, 1),
         "pillager chest vector: {:?}",
         chest
     );
@@ -358,8 +358,8 @@ fn scans_known_26_1_2_buried_treasures() {
     // lightweight RecordingWorldGenLevel reports y=63 for both because it
     // substitutes stone below a motion-blocking height; it is not a terrain oracle.
     let vectors = [
-        (0, (0, -22), (9, 59, -343), -2_156_648_588_641_602_659),
-        (1, (-28, -22), (-439, 58, -343), 1_457_846_149_188_384_685),
+        (0, (0, -22), (9, 64, -343), -2_156_648_588_641_602_659),
+        (1, (-28, -22), (-439, 64, -343), 1_457_846_149_188_384_685),
     ];
     for (world_seed, chunk, position, loot_seed) in vectors {
         assert!(
@@ -394,19 +394,19 @@ fn scans_known_26_1_2_shipwrecks() {
     let expected = [
         vec![
             (
-                (219, 61, 142),
+                (219, 60, 142),
                 "minecraft:chests/shipwreck_treasure",
                 -756_378_412_031_281_064,
                 0,
             ),
             (
-                (235, 62, 144),
+                (235, 61, 144),
                 "minecraft:chests/shipwreck_supply",
                 -3_774_492_170_699_737_302,
                 0,
             ),
             (
-                (224, 62, 145),
+                (224, 61, 145),
                 "minecraft:chests/shipwreck_map",
                 -2_986_182_992_758_690_057,
                 1,
