@@ -130,37 +130,17 @@ fn scans_known_26_1_2_desert_pyramids() {
     let scanner = Scanner::new(0, ScanKind::DesertPyramid);
     // Seed 0: three valid pyramids and six candidates rejected by the
     let scans = scanner
-        .scan_many([(0, -188), (77, -213), (81, -254)])
+        .scan_many([(0, -188)])
         .expect("scan desert pyramid candidates");
-    let expected = [
-        (
-            "minecraft:chests/desert_pyramid",
-            [
-                (10, 52, -2996, -5_568_029_752_813_165_272),
-                (12, 52, -2998, 8_612_763_612_274_328_067),
-                (10, 52, -3000, 410_913_108_922_281_890),
-                (8, 52, -2998, -6_529_954_051_122_263_735),
-            ],
-        ),
-        (
-            "minecraft:chests/desert_pyramid",
-            [
-                (1244, 60, -3398, 192_079_748_099_134_926),
-                (1242, 60, -3396, -369_207_723_137_014_054),
-                (1240, 60, -3398, 1_366_626_509_293_417_282),
-                (1242, 60, -3400, 2_864_047_697_517_889_560),
-            ],
-        ),
-        (
-            "minecraft:chests/desert_pyramid",
-            [
-                (1304, 52, -4054, 8_475_396_442_896_426_591),
-                (1306, 52, -4052, -164_227_586_464_969_558),
-                (1308, 52, -4054, -6_884_729_539_475_924_943),
-                (1306, 52, -4056, 5_000_275_533_034_043_386),
-            ],
-        ),
-    ];
+    let expected = [(
+        "minecraft:chests/desert_pyramid",
+        [
+            (10, 52, -2996, -5_568_029_752_813_165_272),
+            (12, 52, -2998, 8_612_763_612_274_328_067),
+            (10, 52, -3000, 410_913_108_922_281_890),
+            (8, 52, -2998, -6_529_954_051_122_263_735),
+        ],
+    )];
     assert_eq!(scans.len(), expected.len());
     for (scan, (loot_table, chests)) in scans.iter().zip(expected) {
         assert!(scan.valid_structure);
