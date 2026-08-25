@@ -73,3 +73,31 @@ README、DEVELOPMENT.md、AGENT.md 的当前架构段落仍描述 Pumpkin、已�
 4. 固定 SteelMC revision，并明确其对应 Minecraft 数据版本。
 5. 增加跨种子、无效候选和独立 oracle/probe 验证。
 6. 更新文档和 CI，使当前后端、版本和平台声明一致。
+
+## 执行检查点（2026-08-25）
+
+已完成并推送：
+
+- 持久化本审查文档；
+- 恢复 26.1.2 desert/igloo/village/pillager/buried/shipwreck 固定向量；
+- Jigsaw 模板容器改为可见/隐藏容器事件流，隐藏容器会消耗 ordinal；
+- SteelMC 依赖切换到固定 `v0.9.0+mc26.1` revision
+  `d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2`；
+- 锁定兼容的 TextComponents revision；
+- 删除 `RUSTC_BOOTSTRAP` 配置；
+- CI 增加 Windows job、完整结构目录检查、`cargo clippy --locked`、
+  安全的 workflow_dispatch 参数传递；
+- 更新 README、DEVELOPMENT.md、AGENT.md 当前分支说明。
+
+当前远端 HEAD：`c44e3cc`。工作树干净。
+
+最新修复 CI：`32866696022`。已通过格式检查，随后在 clippy 编译阶段失败。
+失败原因已从依赖下载问题推进到 SteelMC 26.1 API 适配问题，主要包括：
+
+- 26.1 没有 `steel_registry::init_vanilla_registry`；
+- 26.1 的 `Rotation::transform_pos` 接收五个整数参数并返回三元组；
+- 26.1 的 Jigsaw piece/template position 使用三元组而非 `glam::IVec3`；
+- 26.1 的 `ChunkBiomeSampler` 没有当前代码调用的 `init_grid` 方法。
+
+下一步应在此检查点继续做 26.1 API 适配，再重新运行 CI；不得退回到改写
+26.1.2 expected 值的做法。
