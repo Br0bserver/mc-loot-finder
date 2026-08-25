@@ -391,6 +391,7 @@ impl CandidateStructure {
     }
 
     /// The SteelMC identifier for this structure.
+    #[allow(dead_code)]
     pub const fn identifier(&self) -> Identifier {
         Identifier::new_static("minecraft", self.structure_path)
     }

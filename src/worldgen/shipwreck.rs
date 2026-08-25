@@ -3,9 +3,9 @@ use steel_registry::{REGISTRY, RegistryExt};
 use steel_utils::{Identifier, Rotation};
 use steel_worldgen::structure::StructureGenerationContext;
 
-use super::template_data::get_template_container_data;
+use super::template_data::{TemplateContainerData, get_template_container_data};
 use super::template_scan::{RandomPrefix, TemplatePlacement};
-use super::{Scan, Scanner, invalid_scan};
+use super::{Scan, Scanner, ScannerContext, invalid_scan};
 use crate::catalog::shipwreck_decoration;
 use crate::decoration_seed::DecorationRandom;
 use crate::error::Error;
@@ -100,9 +100,9 @@ impl Scanner {
             chunk: first_chunk,
             next_int_bound: 3,
         });
+        let mut ctx = self.generation_context(chunk_x, chunk_z);
         let target_y = self.shipwreck_target_y(
-            chunk_x,
-            chunk_z,
+            &mut ctx,
             template,
             IVec3::new(min_x, 90, min_z),
             is_beached,
@@ -161,16 +161,14 @@ impl Scanner {
 
     fn shipwreck_target_y(
         &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        template: &super::template_data::TemplateContainerData,
+        ctx: &mut ScannerContext<'_>,
+        template: &TemplateContainerData,
         origin: IVec3,
         is_beached: bool,
         first_chunk: (i32, i32),
         decoration: crate::catalog::DecorationSeedSpec,
     ) -> i32 {
         let ocean_floor = !is_beached;
-        let mut ctx = self.generation_context(chunk_x, chunk_z);
         let mut lowest = i32::MAX;
         let mut sum = 0_i64;
         for x in origin.x..origin.x + template.size[0] {

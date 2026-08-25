@@ -9,7 +9,6 @@ mod template_scan;
 #[cfg(test)]
 mod tests;
 
-use glam::IVec3;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::sync::LazyLock;
@@ -20,9 +19,7 @@ use steel_registry::vanilla_template_pools::{vanilla_template_pools, vanilla_tem
 use steel_registry::{REGISTRY, RegistryExt, init_vanilla_registry};
 use steel_utils::Identifier;
 use steel_utils::random::legacy_random::LegacyRandom;
-use steel_utils::random::{PositionalRandom, Random, RandomSplitter};
-use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler};
-use steel_worldgen::density::traits::DimensionNoises;
+use steel_utils::random::{Random, RandomSplitter};
 use steel_worldgen::density_functions::nether::{NetherColumnCache, NetherNoises};
 use steel_worldgen::density_functions::overworld::{OverworldColumnCache, OverworldNoises};
 use steel_worldgen::noise::LazyAquifer;
@@ -104,11 +101,11 @@ impl<'src> OverworldScannerContext<'src> {
             self.splitter,
             &TEMPLATE_POOLS,
             &TEMPLATES,
-            &mut *biome_sampler,
-            &mut *height_cache,
-            &mut *aquifer,
-            &mut *surface_y_cache,
-            &mut *height_cache_grid_ready,
+            &mut biome_sampler,
+            &mut height_cache,
+            &mut aquifer,
+            &mut surface_y_cache,
+            &mut height_cache_grid_ready,
         );
         f(&mut ctx)
     }
@@ -216,11 +213,11 @@ impl<'src> NetherScannerContext<'src> {
             self.splitter,
             &TEMPLATE_POOLS,
             &TEMPLATES,
-            &mut *biome_sampler,
-            &mut *height_cache,
-            &mut *aquifer,
-            &mut *surface_y_cache,
-            &mut *height_cache_grid_ready,
+            &mut biome_sampler,
+            &mut height_cache,
+            &mut aquifer,
+            &mut surface_y_cache,
+            &mut height_cache_grid_ready,
         );
         f(&mut ctx)
     }
@@ -296,8 +293,8 @@ impl StructureGenerationContext for NetherScannerContext<'_> {
 }
 
 pub enum ScannerContext<'src> {
-    Overworld(OverworldScannerContext<'src>),
-    Nether(NetherScannerContext<'src>),
+    Overworld(Box<OverworldScannerContext<'src>>),
+    Nether(Box<NetherScannerContext<'src>>),
 }
 
 impl StructureGenerationContext for ScannerContext<'_> {
@@ -537,7 +534,7 @@ impl Scanner {
                 &self.splitter,
                 noises,
             );
-            ScannerContext::Overworld(OverworldScannerContext {
+            ScannerContext::Overworld(Box::new(OverworldScannerContext {
                 seed: self.world_seed,
                 chunk_x,
                 chunk_z,
@@ -549,13 +546,13 @@ impl Scanner {
                 aquifer: RefCell::new(aquifer),
                 surface_y_cache: RefCell::new(None),
                 height_cache_grid_ready: RefCell::new(true),
-            })
+            }))
         } else if let Some(noises) = &self.nether_noises {
             let mut height_cache = NetherColumnCache::new();
             height_cache.init_grid(chunk_min_x, chunk_min_z, noises);
             let aquifer =
                 LazyAquifer::<NetherNoises>::new(chunk_min_x, chunk_min_z, &self.splitter, noises);
-            ScannerContext::Nether(NetherScannerContext {
+            ScannerContext::Nether(Box::new(NetherScannerContext {
                 seed: self.world_seed,
                 chunk_x,
                 chunk_z,
@@ -567,7 +564,7 @@ impl Scanner {
                 aquifer: RefCell::new(aquifer),
                 surface_y_cache: RefCell::new(None),
                 height_cache_grid_ready: RefCell::new(true),
-            })
+            }))
         } else {
             panic!("unsupported dimension for scanner context");
         }

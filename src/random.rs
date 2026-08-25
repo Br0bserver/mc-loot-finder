@@ -1,6 +1,8 @@
 pub use steel_utils::random::Random;
 pub use steel_utils::random::legacy_random::LegacyRandom as LegacyRandom48;
+#[allow(unused_imports)]
 pub use steel_utils::random::worldgen_random::WorldgenRandom;
+#[allow(unused_imports)]
 pub use steel_utils::random::xoroshiro::Xoroshiro as Xoroshiro128PlusPlus;
 
 #[cfg(test)]

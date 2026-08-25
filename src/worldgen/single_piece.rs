@@ -2,7 +2,7 @@ use super::template_scan::rotate_around_pivot;
 use super::{Chest, Scan, Scanner, invalid_scan};
 use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
-use crate::random::{LegacyRandom48, Random};
+use crate::random::Random;
 use steel_utils::{Direction, Rotation};
 use steel_worldgen::structure::StructureGenerationContext;
 
@@ -18,7 +18,6 @@ fn random_horizontal_direction(rng: &mut impl Random) -> Direction {
 }
 
 const DESERT_PYRAMID_WIDTH: i32 = 21;
-const DESERT_PYRAMID_HEIGHT: i32 = 15;
 const DESERT_PYRAMID_DEPTH: i32 = 21;
 
 /// Vanilla `StructurePiece.getWorldX`: local XZ rotated by the piece facing.
