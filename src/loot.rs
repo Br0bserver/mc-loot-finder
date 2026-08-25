@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use serde_json::Value;
 
 use crate::error::Error;
-use crate::random::LegacyRandom48;
+use crate::random::{LegacyRandom48, Random};
 
 const LOOT_RUNTIME: &str = include_str!("../resources/26.1.2/loot-runtime.json");
 const LOOT_TABLES: &str = include_str!("../resources/26.1.2/loot-tables.json");
@@ -26,7 +26,7 @@ pub fn roll(loot_table: &str, seed: i64) -> Result<Vec<LootStack>, Error> {
     }
     let data = DATA.as_ref().map_err(Clone::clone)?;
     let tables = TABLES.as_ref().map_err(Clone::clone)?;
-    let mut random = LegacyRandom48::new(seed);
+    let mut random = LegacyRandom48::from_seed(seed as u64);
     let mut result = Vec::new();
     roll_into(loot_table, tables, data, &mut random, &mut result)?;
     Ok(result)
@@ -45,7 +45,7 @@ fn roll_into(
     for pool in &table.pools {
         if pool
             .random_chance
-            .is_some_and(|chance| f64::from(random.next_float()) >= chance)
+            .is_some_and(|chance| f64::from(random.next_f32()) >= chance)
         {
             continue;
         }
@@ -54,7 +54,7 @@ fn roll_into(
             let entry = select(&pool.entries, random)?;
             if entry
                 .random_chance
-                .is_some_and(|chance| f64::from(random.next_float()) >= chance)
+                .is_some_and(|chance| f64::from(random.next_f32()) >= chance)
             {
                 continue;
             }
@@ -122,11 +122,11 @@ fn apply(
         }
         "minecraft:set_instrument" => {
             if data.goat_horns != 0 {
-                random.next_int(data.goat_horns);
+                random.next_i32_bounded(data.goat_horns);
             }
         }
         "minecraft:set_stew_effect" => {
-            let selected = random.next_int(function.alternatives.len() as i32) as usize;
+            let selected = random.next_i32_bounded(function.alternatives.len() as i32) as usize;
             function.alternatives[selected].consume_float(random);
         }
         kind => {
@@ -156,7 +156,7 @@ fn enchant_randomly(
     if choices.is_empty() {
         return Ok(());
     }
-    let selected = choices[random.next_int(choices.len() as i32) as usize];
+    let selected = choices[random.next_i32_bounded(choices.len() as i32) as usize];
     next_inclusive(random, 1, selected.max_level);
     if stack.item == "minecraft:book" {
         stack.item = "minecraft:enchanted_book".to_owned();
@@ -177,8 +177,8 @@ fn enchant_with_levels(
     }
 
     let spread = item.enchantability / 4 + 1;
-    level += 1 + random.next_int(spread) + random.next_int(spread);
-    let variance = (random.next_float() + random.next_float() - 1.0) * 0.15;
+    level += 1 + random.next_i32_bounded(spread) + random.next_i32_bounded(spread);
+    let variance = (random.next_f32() + random.next_f32() - 1.0) * 0.15;
     level = java_round(level as f32 + level as f32 * variance).max(1);
 
     let mut available = available_enchantments(&stack.item, level, enchantments(data, options)?);
@@ -188,7 +188,7 @@ fn enchant_with_levels(
 
     let mut selected = Vec::new();
     choose_weighted(&available, random, &mut selected)?;
-    while random.next_int(50) <= level {
+    while random.next_i32_bounded(50) <= level {
         if let Some(last) = selected.last() {
             available.retain(|candidate| {
                 compatible(data, &candidate.enchantment.id, &last.enchantment.id)
@@ -239,7 +239,7 @@ fn choose_weighted<'a>(
     selected: &mut Vec<AvailableEnchantment<'a>>,
 ) -> Result<(), Error> {
     let total_weight = available.iter().map(|value| value.enchantment.weight).sum();
-    let mut choice = random.next_int(total_weight);
+    let mut choice = random.next_i32_bounded(total_weight);
     for value in available {
         choice -= value.enchantment.weight;
         if choice < 0 {
@@ -288,7 +288,7 @@ fn select<'a>(entries: &'a [Entry], random: &mut LegacyRandom48) -> Result<&'a E
         return Ok(&entries[0]);
     }
     let total_weight = entries.iter().map(|entry| entry.weight).sum();
-    let mut choice = random.next_int(total_weight);
+    let mut choice = random.next_i32_bounded(total_weight);
     for entry in entries {
         choice -= entry.weight;
         if choice < 0 {
@@ -576,7 +576,7 @@ fn next_inclusive(random: &mut LegacyRandom48, min: i32, max: i32) -> i32 {
     if min >= max {
         min
     } else {
-        random.next_int(max - min + 1) + min
+        random.next_i32_bounded(max - min + 1) + min
     }
 }
 
@@ -631,7 +631,7 @@ impl NumberSpec {
 
     fn consume_float(self, random: &mut LegacyRandom48) {
         if self.min < self.max {
-            random.next_float();
+            random.next_f32();
         }
     }
 }

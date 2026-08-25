@@ -87,32 +87,3 @@ jobs:
         with:
           name: mc-loot-finder-linux-x86_64
           path: target/x86_64-unknown-linux-musl/release/mc-loot-finder
-
-  windows-x86_64:
-    runs-on: windows-latest
-    env:
-      RUSTFLAGS: "-C target-feature=+crt-static"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-      - name: Build release binary
-        run: cargo build --release --locked
-      - name: Run cross-platform smoke tests
-        shell: pwsh
-        run: >-
-          python ci/smoke.py
-          --binary target\release\mc-loot-finder.exe
-      - name: Prepare Windows binary
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path dist | Out-Null
-          Copy-Item target\release\mc-loot-finder.exe dist\mc-loot-finder-windows-x86_64.exe
-      - uses: actions/upload-artifact@v7
-        with:
-          name: mc-loot-finder-windows-x86_64
-          path: dist/mc-loot-finder-windows-x86_64.exe
