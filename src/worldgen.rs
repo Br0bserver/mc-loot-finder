@@ -11,8 +11,10 @@ mod tests;
 
 use glam::IVec3;
 use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::sync::LazyLock;
 use steel_registry::biome::BiomeRef;
+use steel_registry::structure::StructureData;
 use steel_registry::template_pool::{TemplateData, TemplatePoolData};
 use steel_registry::vanilla_template_pools::{vanilla_template_pools, vanilla_templates};
 use steel_registry::{REGISTRY, RegistryExt, init_vanilla_registry};
@@ -24,6 +26,7 @@ use steel_worldgen::density::traits::DimensionNoises;
 use steel_worldgen::density_functions::nether::{NetherColumnCache, NetherNoises};
 use steel_worldgen::density_functions::overworld::{OverworldColumnCache, OverworldNoises};
 use steel_worldgen::noise::LazyAquifer;
+use steel_worldgen::noise_parameters::get_noise_parameters;
 use steel_worldgen::structure::{ColumnBlock, GenerationContext, StructureGenerationContext};
 
 use crate::catalog::{CandidateStructure, DecorationSeedSpec, ScanKind, ScanSupport};
@@ -75,16 +78,24 @@ pub struct OverworldScannerContext<'src> {
     sea_level: i32,
     noises: &'src OverworldNoises,
     splitter: &'src RandomSplitter,
-    biome_sampler: ChunkBiomeSampler<'src>,
-    height_cache: OverworldColumnCache,
-    aquifer: LazyAquifer<'src, OverworldNoises>,
-    surface_y_cache: Option<i32>,
-    height_cache_grid_ready: bool,
+    biome_sampler: RefCell<ChunkBiomeSampler<'src>>,
+    height_cache: RefCell<OverworldColumnCache>,
+    aquifer: RefCell<LazyAquifer<'src, OverworldNoises>>,
+    surface_y_cache: RefCell<Option<i32>>,
+    height_cache_grid_ready: RefCell<bool>,
 }
 
 impl<'src> OverworldScannerContext<'src> {
-    fn as_generation_context(&mut self) -> GenerationContext<'_, 'src, OverworldNoises> {
-        GenerationContext::new(
+    fn with_context<R>(
+        &self,
+        f: impl FnOnce(&mut GenerationContext<'_, 'src, OverworldNoises>) -> R,
+    ) -> R {
+        let mut biome_sampler = self.biome_sampler.borrow_mut();
+        let mut height_cache = self.height_cache.borrow_mut();
+        let mut aquifer = self.aquifer.borrow_mut();
+        let mut surface_y_cache = self.surface_y_cache.borrow_mut();
+        let mut height_cache_grid_ready = self.height_cache_grid_ready.borrow_mut();
+        let mut ctx = GenerationContext::new(
             self.seed,
             self.chunk_x,
             self.chunk_z,
@@ -93,12 +104,13 @@ impl<'src> OverworldScannerContext<'src> {
             self.splitter,
             &TEMPLATE_POOLS,
             &TEMPLATES,
-            &mut self.biome_sampler,
-            &mut self.height_cache,
-            &mut self.aquifer,
-            &mut self.surface_y_cache,
-            &mut self.height_cache_grid_ready,
-        )
+            &mut *biome_sampler,
+            &mut *height_cache,
+            &mut *aquifer,
+            &mut *surface_y_cache,
+            &mut *height_cache_grid_ready,
+        );
+        f(&mut ctx)
     }
 }
 
@@ -140,57 +152,34 @@ impl StructureGenerationContext for OverworldScannerContext<'_> {
         &TEMPLATES
     }
     fn base_height(&mut self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        self.as_generation_context().base_height(x, z, ocean_floor)
+        self.with_context(|ctx| ctx.base_height(x, z, ocean_floor))
     }
     fn base_height_full(&mut self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        self.as_generation_context()
-            .base_height_full(x, z, ocean_floor)
+        self.with_context(|ctx| ctx.base_height_full(x, z, ocean_floor))
     }
     fn biome_at(&mut self, block_x: i32, block_y: i32, block_z: i32) -> BiomeRef {
-        self.as_generation_context()
-            .biome_at(block_x, block_y, block_z)
+        self.with_context(|ctx| ctx.biome_at(block_x, block_y, block_z))
     }
     fn column_state(&mut self, x: i32, y: i32, z: i32) -> ColumnBlock {
-        self.as_generation_context().column_state(x, y, z)
+        self.with_context(|ctx| ctx.column_state(x, y, z))
+    }
+    fn solid_block_below_air(
+        &mut self,
+        x: i32,
+        z: i32,
+        start_y: i32,
+        min_solid_y: i32,
+    ) -> Option<i32> {
+        self.with_context(|ctx| ctx.solid_block_below_air(x, z, start_y, min_solid_y))
     }
     fn surface_y(&mut self) -> i32 {
-        self.as_generation_context().surface_y()
+        self.with_context(|ctx| ctx.surface_y())
     }
     fn terrain_surface_height(&self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        let mut cache = OverworldColumnCache::default();
-        cache.init_grid(x & !15, z & !15, self.noises);
-        let mut aq =
-            LazyAquifer::<OverworldNoises>::new(x & !15, z & !15, self.splitter, self.noises);
-        let aquifer = aq.ensure(&mut cache);
-        steel_worldgen::utils::column_base_height::<OverworldNoises>(
-            &mut cache,
-            self.noises,
-            aquifer,
-            x,
-            z,
-            ocean_floor,
-        )
+        self.with_context(|ctx| ctx.terrain_surface_height(x, z, ocean_floor))
     }
     fn terrain_is_opaque(&self, x: i32, y: i32, z: i32, ocean_floor: bool) -> bool {
-        let mut cache = OverworldColumnCache::default();
-        cache.init_grid(x & !15, z & !15, self.noises);
-        let mut aq =
-            LazyAquifer::<OverworldNoises>::new(x & !15, z & !15, self.splitter, self.noises);
-        let aquifer = aq.ensure(&mut cache);
-        let density = steel_worldgen::utils::column_interpolated_density::<OverworldNoises>(
-            &mut cache,
-            self.noises,
-            x,
-            y,
-            z,
-            4,
-            8,
-        );
-        match aquifer.compute_substance(self.noises, x, y, z, density) {
-            steel_worldgen::noise::AquiferResult::Solid => true,
-            steel_worldgen::noise::AquiferResult::Fluid(_) => !ocean_floor,
-            steel_worldgen::noise::AquiferResult::Air => false,
-        }
+        self.with_context(|ctx| ctx.terrain_is_opaque(x, y, z, ocean_floor))
     }
 }
 
@@ -201,16 +190,24 @@ pub struct NetherScannerContext<'src> {
     sea_level: i32,
     noises: &'src NetherNoises,
     splitter: &'src RandomSplitter,
-    biome_sampler: ChunkBiomeSampler<'src>,
-    height_cache: NetherColumnCache,
-    aquifer: LazyAquifer<'src, NetherNoises>,
-    surface_y_cache: Option<i32>,
-    height_cache_grid_ready: bool,
+    biome_sampler: RefCell<ChunkBiomeSampler<'src>>,
+    height_cache: RefCell<NetherColumnCache>,
+    aquifer: RefCell<LazyAquifer<'src, NetherNoises>>,
+    surface_y_cache: RefCell<Option<i32>>,
+    height_cache_grid_ready: RefCell<bool>,
 }
 
 impl<'src> NetherScannerContext<'src> {
-    fn as_generation_context(&mut self) -> GenerationContext<'_, 'src, NetherNoises> {
-        GenerationContext::new(
+    fn with_context<R>(
+        &self,
+        f: impl FnOnce(&mut GenerationContext<'_, 'src, NetherNoises>) -> R,
+    ) -> R {
+        let mut biome_sampler = self.biome_sampler.borrow_mut();
+        let mut height_cache = self.height_cache.borrow_mut();
+        let mut aquifer = self.aquifer.borrow_mut();
+        let mut surface_y_cache = self.surface_y_cache.borrow_mut();
+        let mut height_cache_grid_ready = self.height_cache_grid_ready.borrow_mut();
+        let mut ctx = GenerationContext::new(
             self.seed,
             self.chunk_x,
             self.chunk_z,
@@ -219,12 +216,13 @@ impl<'src> NetherScannerContext<'src> {
             self.splitter,
             &TEMPLATE_POOLS,
             &TEMPLATES,
-            &mut self.biome_sampler,
-            &mut self.height_cache,
-            &mut self.aquifer,
-            &mut self.surface_y_cache,
-            &mut self.height_cache_grid_ready,
-        )
+            &mut *biome_sampler,
+            &mut *height_cache,
+            &mut *aquifer,
+            &mut *surface_y_cache,
+            &mut *height_cache_grid_ready,
+        );
+        f(&mut ctx)
     }
 }
 
@@ -266,55 +264,34 @@ impl StructureGenerationContext for NetherScannerContext<'_> {
         &TEMPLATES
     }
     fn base_height(&mut self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        self.as_generation_context().base_height(x, z, ocean_floor)
+        self.with_context(|ctx| ctx.base_height(x, z, ocean_floor))
     }
     fn base_height_full(&mut self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        self.as_generation_context()
-            .base_height_full(x, z, ocean_floor)
+        self.with_context(|ctx| ctx.base_height_full(x, z, ocean_floor))
     }
     fn biome_at(&mut self, block_x: i32, block_y: i32, block_z: i32) -> BiomeRef {
-        self.as_generation_context()
-            .biome_at(block_x, block_y, block_z)
+        self.with_context(|ctx| ctx.biome_at(block_x, block_y, block_z))
     }
     fn column_state(&mut self, x: i32, y: i32, z: i32) -> ColumnBlock {
-        self.as_generation_context().column_state(x, y, z)
+        self.with_context(|ctx| ctx.column_state(x, y, z))
+    }
+    fn solid_block_below_air(
+        &mut self,
+        x: i32,
+        z: i32,
+        start_y: i32,
+        min_solid_y: i32,
+    ) -> Option<i32> {
+        self.with_context(|ctx| ctx.solid_block_below_air(x, z, start_y, min_solid_y))
     }
     fn surface_y(&mut self) -> i32 {
-        self.as_generation_context().surface_y()
+        self.with_context(|ctx| ctx.surface_y())
     }
     fn terrain_surface_height(&self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        let mut cache = NetherColumnCache::default();
-        cache.init_grid(x & !15, z & !15, self.noises);
-        let mut aq = LazyAquifer::<NetherNoises>::new(x & !15, z & !15, self.splitter, self.noises);
-        let aquifer = aq.ensure(&mut cache);
-        steel_worldgen::utils::column_base_height::<NetherNoises>(
-            &mut cache,
-            self.noises,
-            aquifer,
-            x,
-            z,
-            ocean_floor,
-        )
+        self.with_context(|ctx| ctx.terrain_surface_height(x, z, ocean_floor))
     }
     fn terrain_is_opaque(&self, x: i32, y: i32, z: i32, ocean_floor: bool) -> bool {
-        let mut cache = NetherColumnCache::default();
-        cache.init_grid(x & !15, z & !15, self.noises);
-        let mut aq = LazyAquifer::<NetherNoises>::new(x & !15, z & !15, self.splitter, self.noises);
-        let aquifer = aq.ensure(&mut cache);
-        let density = steel_worldgen::utils::column_interpolated_density::<NetherNoises>(
-            &mut cache,
-            self.noises,
-            x,
-            y,
-            z,
-            4,
-            8,
-        );
-        match aquifer.compute_substance(self.noises, x, y, z, density) {
-            steel_worldgen::noise::AquiferResult::Solid => true,
-            steel_worldgen::noise::AquiferResult::Fluid(_) => !ocean_floor,
-            steel_worldgen::noise::AquiferResult::Air => false,
-        }
+        self.with_context(|ctx| ctx.terrain_is_opaque(x, y, z, ocean_floor))
     }
 }
 
@@ -333,7 +310,7 @@ impl StructureGenerationContext for ScannerContext<'_> {
     fn chunk_x(&self) -> i32 {
         match self {
             Self::Overworld(c) => c.chunk_x(),
-            Self::Nether(c) => c.chunk_z(),
+            Self::Nether(c) => c.chunk_x(),
         }
     }
     fn chunk_z(&self) -> i32 {
@@ -420,6 +397,18 @@ impl StructureGenerationContext for ScannerContext<'_> {
             Self::Nether(c) => c.column_state(x, y, z),
         }
     }
+    fn solid_block_below_air(
+        &mut self,
+        x: i32,
+        z: i32,
+        start_y: i32,
+        min_solid_y: i32,
+    ) -> Option<i32> {
+        match self {
+            Self::Overworld(c) => c.solid_block_below_air(x, z, start_y, min_solid_y),
+            Self::Nether(c) => c.solid_block_below_air(x, z, start_y, min_solid_y),
+        }
+    }
     fn surface_y(&mut self) -> i32 {
         match self {
             Self::Overworld(c) => c.surface_y(),
@@ -474,23 +463,28 @@ impl Scanner {
         let is_nether = dimension == "minecraft:the_nether";
         let is_end = dimension == "minecraft:the_end";
 
+        let splitter = LegacyRandom::from_seed(world_seed as u64).next_positional();
+        let params = get_noise_parameters();
+
         let (overworld_noises, nether_noises, biome_source) = if is_nether {
             (
                 None,
-                Some(NetherNoises::new(world_seed as u64)),
+                Some(NetherNoises::create(world_seed as u64, &splitter, &params)),
                 BiomeSourceKind::nether(world_seed as u64),
             )
         } else if is_end {
             (None, None, BiomeSourceKind::end(world_seed as u64))
         } else {
             (
-                Some(OverworldNoises::new(world_seed as u64)),
+                Some(OverworldNoises::create(
+                    world_seed as u64,
+                    &splitter,
+                    &params,
+                )),
                 None,
                 BiomeSourceKind::overworld(world_seed as u64),
             )
         };
-
-        let splitter = LegacyRandom::from_seed(world_seed as u64).next_positional();
 
         Self {
             world_seed,
@@ -550,11 +544,11 @@ impl Scanner {
                 sea_level: 63,
                 noises,
                 splitter: &self.splitter,
-                biome_sampler,
-                height_cache,
-                aquifer,
-                surface_y_cache: None,
-                height_cache_grid_ready: true,
+                biome_sampler: RefCell::new(biome_sampler),
+                height_cache: RefCell::new(height_cache),
+                aquifer: RefCell::new(aquifer),
+                surface_y_cache: RefCell::new(None),
+                height_cache_grid_ready: RefCell::new(true),
             })
         } else if let Some(noises) = &self.nether_noises {
             let mut height_cache = NetherColumnCache::new();
@@ -568,11 +562,11 @@ impl Scanner {
                 sea_level: 32,
                 noises,
                 splitter: &self.splitter,
-                biome_sampler,
-                height_cache,
-                aquifer,
-                surface_y_cache: None,
-                height_cache_grid_ready: true,
+                biome_sampler: RefCell::new(biome_sampler),
+                height_cache: RefCell::new(height_cache),
+                aquifer: RefCell::new(aquifer),
+                surface_y_cache: RefCell::new(None),
+                height_cache_grid_ready: RefCell::new(true),
             })
         } else {
             panic!("unsupported dimension for scanner context");
