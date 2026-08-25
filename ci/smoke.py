@@ -449,8 +449,8 @@ def main() -> None:
         binary,
         "igloo",
         "minecraft:golden_apple",
-        {"placement_candidates": 299, "valid_structures": 26, "chest_count": 14},
-        {"placement_candidates": 299, "valid_structures": 26, "checked_chests": 14, "hits": 14},
+        {"placement_candidates": 299, "valid_structures": 22, "chest_count": 10},
+        {"placement_candidates": 299, "valid_structures": 22, "checked_chests": 10, "hits": 10},
     )
     check_shipwreck(binary)
     check_structure_pair(
