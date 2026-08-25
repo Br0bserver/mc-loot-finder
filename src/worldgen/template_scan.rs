@@ -1,10 +1,10 @@
-use std::collections::{HashMap, hash_map::Entry};
-
-use pumpkin_data::Rotation;
-use pumpkin_util::math::vector3::Vector3;
-use pumpkin_world::generation::structure::template::StructureTemplate;
+use glam::IVec3;
+use rustc_hash::FxHashMap;
+use std::collections::hash_map::Entry;
+use steel_utils::Rotation;
 
 use super::Chest;
+use super::template_data::TemplateContainerData;
 use crate::catalog::DecorationSeedSpec;
 use crate::decoration_seed::DecorationRandom;
 
@@ -15,18 +15,18 @@ pub(super) struct RandomPrefix {
 }
 
 pub(super) struct TemplatePlacement<'a> {
-    template: &'a StructureTemplate,
-    origin: Vector3<i32>,
+    template: &'a TemplateContainerData,
+    origin: IVec3,
     rotation: Rotation,
-    pivot: Vector3<i32>,
+    pivot: IVec3,
 }
 
 impl<'a> TemplatePlacement<'a> {
     pub(super) const fn new(
-        template: &'a StructureTemplate,
-        origin: Vector3<i32>,
+        template: &'a TemplateContainerData,
+        origin: IVec3,
         rotation: Rotation,
-        pivot: Vector3<i32>,
+        pivot: IVec3,
     ) -> Self {
         Self {
             template,
@@ -49,17 +49,17 @@ impl<'a> TemplatePlacement<'a> {
         random_prefix: Option<RandomPrefix>,
         marker_loot_table: fn(&str) -> Option<&'static str>,
     ) -> Vec<Chest> {
-        let mut random_by_chunk = HashMap::<(i32, i32), DecorationRandom>::with_capacity(4);
+        let mut random_by_chunk = FxHashMap::<(i32, i32), DecorationRandom>::default();
 
         // Vanilla template placement loads every randomizable container block entity first.
         // Loading injects and consumes a temporary LootTableSeed even when the template NBT has
         // no LootTable. Data markers run only after all template blocks have been placed.
-        for block in &self.template.blocks {
-            let palette = &self.template.palette[block.state as usize];
-            if block.nbt.is_none() || !is_randomizable_container(&palette.name) {
-                continue;
-            }
-            let position = self.world_position(block.pos);
+        for container_pos in self.template.randomizable_containers {
+            let position = self.world_position(IVec3::new(
+                container_pos.x,
+                container_pos.y,
+                container_pos.z,
+            ));
             let chunk = decoration_chunk(position);
             random_for_chunk(
                 &mut random_by_chunk,
@@ -71,26 +71,15 @@ impl<'a> TemplatePlacement<'a> {
             .next_long();
         }
 
-        let mut next_visible_ordinal = HashMap::<(i32, i32), i32>::with_capacity(4);
+        let mut next_visible_ordinal = FxHashMap::<(i32, i32), i32>::default();
         let mut chests = Vec::new();
-        for block in &self.template.blocks {
-            let palette = &self.template.palette[block.state as usize];
-            if palette.name != "minecraft:structure_block" {
-                continue;
-            }
-            let Some(metadata) = block
-                .nbt
-                .as_ref()
-                .and_then(|nbt| nbt.get_string("metadata"))
-            else {
-                continue;
-            };
-            let Some(loot_table) = marker_loot_table(metadata) else {
+        for marker in self.template.markers {
+            let Some(loot_table) = marker_loot_table(marker.metadata) else {
                 continue;
             };
 
-            let marker = self.world_position(block.pos);
-            let position = Vector3::new(marker.x, marker.y - 1, marker.z);
+            let marker_pos = self.world_position(IVec3::new(marker.x, marker.y, marker.z));
+            let position = IVec3::new(marker_pos.x, marker_pos.y - 1, marker_pos.z);
             let chunk = decoration_chunk(position);
             let ordinal = next_visible_ordinal.entry(chunk).or_default();
             let loot_seed = random_for_chunk(
@@ -117,11 +106,11 @@ impl<'a> TemplatePlacement<'a> {
     }
 
     fn horizontal_bounds(&self) -> (i32, i32, i32, i32) {
-        let max_x = self.template.size.x.saturating_sub(1);
-        let max_z = self.template.size.z.saturating_sub(1);
+        let max_x = self.template.size[0].saturating_sub(1);
+        let max_z = self.template.size[2].saturating_sub(1);
         [(0, 0), (max_x, 0), (0, max_z), (max_x, max_z)]
             .into_iter()
-            .map(|(x, z)| self.world_position(Vector3::new(x, 0, z)))
+            .map(|(x, z)| self.world_position(IVec3::new(x, 0, z)))
             .fold(
                 (i32::MAX, i32::MIN, i32::MAX, i32::MIN),
                 |(min_x, max_x, min_z, max_z), position| {
@@ -135,40 +124,25 @@ impl<'a> TemplatePlacement<'a> {
             )
     }
 
-    fn world_position(&self, position: Vector3<i32>) -> Vector3<i32> {
-        let (x, z) = rotate_around_pivot(
-            self.rotation,
-            position.x,
-            position.z,
-            self.pivot.x,
-            self.pivot.z,
-        );
-        let transformed = Vector3::new(x, position.y, z);
-        Vector3::new(
-            self.origin.x + transformed.x,
-            self.origin.y + transformed.y,
-            self.origin.z + transformed.z,
-        )
+    fn world_position(&self, position: IVec3) -> IVec3 {
+        let transformed = self.rotation.transform_pos(position, self.pivot);
+        self.origin + transformed
     }
 }
 
-pub(super) const fn rotate_around_pivot(
+pub(super) fn rotate_around_pivot(
     rotation: Rotation,
     x: i32,
     z: i32,
     pivot_x: i32,
     pivot_z: i32,
 ) -> (i32, i32) {
-    match rotation {
-        Rotation::None => (x, z),
-        Rotation::Clockwise90 => (pivot_x - z + pivot_z, pivot_z + x - pivot_x),
-        Rotation::Rotate180 => (2 * pivot_x - x, 2 * pivot_z - z),
-        Rotation::CounterClockwise90 => (pivot_x + z - pivot_z, pivot_z - x + pivot_x),
-    }
+    let transformed = rotation.transform_pos(IVec3::new(x, 0, z), IVec3::new(pivot_x, 0, pivot_z));
+    (transformed.x, transformed.z)
 }
 
 fn random_for_chunk(
-    random_by_chunk: &mut HashMap<(i32, i32), DecorationRandom>,
+    random_by_chunk: &mut FxHashMap<(i32, i32), DecorationRandom>,
     world_seed: i64,
     decoration: DecorationSeedSpec,
     chunk: (i32, i32),
@@ -189,18 +163,6 @@ fn random_for_chunk(
     }
 }
 
-fn decoration_chunk(position: Vector3<i32>) -> (i32, i32) {
+fn decoration_chunk(position: IVec3) -> (i32, i32) {
     (position.x.div_euclid(16), position.z.div_euclid(16))
-}
-
-fn is_randomizable_container(name: &str) -> bool {
-    matches!(
-        name,
-        "minecraft:chest"
-            | "minecraft:trapped_chest"
-            | "minecraft:barrel"
-            | "minecraft:dispenser"
-            | "minecraft:dropper"
-            | "minecraft:hopper"
-    )
 }

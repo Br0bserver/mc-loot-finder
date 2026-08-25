@@ -1,4 +1,5 @@
 use crate::error::Error;
+use steel_utils::types::Identifier;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SpreadType {
@@ -387,6 +388,11 @@ impl CandidateStructure {
     /// Whether `chests` and `find` have an exact world-generation scanner.
     pub const fn supports_full_scan(&self) -> bool {
         matches!(self.support, ScanSupport::Full(_))
+    }
+
+    /// The SteelMC identifier for this structure.
+    pub const fn identifier(&self) -> Identifier {
+        Identifier::new_static("minecraft", self.structure_path)
     }
 }
 

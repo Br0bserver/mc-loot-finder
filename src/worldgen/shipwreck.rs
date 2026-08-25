@@ -1,20 +1,16 @@
-use super::{
-    Scan, Scanner, invalid_scan, structure_biomes,
-    template_scan::{RandomPrefix, TemplatePlacement},
-    terrain::TerrainSampler,
-};
+use glam::IVec3;
+use steel_registry::REGISTRY;
+use steel_utils::{Identifier, Rotation};
+
+use super::template_data::get_template_container_data;
+use super::template_scan::{RandomPrefix, TemplatePlacement};
+use super::{Scan, Scanner, invalid_scan};
 use crate::catalog::shipwreck_decoration;
 use crate::decoration_seed::DecorationRandom;
 use crate::error::Error;
+use crate::random::Random;
 
-use pumpkin_data::{Rotation, structures::Structure};
-use pumpkin_util::{HeightMap, math::vector3::Vector3, random::RandomImpl};
-use pumpkin_world::generation::{
-    noise::router::multi_noise_sampler::MultiNoiseSampler,
-    structure::{structures::create_chunk_random, template::get_template},
-};
-
-const PIVOT: Vector3<i32> = Vector3::new(4, 0, 15);
+const PIVOT: IVec3 = IVec3::new(4, 0, 15);
 
 const BEACHED_TEMPLATES: &[&str] = &[
     "shipwreck/with_mast",
@@ -54,12 +50,7 @@ const OCEAN_TEMPLATES: &[&str] = &[
 ];
 
 impl Scanner {
-    pub(super) fn scan_shipwreck(
-        &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        sampler: &mut MultiNoiseSampler<'_>,
-    ) -> Result<Scan, Error> {
+    pub(super) fn scan_shipwreck(&self, chunk_x: i32, chunk_z: i32) -> Result<Scan, Error> {
         let min_x = chunk_x
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("shipwreck chunk x overflowed".to_owned()))?;
@@ -82,54 +73,44 @@ impl Scanner {
             .checked_add(8)
             .ok_or_else(|| Error::Worldgen("shipwreck center z overflowed".to_owned()))?;
 
-        let mut terrain = TerrainSampler::new(&self.generator);
-        let Some(is_beached) = self.select_shipwreck_variant(
-            chunk_x,
-            chunk_z,
-            middle_x,
-            middle_z,
-            &mut terrain,
-            sampler,
-        ) else {
+        let Some(is_beached) = self.select_shipwreck_variant(chunk_x, chunk_z, middle_x, middle_z)
+        else {
             return Ok(invalid_scan());
         };
 
-        let mut generation_random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
-        let rotation = Rotation::from_index(generation_random.next_bounded_i32(4) as u8);
+        let mut generation_random = self.chunk_random(chunk_x, chunk_z);
+        let rotation = Rotation::get_random(&mut generation_random);
         let templates = if is_beached {
             BEACHED_TEMPLATES
         } else {
             OCEAN_TEMPLATES
         };
         let template_name =
-            templates[generation_random.next_bounded_i32(templates.len() as i32) as usize];
-        let template = get_template(template_name).ok_or_else(|| {
+            templates[generation_random.next_i32_bounded(templates.len() as i32) as usize];
+        let template = get_template_container_data(template_name).ok_or_else(|| {
             Error::Worldgen(format!("shipwreck template is missing: {template_name}"))
         })?;
 
         let initial =
-            TemplatePlacement::new(&template, Vector3::new(min_x, 90, min_z), rotation, PIVOT);
-        // Small shipwrecks defer height adjustment to their first intersecting chunk's
-        // postProcess call. Vanilla region traversal reaches the minimum X/Z chunk first,
-        // so a beached wreck consumes nextInt(3) from that decoration chunk's stream.
+            TemplatePlacement::new(template, IVec3::new(min_x, 90, min_z), rotation, PIVOT);
         let first_chunk = initial.first_intersecting_chunk();
         let decoration = shipwreck_decoration(is_beached);
         let random_prefix = is_beached.then_some(RandomPrefix {
             chunk: first_chunk,
             next_int_bound: 3,
         });
-        let target_y = shipwreck_target_y(
-            &mut terrain,
-            &template,
-            Vector3::new(min_x, 90, min_z),
+        let target_y = self.shipwreck_target_y(
+            chunk_x,
+            chunk_z,
+            template,
+            IVec3::new(min_x, 90, min_z),
             is_beached,
             first_chunk,
-            self.world_seed,
             decoration,
         );
         let placement = TemplatePlacement::new(
-            &template,
-            Vector3::new(min_x, target_y, min_z),
+            template,
+            IVec3::new(min_x, target_y, min_z),
             rotation,
             PIVOT,
         );
@@ -153,67 +134,63 @@ impl Scanner {
         chunk_z: i32,
         middle_x: i32,
         middle_z: i32,
-        terrain: &mut TerrainSampler<'_>,
-        sampler: &mut MultiNoiseSampler<'_>,
     ) -> Option<bool> {
-        // Vanilla's shipwreck structure set selects ocean first and beached second, with
-        // equal weights. A biome failure removes the selected entry and retries the other.
         let mut remaining = vec![
-            (false, Structure::SHIPWRECK),
-            (true, Structure::SHIPWRECK_BEACHED),
+            (false, Identifier::new_static("minecraft", "shipwreck")),
+            (
+                true,
+                Identifier::new_static("minecraft", "shipwreck_beached"),
+            ),
         ];
-        let mut selection_random = create_chunk_random(self.world_seed, chunk_x, chunk_z);
+        let mut selection_random = self.chunk_random(chunk_x, chunk_z);
+        let mut ctx = self.generation_context(chunk_x, chunk_z);
         while !remaining.is_empty() {
-            let choice = selection_random.next_bounded_i32(remaining.len() as i32) as usize;
-            let (is_beached, structure) = remaining.remove(choice);
-            let heightmap = if is_beached {
-                HeightMap::WorldSurfaceWg
-            } else {
-                HeightMap::OceanFloorWg
-            };
-            let y = terrain.height(heightmap, middle_x, middle_z) - 1;
-            if self.biome_is_valid(
-                Vector3::new(middle_x, y, middle_z),
-                structure_biomes(&structure),
-                sampler,
-            ) {
+            let choice = selection_random.next_i32_bounded(remaining.len() as i32) as usize;
+            let (is_beached, structure_id) = remaining.remove(choice);
+            let structure_data = REGISTRY.structures.get(&structure_id)?;
+            let ocean_floor = !is_beached;
+            let y = ctx.base_height(middle_x, middle_z, ocean_floor) - 1;
+            let biome = ctx.biome_at(middle_x, y, middle_z);
+            if structure_data.allowed_biomes.contains(&biome.key) {
                 return Some(is_beached);
             }
         }
         None
     }
-}
 
-fn shipwreck_target_y(
-    terrain: &mut TerrainSampler<'_>,
-    template: &pumpkin_world::generation::structure::template::StructureTemplate,
-    origin: Vector3<i32>,
-    is_beached: bool,
-    first_chunk: (i32, i32),
-    world_seed: i64,
-    decoration: crate::catalog::DecorationSeedSpec,
-) -> i32 {
-    let heightmap = if is_beached {
-        HeightMap::WorldSurfaceWg
-    } else {
-        HeightMap::OceanFloorWg
-    };
-    let mut lowest = i32::MAX;
-    let mut sum = 0_i64;
-    for x in origin.x..origin.x + template.size.x {
-        for z in origin.z..origin.z + template.size.z {
-            let height = terrain.height(heightmap, x, z);
-            lowest = lowest.min(height);
-            sum += i64::from(height);
+    fn shipwreck_target_y(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        template: &super::template_data::TemplateContainerData,
+        origin: IVec3,
+        is_beached: bool,
+        first_chunk: (i32, i32),
+        decoration: crate::catalog::DecorationSeedSpec,
+    ) -> i32 {
+        let ocean_floor = !is_beached;
+        let mut ctx = self.generation_context(chunk_x, chunk_z);
+        let mut lowest = i32::MAX;
+        let mut sum = 0_i64;
+        for x in origin.x..origin.x + template.size[0] {
+            for z in origin.z..origin.z + template.size[2] {
+                let height = ctx.base_height(x, z, ocean_floor);
+                lowest = lowest.min(height);
+                sum += i64::from(height);
+            }
         }
-    }
-    if is_beached {
-        let mut random =
-            DecorationRandom::for_feature(world_seed, first_chunk.0, first_chunk.1, decoration);
-        lowest - template.size.y / 2 - random.next_int(3)
-    } else {
-        let area = i64::from(template.size.x) * i64::from(template.size.z);
-        i32::try_from(sum / area).expect("shipwreck mean terrain height must fit i32")
+        if is_beached {
+            let mut random = DecorationRandom::for_feature(
+                self.world_seed,
+                first_chunk.0,
+                first_chunk.1,
+                decoration,
+            );
+            lowest - template.size[1] / 2 - random.next_int(3)
+        } else {
+            let area = i64::from(template.size[0]) * i64::from(template.size[2]);
+            i32::try_from(sum / area).expect("shipwreck mean terrain height must fit i32")
+        }
     }
 }
 
