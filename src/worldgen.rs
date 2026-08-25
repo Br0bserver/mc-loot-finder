@@ -11,7 +11,9 @@ mod tests;
 
 use glam::IVec3;
 use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::sync::{LazyLock, Once};
+use steel_registry::biome::BiomeRef;
 use steel_registry::structure::StructureData;
 use steel_registry::template_pool::{TemplateData, TemplatePoolData};
 use steel_registry::vanilla_template_pools::{vanilla_template_pools, vanilla_templates};
