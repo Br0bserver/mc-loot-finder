@@ -57,6 +57,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+      - name: Regenerate dependency lock
+        run: cargo generate-lockfile
+      - uses: actions/upload-artifact@v7
+        with:
+          name: generated-cargo-lock
+          path: Cargo.lock
       - name: Check formatting
         run: cargo fmt --check
       - name: Lint with clippy
@@ -118,6 +124,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+      - name: Regenerate dependency lock
+        run: cargo generate-lockfile
       - name: Check formatting
         run: cargo fmt --check
       - name: Lint with clippy
