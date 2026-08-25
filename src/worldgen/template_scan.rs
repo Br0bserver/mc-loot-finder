@@ -130,17 +130,6 @@ impl<'a> TemplatePlacement<'a> {
     }
 }
 
-pub(super) fn rotate_around_pivot(
-    rotation: Rotation,
-    x: i32,
-    z: i32,
-    pivot_x: i32,
-    pivot_z: i32,
-) -> (i32, i32) {
-    let transformed = rotation.transform_pos(IVec3::new(x, 0, z), IVec3::new(pivot_x, 0, pivot_z));
-    (transformed.x, transformed.z)
-}
-
 fn random_for_chunk(
     random_by_chunk: &mut FxHashMap<(i32, i32), DecorationRandom>,
     world_seed: i64,

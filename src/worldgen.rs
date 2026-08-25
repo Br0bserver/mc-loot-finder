@@ -612,14 +612,6 @@ impl Scanner {
         }
     }
 
-    pub(crate) fn sea_level(&self) -> i32 {
-        if self.dimension == "minecraft:the_nether" {
-            32
-        } else {
-            63
-        }
-    }
-
     pub(crate) fn min_y(&self) -> i32 {
         if self.dimension == "minecraft:the_nether" {
             0
