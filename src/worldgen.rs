@@ -21,6 +21,7 @@ use steel_registry::vanilla_template_pools::{vanilla_template_pools, vanilla_tem
 use steel_registry::{REGISTRY, Registry, RegistryExt};
 use steel_utils::Identifier;
 use steel_utils::random::legacy_random::LegacyRandom;
+use steel_utils::random::xoroshiro::Xoroshiro;
 use steel_utils::random::{Random, RandomSplitter};
 use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler};
 use steel_worldgen::density_functions::nether::{NetherColumnCache, NetherNoises};
@@ -494,7 +495,11 @@ impl Scanner {
         let is_end = dimension == "minecraft:the_end";
         let surface_terrain =
             (!is_nether && !is_end).then(|| RefCell::new(SurfaceTerrainSampler::new(world_seed)));
-        let splitter = LegacyRandom::from_seed(world_seed as u64).next_positional();
+        let splitter = if is_nether {
+            LegacyRandom::from_seed(world_seed as u64).next_positional()
+        } else {
+            Xoroshiro::from_seed(world_seed as u64).next_positional()
+        };
         let params = get_noise_parameters();
 
         let (overworld_noises, nether_noises, biome_source) = if is_nether {
