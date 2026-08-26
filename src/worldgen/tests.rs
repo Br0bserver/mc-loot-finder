@@ -202,6 +202,16 @@ fn scans_known_26_1_2_desert_pyramids() {
 #[test]
 fn scans_known_26_1_2_igloos() {
     let scanner = Scanner::new(0, ScanKind::Igloo);
+    let terrain = scanner
+        .surface_terrain
+        .as_ref()
+        .expect("igloo scanner must have terrain probe");
+    let mut terrain = terrain.borrow_mut();
+    println!(
+        "igloo reference heights: world={} motion={}",
+        terrain.height(1571, 3072, false),
+        terrain.motion_blocking_no_leaves_height(1571, 3072)
+    );
     // Seed 0: three igloos with basements (chest vectors from the vanilla
     // 26.1.2 placement run) and three valid igloos without a basement.
     let scans = scanner
