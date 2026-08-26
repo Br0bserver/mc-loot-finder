@@ -218,7 +218,7 @@ fn scans_known_26_1_2_igloos() {
             metrics,
             steel_registry::REGISTRY
                 .biomes
-                .by_id(metrics.5 as usize)
+                .by_id(metrics.6 as usize)
                 .map(|biome| &biome.key),
         );
     }

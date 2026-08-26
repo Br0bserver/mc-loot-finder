@@ -104,7 +104,11 @@ impl SurfaceTerrainSampler {
             || block == &vanilla_blocks::DIORITE
     }
     #[cfg(test)]
-    pub(super) fn debug_surface_metrics(&self, x: i32, z: i32) -> (i32, i32, i32, i32, i32, u16) {
+    pub(super) fn debug_surface_metrics(
+        &self,
+        x: i32,
+        z: i32,
+    ) -> (i32, i32, i32, i32, i32, i32, u16) {
         let chunk_x = x.div_euclid(16);
         let chunk_z = z.div_euclid(16);
         let chunk_min_x = chunk_x * 16;
@@ -125,9 +129,10 @@ impl SurfaceTerrainSampler {
             + tx * tz * f64::from(p11);
         let depth = self.surface_rules.surface_depth(x, z);
         let min_surface = interpolated.floor() as i32 + depth - 8;
+        let base_height = self.base_height(x, z);
         let mut sampler = self.biome_source.chunk_sampler();
         let biome_id = sampler.sample(x >> 2, 140 >> 2, z >> 2).id() as u16;
-        (p00, p10, p01, p11, min_surface, biome_id)
+        (p00, p10, p01, p11, min_surface, base_height, biome_id)
     }
 
     fn column(&mut self, x: i32, z: i32) -> &Column {
