@@ -41,6 +41,7 @@ struct Column {
     states: Box<[BlockStateId]>,
     world_surface_height: i32,
     ocean_floor_height: i32,
+    motion_blocking_no_leaves_height: i32,
 }
 
 impl SurfaceTerrainSampler {
@@ -67,6 +68,9 @@ impl SurfaceTerrainSampler {
         } else {
             column.world_surface_height
         }
+    }
+    pub(super) fn motion_blocking_no_leaves_height(&mut self, x: i32, z: i32) -> i32 {
+        self.column(x, z).motion_blocking_no_leaves_height
     }
 
     pub(super) fn is_buried_treasure_support(&mut self, x: i32, y: i32, z: i32) -> bool {
@@ -146,11 +150,13 @@ impl SurfaceTerrainSampler {
             &mut states,
             default_block,
         );
+        let motion_blocking_no_leaves_height = first_motion_blocking_no_leaves_height(&states);
 
         Column {
             states: states.into_boxed_slice(),
             world_surface_height,
             ocean_floor_height,
+            motion_blocking_no_leaves_height,
         }
     }
 
@@ -362,6 +368,18 @@ fn first_solid_height(states: &[BlockStateId]) -> i32 {
     states
         .iter()
         .rposition(|state| !state.is_air() && !state.get_block().config.liquid)
+        .map_or(MIN_Y, |index| MIN_Y + index as i32 + 1)
+}
+
+fn first_motion_blocking_no_leaves_height(states: &[BlockStateId]) -> i32 {
+    states
+        .iter()
+        .rposition(|state| {
+            let block = state.get_block();
+            block != &vanilla_blocks::SNOW
+                && block != &vanilla_blocks::POWDER_SNOW
+                && (state.blocks_motion() || block.config.liquid)
+        })
         .map_or(MIN_Y, |index| MIN_Y + index as i32 + 1)
 }
 

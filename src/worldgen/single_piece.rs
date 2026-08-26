@@ -171,7 +171,7 @@ impl Scanner {
             .as_ref()
             .expect("overworld scanners must have a surface terrain sampler")
             .borrow_mut()
-            .height(
+            .motion_blocking_no_leaves_height(
                 data.template_position.0 + reference.x,
                 data.template_position.2 + reference.z,
                 false,
