@@ -72,6 +72,15 @@ impl SurfaceTerrainSampler {
     pub(super) fn motion_blocking_no_leaves_height(&mut self, x: i32, z: i32) -> i32 {
         self.column(x, z).motion_blocking_no_leaves_height
     }
+    #[cfg(test)]
+    pub(super) fn debug_block_counts(&mut self, x: i32, z: i32) -> FxHashMap<String, usize> {
+        let mut counts = FxHashMap::default();
+        for state in self.column(x, z).states.iter().copied() {
+            let name = state.get_block().key.to_string();
+            *counts.entry(name).or_insert(0) += 1;
+        }
+        counts
+    }
 
     pub(super) fn is_buried_treasure_support(&mut self, x: i32, y: i32, z: i32) -> bool {
         if !(MIN_Y..MIN_Y + HEIGHT).contains(&y) {

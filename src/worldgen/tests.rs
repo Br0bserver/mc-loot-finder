@@ -208,10 +208,12 @@ fn scans_known_26_1_2_igloos() {
         .expect("igloo scanner must have terrain probe");
     let mut terrain = terrain.borrow_mut();
     println!(
-        "igloo reference heights: world={} motion={}",
+        "igloo reference heights: world={} motion={} blocks={:?}",
         terrain.height(1571, 3072, false),
-        terrain.motion_blocking_no_leaves_height(1571, 3072)
+        terrain.motion_blocking_no_leaves_height(1571, 3072),
+        terrain.debug_block_counts(1571, 3072),
     );
+    drop(terrain);
     // Seed 0: three igloos with basements (chest vectors from the vanilla
     // 26.1.2 placement run) and three valid igloos without a basement.
     let scans = scanner
