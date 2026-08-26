@@ -41,7 +41,6 @@ struct Column {
     states: Box<[BlockStateId]>,
     world_surface_height: i32,
     ocean_floor_height: i32,
-    motion_blocking_no_leaves_height: i32,
 }
 
 impl SurfaceTerrainSampler {
@@ -78,18 +77,6 @@ impl SurfaceTerrainSampler {
             column.world_surface_height
         }
     }
-    pub(super) fn motion_blocking_no_leaves_height(&mut self, x: i32, z: i32) -> i32 {
-        self.column(x, z).motion_blocking_no_leaves_height
-    }
-    #[cfg(test)]
-    pub(super) fn debug_block_counts(&mut self, x: i32, z: i32) -> FxHashMap<String, usize> {
-        let mut counts = FxHashMap::default();
-        for state in self.column(x, z).states.iter() {
-            let name = state.get_block().key.to_string();
-            *counts.entry(name).or_insert(0) += 1;
-        }
-        counts
-    }
 
     pub(super) fn is_buried_treasure_support(&mut self, x: i32, y: i32, z: i32) -> bool {
         if !(MIN_Y..MIN_Y + HEIGHT).contains(&y) {
@@ -102,37 +89,6 @@ impl SurfaceTerrainSampler {
             || block == &vanilla_blocks::ANDESITE
             || block == &vanilla_blocks::GRANITE
             || block == &vanilla_blocks::DIORITE
-    }
-    #[cfg(test)]
-    pub(super) fn debug_surface_metrics(
-        &self,
-        x: i32,
-        z: i32,
-    ) -> (i32, i32, i32, i32, i32, i32, u16) {
-        let chunk_x = x.div_euclid(16);
-        let chunk_z = z.div_euclid(16);
-        let chunk_min_x = chunk_x * 16;
-        let chunk_min_z = chunk_z * 16;
-        let mut cache = OverworldColumnCache::new();
-        let p00 = preliminary_surface_level(&self.noises, &mut cache, chunk_min_x, chunk_min_z);
-        let p10 =
-            preliminary_surface_level(&self.noises, &mut cache, chunk_min_x + 16, chunk_min_z);
-        let p01 =
-            preliminary_surface_level(&self.noises, &mut cache, chunk_min_x, chunk_min_z + 16);
-        let p11 =
-            preliminary_surface_level(&self.noises, &mut cache, chunk_min_x + 16, chunk_min_z + 16);
-        let tx = f64::from(x - chunk_min_x) / 16.0;
-        let tz = f64::from(z - chunk_min_z) / 16.0;
-        let interpolated = (1.0 - tx) * (1.0 - tz) * f64::from(p00)
-            + tx * (1.0 - tz) * f64::from(p10)
-            + (1.0 - tx) * tz * f64::from(p01)
-            + tx * tz * f64::from(p11);
-        let depth = self.surface_rules.surface_depth(x, z);
-        let min_surface = interpolated.floor() as i32 + depth - 8;
-        let base_height = self.base_height(x, z);
-        let mut sampler = self.biome_source.chunk_sampler();
-        let biome_id = sampler.sample(x >> 2, 140 >> 2, z >> 2).id() as u16;
-        (p00, p10, p01, p11, min_surface, base_height, biome_id)
     }
 
     fn column(&mut self, x: i32, z: i32) -> &Column {
@@ -199,13 +155,10 @@ impl SurfaceTerrainSampler {
             &mut states,
             default_block,
         );
-        let motion_blocking_no_leaves_height = first_motion_blocking_no_leaves_height(&states);
-
         Column {
             states: states.into_boxed_slice(),
             world_surface_height,
             ocean_floor_height,
-            motion_blocking_no_leaves_height,
         }
     }
 
@@ -418,18 +371,6 @@ fn first_solid_height(states: &[BlockStateId]) -> i32 {
     states
         .iter()
         .rposition(|state| !state.is_air() && !state.get_block().config.liquid)
-        .map_or(MIN_Y, |index| MIN_Y + index as i32 + 1)
-}
-
-fn first_motion_blocking_no_leaves_height(states: &[BlockStateId]) -> i32 {
-    states
-        .iter()
-        .rposition(|state| {
-            let block = state.get_block();
-            block != &vanilla_blocks::SNOW
-                && block != &vanilla_blocks::POWDER_SNOW
-                && (state.blocks_motion() || block.config.liquid)
-        })
         .map_or(MIN_Y, |index| MIN_Y + index as i32 + 1)
 }
 

@@ -5,8 +5,9 @@
 
 ## 形态与依赖
 
-- 独立 Rust CLI，使用固定 revision 的 SteelMC `steel-worldgen`、
-  `steel-registry`、`steel-utils` 和 `steel-math`，目标为 Minecraft Java 26.1.2。
+- 独立 Rust CLI，直接使用固定 revision 的 SteelMC `steel-worldgen`、
+  `steel-registry`、`steel-utils`；`steel-math` 由固定 SteelMC worldgen
+  依赖传递引入，目标为 Minecraft Java 26.1.2。
 - SteelMC 依赖固定在 `Cargo.toml` 和 `Cargo.lock`；不要改成移动的 branch，
   也不要在未重新生成原版向量的情况下更新 revision。
 - 本机内存长期紧张（7 GB 总量，可用常不足 1 GB）：**禁止本地跑
@@ -86,7 +87,8 @@ java -Xmx1500m -cp "target/classes:target/mc-java/src/main/resources:target/cp/*
    旋转逻辑统一经过 `src/worldgen/template_scan.rs`。
 3. 地表锚定结构必须使用与 26.1.2 原版一致的 surface/block-state 语义。SteelMC
    `GenerationContext::base_height` 只表示 base noise，不能直接替代真实 surface
-   方块材质或埋藏宝藏支撑判断。
+   方块材质或埋藏宝藏支撑判断；`src/worldgen/surface_probe.rs` 负责需要材料语义
+   的列采样。
 4. 静态容器种子统一传递 `DecorationSeedSpec`；模板放置在可见箱子前消耗固定随机值
    时写入 `ordinal_offset`（例如冰屋为 1）。变体使用不同 index 或每区块有不同
    随机前缀时，使用命名配置和 `ContainerSeedShortcut::Unavailable`，Scanner 必须

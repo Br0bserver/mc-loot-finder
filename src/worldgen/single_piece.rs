@@ -171,9 +171,10 @@ impl Scanner {
             .as_ref()
             .expect("overworld scanners must have an igloo terrain sampler")
             .borrow_mut()
-            .motion_blocking_no_leaves_height(
+            .height(
                 data.template_position.0 + reference.x,
                 data.template_position.2 + reference.z,
+                false,
             );
         let chest_local_pos = glam::IVec3::new(1, 1, 6);
         let transformed = super::transformed_position(

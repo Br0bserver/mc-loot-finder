@@ -2,7 +2,7 @@
 
 > 这是基于 SteelMC `v0.9.0+mc26.1` 的实验性 Rust 分支，只维护源码并通过 GitHub Actions 验证，不发布正式 Release。
 
-`mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前独立版可以根据世界种子精确定位远古城市、堡垒遗迹、沙漠神殿、冰屋、沉船、村庄、埋藏宝藏和掠夺者前哨站，列出其中的容器，并搜索指定战利品。
+`mc-loot-finder` 是一个用于 Minecraft Java 26.1.2 的命令行工具。当前分支仍在审查中：实现目标是精确定位远古城市、堡垒遗迹、沙漠神殿、冰屋、沉船、村庄、埋藏宝藏和掠夺者前哨站，但在最后一个冰屋 Y 坐标向量修正前不得宣称已完成原版兼容。
 
 程序不读取存档，也不需要安装 Java。GitHub Actions 生成的 Linux 和 Windows 构建产物只用于 CI 验证，可能随时失效或被清理，不作为正式发行版本提供。
 
@@ -88,8 +88,9 @@ mc-loot-finder find \
 
 - 模块结构：`src/catalog.rs` 是扫描能力和装饰种子参数的目录入口；
   `src/worldgen.rs` 只保留扫描器入口，`src/worldgen/{buried_treasure,jigsaw_scan,single_piece,shipwreck}.rs`
-  负责各类结构扫描，`template_scan.rs` 统一处理模板旋转、容器随机消耗和数据标记，
-  `chests.rs` 处理 Jigsaw 容器事件、去重和种子分配。
+  负责各类结构扫描，`surface_probe.rs` 负责 SteelMC 地形方块状态和 surface-rule 探测，
+  `template_scan.rs` 统一处理模板旋转、容器随机消耗和数据标记，`chests.rs` 处理
+  Jigsaw 容器事件、去重和种子分配。
 - 本机内存不足以编译完整依赖树，因此本地只允许 `cargo fmt` 和静态检查；
   编译、测试、clippy 和平台 smoke 全部由 GitHub Actions 验证。
 - Linux 和 Windows 均调用 `ci/smoke.py` 执行同一组行为断言；CI 通过后可用

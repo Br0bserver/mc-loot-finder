@@ -74,30 +74,43 @@ README、DEVELOPMENT.md、AGENT.md 的当前架构段落仍描述 Pumpkin、已�
 5. 增加跨种子、无效候选和独立 oracle/probe 验证。
 6. 更新文档和 CI，使当前后端、版本和平台声明一致。
 
-## 执行检查点（2026-08-25）
+## 执行检查点（2026-08-26）
 
 已完成并推送：
 
-- 持久化本审查文档；
-- 恢复 26.1.2 desert/igloo/village/pillager/buried/shipwreck 固定向量；
-- Jigsaw 模板容器改为可见/隐藏容器事件流，隐藏容器会消耗 ordinal；
-- SteelMC 依赖切换到固定 `v0.9.0+mc26.1` revision
-  `d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2`；
-- 锁定兼容的 TextComponents revision；
-- 删除 `RUSTC_BOOTSTRAP` 配置；
-- CI 增加 Windows job、完整结构目录检查、`cargo clippy --locked`、
-  安全的 workflow_dispatch 参数传递；
-- 更新 README、DEVELOPMENT.md、AGENT.md 当前分支说明。
+- 恢复并保留 26.1.2 desert/igloo/village/pillager/buried/shipwreck 固定向量；
+- Jigsaw 模板容器改为可见/隐藏容器事件流，隐藏容器会消耗 decoration ordinal；
+- SteelMC 固定为 `v0.9.0+mc26.1` revision
+  `d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2`，并锁定兼容的 TextComponents revision；
+- Overworld 噪声改用 `legacy_random_source=false` 对应的 Xoroshiro splitter；
+  修复埋藏宝藏区域种子常量和村庄变体 decoration index；
+- 普通结构地形探测使用 Xoroshiro；冰屋 `WORLD_SURFACE_WG` 复算暂保留独立的
+  LegacyRandom 探针以对齐已恢复向量，正是当前剩余单方块偏差的交接焦点；
+- `surface_probe.rs` 使用 `steel-worldgen` 的密度、aquifer、生成 surface-rule 和
+  方块状态语义，替代 `ColumnBlock::Solid` 作为真实地表材料的错误近似；
+- 删除 `RUSTC_BOOTSTRAP`，CI 增加 Windows job、完整结构目录检查、
+  `cargo clippy --locked` 和安全的 workflow_dispatch 参数传递；
+- 当前临时诊断插桩已删除，工作区可直接交接。
 
-当前远端 HEAD：`c44e3cc`。工作树干净。
+### 当前验证状态
 
-最新修复 CI：`32866696022`。已通过格式检查，随后在 clippy 编译阶段失败。
-失败原因已从依赖下载问题推进到 SteelMC 26.1 API 适配问题，主要包括：
+最近一次无临时诊断行为 CI：`32942846200`（代码提交 `81511b2`）。
 
-- 26.1 没有 `steel_registry::init_vanilla_registry`；
-- 26.1 的 `Rotation::transform_pos` 接收五个整数参数并返回三元组；
-- 26.1 的 Jigsaw piece/template position 使用三元组而非 `glam::IVec3`；
-- 26.1 的 `ChunkBiomeSampler` 没有当前代码调用的 `init_grid` 方法。
+- fmt、clippy、`cargo check` 通过；
+- 39/40 个 Rust 单测通过；
+- 唯一失败为 `worldgen::tests::scans_known_26_1_2_igloos`：
+  第三个冰屋向量实际为 `(-1755, 50, 3942)`，权威值为 `(-1755, 51, 3942)`；
+- 未通过该向量前，不能把分支描述为完成 26.1.2 精确兼容，也不能改 expected
+  值掩盖失败。
 
-下一步应在此检查点继续做 26.1 API 适配，再重新运行 CI；不得退回到改写
-26.1.2 expected 值的做法。
+### 交接下一步
+
+从干净工作区继续：
+
+1. 解释并修正 snowy-taiga 冰屋 `WORLD_SURFACE_WG` 的单方块高度偏差；
+2. 保持临时诊断清理状态，重新跑完整 Linux/Windows CI 和两端 smoke；
+3. 只有全量固定向量、平台构建和 smoke 均通过后，才解除本审查结论。
+
+此前尝试直接依赖 SteelMC `steel-core` 复用服务端 surface 阶段，但固定
+`v0.9.0+mc26.1` 在当前 nightly 的 `SchemaRead` 派生处无法编译；该依赖已撤回，
+当前探针只依赖固定的 `steel-worldgen`、`steel-registry` 和 `steel-utils`。
