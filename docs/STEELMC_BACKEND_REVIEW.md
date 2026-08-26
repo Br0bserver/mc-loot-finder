@@ -31,7 +31,9 @@ generic placement scanner 的输出；第三个向量还稳定差一格。
 - `(3813,48,-458)`；
 - `(-1755,50,3942)`。
 
-`ci/smoke.py` 对冰屋仍锁定候选、有效结构、箱子总数和战利品命中数；Rust 单测
+`ci/smoke.py` 对冰屋仍锁定候选、有效结构、箱子总数和战利品命中数；古城
+`chests` 的完整可见容器数为 `368`（`358` 个 `ancient_city` 加 `10` 个
+`ancient_city_ice_box`），而 `find` 只检查目录声明的 `358` 个箱子。Rust 单测
 继续负责位置、Y、LootTable、LootTableSeed 和 ordinal 的逐字段断言。
 
 ### 2. 地表语义曾只使用 base noise（已修复）

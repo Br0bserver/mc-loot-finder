@@ -138,7 +138,7 @@ def check_ancient_city(binary: Path, ancient_output: Path | None) -> None:
         assert_fields(
             "ancient city chests",
             chests,
-            {"placement_candidates": 530, "valid_structures": 17, "chest_count": 358},
+            {"placement_candidates": 530, "valid_structures": 17, "chest_count": 368},
         )
         ancient_output.write_text(json.dumps(chests, separators=(",", ":")) + "\n")
 
