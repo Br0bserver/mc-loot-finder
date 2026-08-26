@@ -2,7 +2,6 @@ use super::*;
 use crate::catalog::CANDIDATE_STRUCTURES;
 use crate::decoration_seed::container_loot_seed;
 use std::collections::HashSet;
-use steel_registry::RegistryExt;
 
 fn assert_static_seed_contract(scanner: &Scanner, scans: &[Scan]) {
     let decoration = scanner
@@ -203,26 +202,6 @@ fn scans_known_26_1_2_desert_pyramids() {
 #[test]
 fn scans_known_26_1_2_igloos() {
     let scanner = Scanner::new(0, ScanKind::Igloo);
-    let terrain = scanner
-        .igloo_terrain
-        .as_ref()
-        .expect("igloo scanner must have terrain probe");
-    let mut terrain = terrain.borrow_mut();
-    for (x, z) in [(1571, 3072), (3811, -454), (-1757, 3946)] {
-        let metrics = terrain.debug_surface_metrics(x, z);
-        println!(
-            "igloo reference ({x},{z}): world={} motion={} blocks={:?} surface={:?} biome={:?}",
-            terrain.height(x, z, false),
-            terrain.motion_blocking_no_leaves_height(x, z),
-            terrain.debug_block_counts(x, z),
-            metrics,
-            steel_registry::REGISTRY
-                .biomes
-                .by_id(metrics.6 as usize)
-                .map(|biome| &biome.key),
-        );
-    }
-    drop(terrain);
     // Seed 0: three igloos with basements (chest vectors from the vanilla
     // 26.1.2 placement run) and three valid igloos without a basement.
     let scans = scanner
