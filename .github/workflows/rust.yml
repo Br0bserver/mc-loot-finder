@@ -54,12 +54,6 @@ jobs:
           toolchain: nightly
           components: rustfmt, clippy
           targets: x86_64-unknown-linux-musl
-      - name: Generate dependency lockfile
-        run: cargo generate-lockfile
-      - uses: actions/upload-artifact@v7
-        with:
-          name: generated-cargo-lock-0da6e3e
-          path: Cargo.lock
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
