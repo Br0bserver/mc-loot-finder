@@ -10,7 +10,7 @@ use steel_utils::random::legacy_random::LegacyRandom;
 use steel_utils::random::name_hash::NameHash;
 use steel_utils::random::xoroshiro::Xoroshiro;
 use steel_utils::random::{PositionalRandom, Random, RandomSource, RandomSplitter};
-use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler};
+use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler, obfuscate_biome_seed};
 use steel_worldgen::density::DimensionNoises;
 use steel_worldgen::density_functions::overworld::{OverworldColumnCache, OverworldNoises};
 use steel_worldgen::noise::{
@@ -247,6 +247,7 @@ impl SurfaceTerrainSampler {
             SurfaceConditionNoiseCache::new(&condition_values, &condition_initialized);
         let mut biome_column = BiomeColumn {
             sampler: self.biome_source.chunk_sampler(),
+            zoom_seed: obfuscate_biome_seed(self.world_seed),
             x,
             z,
         };
@@ -392,15 +393,95 @@ fn first_motion_blocking_no_leaves_height(states: &[BlockStateId]) -> i32 {
         .map_or(MIN_Y, |index| MIN_Y + index as i32 + 1)
 }
 
+fn lcg_next(mut value: i64, c: i64) -> i64 {
+    value = value.wrapping_mul(
+        value
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407),
+    );
+    value.wrapping_add(c)
+}
+
+fn get_fiddle(value: i64) -> f64 {
+    let uniform = value.wrapping_shr(24).rem_euclid(1024) as f64 / 1024.0;
+    (uniform - 0.5) * 0.9
+}
+
+fn fuzzed_biome_at_block(
+    zoom_seed: i64,
+    block_x: i32,
+    block_y: i32,
+    block_z: i32,
+    sampler: &mut ChunkBiomeSampler<'_>,
+) -> u16 {
+    let abs_x = block_x - 2;
+    let abs_y = block_y - 2;
+    let abs_z = block_z - 2;
+    let parent_x = abs_x >> 2;
+    let parent_y = abs_y >> 2;
+    let parent_z = abs_z >> 2;
+    let fract_x = f64::from(abs_x & 3) / 4.0;
+    let fract_y = f64::from(abs_y & 3) / 4.0;
+    let fract_z = f64::from(abs_z & 3) / 4.0;
+    let mut min_index = 0usize;
+    let mut min_distance = f64::INFINITY;
+
+    for i in 0..8usize {
+        let x_even = (i & 4) == 0;
+        let y_even = (i & 2) == 0;
+        let z_even = (i & 1) == 0;
+        let cx = if x_even { parent_x } else { parent_x + 1 };
+        let cy = if y_even { parent_y } else { parent_y + 1 };
+        let cz = if z_even { parent_z } else { parent_z + 1 };
+        let dx = if x_even { fract_x } else { fract_x - 1.0 };
+        let dy = if y_even { fract_y } else { fract_y - 1.0 };
+        let dz = if z_even { fract_z } else { fract_z - 1.0 };
+        let mut random = lcg_next(zoom_seed, i64::from(cx));
+        random = lcg_next(random, i64::from(cy));
+        random = lcg_next(random, i64::from(cz));
+        random = lcg_next(random, i64::from(cx));
+        random = lcg_next(random, i64::from(cy));
+        random = lcg_next(random, i64::from(cz));
+        let fx = get_fiddle(random);
+        random = lcg_next(random, zoom_seed);
+        let fy = get_fiddle(random);
+        random = lcg_next(random, zoom_seed);
+        let fz = get_fiddle(random);
+        let distance = (dx + fx).powi(2) + (dy + fy).powi(2) + (dz + fz).powi(2);
+        if min_distance > distance {
+            min_index = i;
+            min_distance = distance;
+        }
+    }
+
+    let biome_x = if (min_index & 4) == 0 {
+        parent_x
+    } else {
+        parent_x + 1
+    };
+    let biome_y = if (min_index & 2) == 0 {
+        parent_y
+    } else {
+        parent_y + 1
+    };
+    let biome_z = if (min_index & 1) == 0 {
+        parent_z
+    } else {
+        parent_z + 1
+    };
+    sampler.sample(biome_x, biome_y, biome_z).id() as u16
+}
+
 struct BiomeColumn<'a> {
     sampler: ChunkBiomeSampler<'a>,
+    zoom_seed: i64,
     x: i32,
     z: i32,
 }
 
 impl SurfaceBiomeProvider for BiomeColumn<'_> {
     fn biome_id(&mut self, y: i32) -> u16 {
-        self.sampler.sample(self.x >> 2, y >> 2, self.z >> 2).id() as u16
+        fuzzed_biome_at_block(self.zoom_seed, self.x, y, self.z, &mut self.sampler)
     }
 }
 
