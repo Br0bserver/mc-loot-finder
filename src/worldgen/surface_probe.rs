@@ -11,12 +11,12 @@ use steel_utils::random::name_hash::NameHash;
 use steel_utils::random::xoroshiro::Xoroshiro;
 use steel_utils::random::{PositionalRandom, Random, RandomSource, RandomSplitter};
 use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler};
-use steel_worldgen::density::{DimensionNoises, NoiseSettings};
+use steel_worldgen::density::DimensionNoises;
 use steel_worldgen::density_functions::overworld::{OverworldColumnCache, OverworldNoises};
 use steel_worldgen::noise::{
     LazyAquifer, NormalNoise, PerlinSimplexNoise, preliminary_surface_level,
 };
-use steel_worldgen::structure::{ColumnBlock, GenerationContext, StructureGenerationContext};
+use steel_worldgen::structure::{ColumnBlock, GenerationContext};
 use steel_worldgen::surface::{
     SurfaceBiomeProvider, SurfaceConditionNoiseCache, SurfaceNoiseProvider, SurfaceRuleContext,
 };
@@ -154,6 +154,10 @@ impl SurfaceTerrainSampler {
         }
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "surface rule context mirrors vanilla's per-column inputs"
+    )]
     fn apply_surface_rules(
         &self,
         x: i32,
