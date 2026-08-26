@@ -2,6 +2,7 @@ use super::*;
 use crate::catalog::CANDIDATE_STRUCTURES;
 use crate::decoration_seed::container_loot_seed;
 use std::collections::HashSet;
+use steel_registry::RegistryExt;
 
 fn assert_static_seed_contract(scanner: &Scanner, scans: &[Scan]) {
     let decoration = scanner
@@ -207,12 +208,17 @@ fn scans_known_26_1_2_igloos() {
         .as_ref()
         .expect("igloo scanner must have terrain probe");
     let mut terrain = terrain.borrow_mut();
+    let metrics = terrain.debug_surface_metrics(1571, 3072);
     println!(
-        "igloo reference heights: world={} motion={} blocks={:?} surface={:?}",
+        "igloo reference heights: world={} motion={} blocks={:?} surface={:?} biome={:?}",
         terrain.height(1571, 3072, false),
         terrain.motion_blocking_no_leaves_height(1571, 3072),
         terrain.debug_block_counts(1571, 3072),
-        terrain.debug_surface_metrics(1571, 3072),
+        metrics,
+        steel_registry::REGISTRY
+            .biomes
+            .by_id(metrics.5 as usize)
+            .map(|biome| &biome.key),
     );
     drop(terrain);
     // Seed 0: three igloos with basements (chest vectors from the vanilla
