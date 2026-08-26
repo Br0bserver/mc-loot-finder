@@ -74,8 +74,8 @@ impl Scanner {
     pub(super) fn scan_village(&self, chunk_x: i32, chunk_z: i32) -> Result<Scan, Error> {
         let mut random = self.chunk_random(chunk_x, chunk_z);
         let mut remaining = vec![
-            (Identifier::new_static("minecraft", "village_plains"), 21),
-            (Identifier::new_static("minecraft", "village_desert"), 22),
+            (Identifier::new_static("minecraft", "village_plains"), 22),
+            (Identifier::new_static("minecraft", "village_desert"), 21),
             (Identifier::new_static("minecraft", "village_savanna"), 23),
             (Identifier::new_static("minecraft", "village_snowy"), 24),
             (Identifier::new_static("minecraft", "village_taiga"), 25),

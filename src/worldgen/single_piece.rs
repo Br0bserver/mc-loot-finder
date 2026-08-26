@@ -157,7 +157,25 @@ impl Scanner {
             });
         };
 
-        let surface_y = ctx.surface_y();
+        let reference = super::transformed_position(
+            data.rotation,
+            glam::IVec3::new(3, 0, 2),
+            glam::IVec3::new(
+                data.rotation_pivot.0,
+                data.rotation_pivot.1,
+                data.rotation_pivot.2,
+            ),
+        );
+        let surface_y = self
+            .surface_terrain
+            .as_ref()
+            .expect("overworld scanners must have a surface terrain sampler")
+            .borrow_mut()
+            .height(
+                data.template_position.0 + reference.x,
+                data.template_position.2 + reference.z,
+                false,
+            );
         let chest_local_pos = glam::IVec3::new(1, 1, 6);
         let transformed = super::transformed_position(
             data.rotation,
@@ -170,7 +188,7 @@ impl Scanner {
         );
         let chest_x = data.template_position.0 + transformed.x;
         let chest_z = data.template_position.2 + transformed.z;
-        let chest_y = surface_y - (90 - data.template_position.1) + transformed.y;
+        let chest_y = surface_y - (90 - data.template_position.1);
 
         let loot_seed =
             container_loot_seed(self.world_seed, chunk_x, chunk_z, self.decoration()?, 0)?;
