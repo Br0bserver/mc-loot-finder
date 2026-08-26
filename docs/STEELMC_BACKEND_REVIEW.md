@@ -6,15 +6,16 @@
 
 ## 结论
 
-初始执行阶段把 `(-1755, 51, 3942)` 一组之外的 `53/57/51` 冰屋 Y 值当作
-26.1.2 原版基线；这个判断已被 Java oracle 纠正。2026-08-26 从 `target/mc-java`
-加载的 vanilla 26.1.2 runtime 显示 normal Overworld
-`useLegacyRandomSource=false`，三个冰屋参考列的 `WORLD_SURFACE_WG`
-`getBaseHeight` 为 `140/72/71`；Java `StructureChestScanner` 的同一组结构扫描
-实际返回箱子 Y `122/48/50`。因此 Rust 已恢复 Java oracle 对应的原始固定向量，
-冰屋探针改回 Xoroshiro，移除为错误基线服务的 Legacy workaround。
+已按独立 Java 26.1.2 oracle 恢复冰屋 `122/48/50` 固定向量，并移除错误的
+Legacy 地形 workaround。Rust 当前使用正常 Overworld
+`useLegacyRandomSource=false` 对应的 Xoroshiro surface probe；古城完整可见
+容器数 `368`（其中 `358` 个 `ancient_city`、`10` 个 `ancient_city_ice_box`）
+与 Java runtime 输出一致。
 
-修正后的源码尚未经过新一轮 CI；在 CI 全绿前仍不能宣称分支完成 26.1.2 精确兼容。
+CI `32955944466` 已通过 Linux/Windows fmt、clippy、check、40 个 Rust 单测、
+Linux musl 构建、Linux/Windows smoke，以及带 SHA-256 固定值的 SteelMC
+`v0.9.0+mc26.1` 独立 parity probe。当前八个 Full scanner 的固定向量和行为门禁
+均通过；分支可以解除本次后端迁移审查结论，但仍不发布正式 Release。
 
 ## 主要问题
 
@@ -57,13 +58,13 @@ container 消耗 decoration ordinal，再输出可见 marker，避免后续箱�
 并固定兼容的 TextComponents revision；不再使用移动的 `master` 或
 `0.15.2+mc26.2` 依赖。
 
-### 5. 独立 oracle 已接入 CI，待新 run 验证
+### 5. 独立 oracle 已接入并通过 CI
 
 `src/worldgen/tests.rs` 的 fixed vectors 来自独立 Java runtime，而
 `assert_static_seed_contract()` 仍只验证 Rust 内部 seed 重放。Linux workflow
-现在下载带 SHA-256 固定值的 SteelMC `v0.9.0+mc26.1` release binary，运行
+下载带 SHA-256 固定值的 SteelMC `v0.9.0+mc26.1` release binary，运行
 `ci/steelmc_probe.py` 对比 buried-treasure 的 X/Z、NBT 和 `LootTableSeed`；
-Windows 继续执行同一组 Rust smoke。新 CI 全部通过后，独立 parity gate 才算闭合。
+CI `32955944466` 已成功通过该 gate，Windows 同时通过同一组 Rust smoke。
 
 ### 6. 文档和模块说明曾过期（大部分已修复）
 
@@ -108,19 +109,23 @@ surface probe 及 Linux/Windows CI；私有 `AGENT.md` 仍保留历史 Pumpkin �
 
 ### 当前验证状态
 
-最近一次 CI `32946054738`（代码提交 `d2d6f23`）验证的是错误冰屋基线，结果为
-fmt、clippy、`cargo check` 通过，Rust 单测 39/40；唯一失败是旧测试期望的
-`(-1755,50,3942)` 对 `(-1755,51,3942)`。
+- 本地 `cargo fmt --check` 和 `python3 -m py_compile ci/smoke.py
+  ci/steelmc_probe.py` 通过；
+- CI `32955944466` 的 Linux/Windows fmt、clippy、`cargo check`、40 个 Rust
+  单测、Linux musl 构建和两端 smoke 全部通过；
+- 同一 CI run 下载并校验固定 SHA-256 的 SteelMC
+  `v0.9.0+mc26.1`，独立 probe 成功验证 seed `215` 的 buried-treasure
+  X/Z、NBT 和 `LootTableSeed`；
+- 本地用该 CI Linux artifact 重跑 `ci/steelmc_probe.py` 同样通过；
+- 本地完整 `ci/smoke.py` 试跑在 600 秒内超时，未将其作为通过证据；CI
+  的 Linux smoke 已完整通过。
 
-源码现已改为 Java oracle 的 `122/48/50` 基线，并移除 Legacy 探针；这组修正
-必须由新 CI 重新验证，不能把旧 run 的 39/40 当作当前源码结果。
+### 后续维护约束
 
-### 交接下一步
-
-1. 对当前源码运行本地 `cargo fmt --check` 和 Python syntax check；
-2. 推送后等待 Linux/Windows 的 fmt、clippy、check、Rust 单测、构建和 smoke；
-3. 接入并运行独立 `ci/steelmc_probe.py`，确认结构定位和 `LootTableSeed`；
-4. 只有全量固定向量、平台构建、两端 smoke 和独立 probe 均通过后，才解除本审查结论。
+1. 不要修改 Java oracle fixed vectors 或把 SteelMC revision 改回移动分支；
+2. 更新 SteelMC release binary 时必须同步 SHA-256，并重新跑独立 probe；
+3. 继续遵守本机禁止 `cargo build/check/test/clippy` 的开发纪律，编译和完整
+   smoke 交给 Linux/Windows CI。
 
 此前尝试直接依赖 SteelMC `steel-core` 复用服务端 surface 阶段，但固定
 `v0.9.0+mc26.1` 在当前 nightly 的 `SchemaRead` 派生处无法编译；该依赖已撤回，
