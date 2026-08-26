@@ -207,19 +207,20 @@ fn scans_known_26_1_2_igloos() {
         .igloo_terrain
         .as_ref()
         .expect("igloo scanner must have terrain probe");
-    let mut terrain = terrain.borrow_mut();
-    let metrics = terrain.debug_surface_metrics(1571, 3072);
-    println!(
-        "igloo reference heights: world={} motion={} blocks={:?} surface={:?} biome={:?}",
-        terrain.height(1571, 3072, false),
-        terrain.motion_blocking_no_leaves_height(1571, 3072),
-        terrain.debug_block_counts(1571, 3072),
-        metrics,
-        steel_registry::REGISTRY
-            .biomes
-            .by_id(metrics.5 as usize)
-            .map(|biome| &biome.key),
-    );
+    for (x, z) in [(1571, 3072), (3811, -454), (-1757, 3946)] {
+        let metrics = terrain.debug_surface_metrics(x, z);
+        println!(
+            "igloo reference ({x},{z}): world={} motion={} blocks={:?} surface={:?} biome={:?}",
+            terrain.height(x, z, false),
+            terrain.motion_blocking_no_leaves_height(x, z),
+            terrain.debug_block_counts(x, z),
+            metrics,
+            steel_registry::REGISTRY
+                .biomes
+                .by_id(metrics.5 as usize)
+                .map(|biome| &biome.key),
+        );
+    }
     drop(terrain);
     // Seed 0: three igloos with basements (chest vectors from the vanilla
     // 26.1.2 placement run) and three valid igloos without a basement.
