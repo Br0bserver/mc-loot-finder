@@ -75,7 +75,7 @@ impl SurfaceTerrainSampler {
     #[cfg(test)]
     pub(super) fn debug_block_counts(&mut self, x: i32, z: i32) -> FxHashMap<String, usize> {
         let mut counts = FxHashMap::default();
-        for state in self.column(x, z).states.iter().copied() {
+        for state in self.column(x, z).states.iter() {
             let name = state.get_block().key.to_string();
             *counts.entry(name).or_insert(0) += 1;
         }
