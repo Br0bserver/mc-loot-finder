@@ -8,7 +8,6 @@ use steel_registry::{REGISTRY, RegistryEntry, RegistryExt};
 use steel_utils::BlockStateId;
 use steel_utils::random::legacy_random::LegacyRandom;
 use steel_utils::random::name_hash::NameHash;
-use steel_utils::random::xoroshiro::Xoroshiro;
 use steel_utils::random::{PositionalRandom, Random, RandomSource, RandomSplitter};
 use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler, obfuscate_biome_seed};
 use steel_worldgen::density::DimensionNoises;
