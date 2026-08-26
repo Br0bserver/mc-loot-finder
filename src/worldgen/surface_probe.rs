@@ -49,11 +49,6 @@ impl SurfaceTerrainSampler {
         Self::with_splitter(world_seed, Xoroshiro::from_seed(seed).next_positional())
     }
 
-    pub(super) fn new_legacy(world_seed: i64) -> Self {
-        let seed = world_seed as u64;
-        Self::with_splitter(world_seed, LegacyRandom::from_seed(seed).next_positional())
-    }
-
     fn with_splitter(world_seed: i64, splitter: RandomSplitter) -> Self {
         let seed = world_seed as u64;
         let params = steel_worldgen::noise_parameters::get_noise_parameters();

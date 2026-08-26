@@ -167,9 +167,9 @@ impl Scanner {
             ),
         );
         let surface_y = self
-            .igloo_terrain
+            .surface_terrain
             .as_ref()
-            .expect("overworld scanners must have an igloo terrain sampler")
+            .expect("overworld scanners must have a surface terrain sampler")
             .borrow_mut()
             .height(
                 data.template_position.0 + reference.x,
