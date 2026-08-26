@@ -207,6 +207,7 @@ fn scans_known_26_1_2_igloos() {
         .igloo_terrain
         .as_ref()
         .expect("igloo scanner must have terrain probe");
+    let mut terrain = terrain.borrow_mut();
     for (x, z) in [(1571, 3072), (3811, -454), (-1757, 3946)] {
         let metrics = terrain.debug_surface_metrics(x, z);
         println!(
