@@ -2,7 +2,8 @@
 
 `mc-loot-finder` 是一个针对 Minecraft Java `26.1.2` 的命令行工具。它根据世界种子定位结构，在内存中调用原版结构生成代码，列出结构内的方块容器和考古方块，并重放对应的战利品表。
 
-基于 Pumpkin 的实验性 Rust 版本位于 `experimental/pumpkin-rust` 分支，仅维护源码并进行 CI 验证。
+实验性的 SteelMC Rust 版本已独立为
+[`mc-loot-finder-rust`](https://github.com/Br0bserver/mc-loot-finder-rust) 仓库，仅维护源码并进行 CI 验证。
 
 它不读取存档，也不加载目标世界区块。输出包括容器坐标、LootTable、LootTableSeed，以及指定物品是否会出现在战利品中。
 
