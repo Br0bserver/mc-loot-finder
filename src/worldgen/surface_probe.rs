@@ -8,7 +8,7 @@ use steel_registry::{REGISTRY, RegistryEntry, RegistryExt};
 use steel_utils::BlockStateId;
 use steel_utils::random::legacy_random::LegacyRandom;
 use steel_utils::random::name_hash::NameHash;
-use steel_utils::random::{PositionalRandom, Random, RandomSource, RandomSplitter};
+use steel_utils::random::xoroshiro::Xoroshiro;
 use steel_worldgen::biomes::{BiomeSourceKind, ChunkBiomeSampler, obfuscate_biome_seed};
 use steel_worldgen::density::DimensionNoises;
 use steel_worldgen::density_functions::overworld::{OverworldColumnCache, OverworldNoises};
@@ -46,7 +46,16 @@ struct Column {
 impl SurfaceTerrainSampler {
     pub(super) fn new(world_seed: i64) -> Self {
         let seed = world_seed as u64;
-        let splitter = LegacyRandom::from_seed(seed).next_positional();
+        Self::with_splitter(world_seed, Xoroshiro::from_seed(seed).next_positional())
+    }
+
+    pub(super) fn new_legacy(world_seed: i64) -> Self {
+        let seed = world_seed as u64;
+        Self::with_splitter(world_seed, LegacyRandom::from_seed(seed).next_positional())
+    }
+
+    fn with_splitter(world_seed: i64, splitter: RandomSplitter) -> Self {
+        let seed = world_seed as u64;
         let params = steel_worldgen::noise_parameters::get_noise_parameters();
         let noises = OverworldNoises::create(seed, &splitter, &params);
         let surface_rules = SurfaceRules::new(&splitter, &params);

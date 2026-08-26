@@ -204,7 +204,7 @@ fn scans_known_26_1_2_desert_pyramids() {
 fn scans_known_26_1_2_igloos() {
     let scanner = Scanner::new(0, ScanKind::Igloo);
     let terrain = scanner
-        .surface_terrain
+        .igloo_terrain
         .as_ref()
         .expect("igloo scanner must have terrain probe");
     let mut terrain = terrain.borrow_mut();

@@ -87,6 +87,7 @@ pub struct Scanner {
     biome_source: BiomeSourceKind,
     splitter: RandomSplitter,
     surface_terrain: Option<RefCell<SurfaceTerrainSampler>>,
+    igloo_terrain: Option<RefCell<SurfaceTerrainSampler>>,
 }
 
 pub struct OverworldScannerContext<'src> {
@@ -495,6 +496,8 @@ impl Scanner {
         let is_end = dimension == "minecraft:the_end";
         let surface_terrain =
             (!is_nether && !is_end).then(|| RefCell::new(SurfaceTerrainSampler::new(world_seed)));
+        let igloo_terrain = (kind == ScanKind::Igloo && !is_nether && !is_end)
+            .then(|| RefCell::new(SurfaceTerrainSampler::new_legacy(world_seed)));
         let splitter = if is_nether {
             LegacyRandom::from_seed(world_seed as u64).next_positional()
         } else {
@@ -527,11 +530,10 @@ impl Scanner {
             structure,
             kind,
             dimension,
-            overworld_noises,
-            nether_noises,
             biome_source,
             splitter,
             surface_terrain,
+            igloo_terrain,
         }
     }
 
