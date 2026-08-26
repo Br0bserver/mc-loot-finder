@@ -118,35 +118,40 @@ def wait_for_line(
     timeout: int,
 ) -> re.Match[str]:
     deadline = time.monotonic() + timeout
+    buffered = "".join(transcript)
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise SystemExit(
                 f"timed out waiting for {pattern.pattern!r}\nSteelMC output:\n"
-                + "".join(transcript)
+                + buffered
             )
         try:
-            line = lines.get(timeout=remaining)
+            chunk = lines.get(timeout=remaining)
         except queue.Empty as error:
             raise SystemExit(
                 f"timed out waiting for {pattern.pattern!r}\nSteelMC output:\n"
-                + "".join(transcript)
+                + buffered
             ) from error
-        transcript.append(line)
-        match = pattern.search(line)
+        transcript.append(chunk)
+        buffered += chunk
+        match = pattern.search(buffered)
         if match:
             return match
 
 
 def start_reader(stream: Any, lines: queue.Queue[str]) -> threading.Thread:
-    def read_lines() -> None:
+    def read_chunks() -> None:
         try:
-            for line in stream:
-                lines.put(line)
+            while True:
+                chunk = os.read(stream.fileno(), 4096)
+                if not chunk:
+                    return
+                lines.put(chunk.decode(encoding="utf-8", errors="replace"))
         except OSError:
             pass
 
-    thread = threading.Thread(target=read_lines, daemon=True)
+    thread = threading.Thread(target=read_chunks, daemon=True)
     thread.start()
     return thread
 
