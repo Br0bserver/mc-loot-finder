@@ -530,6 +530,8 @@ impl Scanner {
             structure,
             kind,
             dimension,
+            overworld_noises,
+            nether_noises,
             biome_source,
             splitter,
             surface_terrain,
