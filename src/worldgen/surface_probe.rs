@@ -47,7 +47,7 @@ struct Column {
 impl SurfaceTerrainSampler {
     pub(super) fn new(world_seed: i64) -> Self {
         let seed = world_seed as u64;
-        let splitter = Xoroshiro::from_seed(seed).next_positional();
+        let splitter = LegacyRandom::from_seed(seed).next_positional();
         let params = steel_worldgen::noise_parameters::get_noise_parameters();
         let noises = OverworldNoises::create(seed, &splitter, &params);
         let surface_rules = SurfaceRules::new(&splitter, &params);
