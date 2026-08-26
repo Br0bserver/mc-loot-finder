@@ -71,7 +71,7 @@ jobs:
       - name: Test Rust CLI
         run: cargo test --release --locked
       - name: Install static Linux linker
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools zstd
       - name: Build static release binary
         run: cargo build --release --locked --target x86_64-unknown-linux-musl
       - name: Run requested CLI command (manual dispatch)

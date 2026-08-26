@@ -14,7 +14,6 @@ import subprocess
 import tempfile
 import threading
 import time
-from compression import zstd
 from pathlib import Path
 from typing import Any
 
@@ -296,10 +295,16 @@ def read_chunk_payload(world_root: Path, block_x: int, block_z: int) -> bytes:
     compressed = region[payload_start:payload_end]
     if len(compressed) != compressed_size:
         raise SystemExit(f"truncated SteelMC chunk payload {chunk_x},{chunk_z}")
-    try:
-        return zstd.decompress(compressed)
-    except zstd.ZstdError as error:
-        raise SystemExit(f"failed to decompress SteelMC chunk: {error}") from error
+    decompressed = subprocess.run(
+        ["unzstd", "--stdout"],
+        input=compressed,
+        capture_output=True,
+        check=False,
+    )
+    if decompressed.returncode != 0:
+        detail = decompressed.stderr.decode(errors="replace").strip()
+        raise SystemExit(f"failed to decompress SteelMC chunk: {detail}")
+    return decompressed.stdout
 
 
 def read_buried_treasure_seed(payload: bytes) -> int:
