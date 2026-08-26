@@ -18,8 +18,7 @@
 1. 改代码 → `cargo fmt`（本地允许，能抓语法错误）→ `cargo fmt --check`。
 2. 提交（Conventional Commits，一个功能一个提交）→ `git push`。
 3. CI（`.github/workflows/rust.yml`）跑：fmt → clippy → check → test →
-   musl 构建 → Linux/Windows 各结构 smoke。
-4. 需要跑 CLI 时：等 CI 绿后拉 artifact 本地 smoke：
+   musl 构建 → Linux 独立 SteelMC probe → Linux/Windows 各结构 smoke。
 
    ```bash
    gh run download <run-id> -n mc-loot-finder-linux-x86_64 -D target/artifact

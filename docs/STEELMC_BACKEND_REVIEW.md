@@ -57,13 +57,13 @@ container 消耗 decoration ordinal，再输出可见 marker，避免后续箱�
 并固定兼容的 TextComponents revision；不再使用移动的 `master` 或
 `0.15.2+mc26.2` 依赖。
 
-### 5. 独立 oracle 仍需接入 CI
+### 5. 独立 oracle 已接入 CI，待新 run 验证
 
-`src/worldgen/tests.rs` 的 fixed vectors 现在来自独立 Java runtime，而
-`assert_static_seed_contract()` 仍只验证 Rust 内部 seed 重放。`ci/steelmc_probe.py`
-已保留独立 SteelMC probe，但当前 Rust workflow 仍只调用 `ci/smoke.py`；两端
-probe 需要在 CI 中实际执行，才能避免 scanner 和 `container-seed` 同时错误而
-自洽通过。
+`src/worldgen/tests.rs` 的 fixed vectors 来自独立 Java runtime，而
+`assert_static_seed_contract()` 仍只验证 Rust 内部 seed 重放。Linux workflow
+现在下载带 SHA-256 固定值的 SteelMC `v0.9.0+mc26.1` release binary，运行
+`ci/steelmc_probe.py` 对比 buried-treasure 的 X/Z、NBT 和 `LootTableSeed`；
+Windows 继续执行同一组 Rust smoke。新 CI 全部通过后，独立 parity gate 才算闭合。
 
 ### 6. 文档和模块说明曾过期（大部分已修复）
 

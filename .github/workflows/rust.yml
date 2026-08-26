@@ -98,6 +98,21 @@ jobs:
           python3 ci/smoke.py
           --binary target/x86_64-unknown-linux-musl/release/mc-loot-finder
           --ancient-output ancient-city-chests.json
+      - name: Download pinned SteelMC parity binary
+        env:
+          STEELMC_RELEASE_URL: https://github.com/Steel-Foundation/SteelMC/releases/download/v0.9.0%2Bmc26.1/steel-linux
+          STEELMC_SHA256: cb902a0d10d8a9ac4c472416c9996c0581509ac12128fc7588132d4572a09f9e
+        run: |
+          curl --fail --location --retry 5 --retry-all-errors \
+            --output steel-linux "$STEELMC_RELEASE_URL"
+          printf '%s  %s\n' "$STEELMC_SHA256" steel-linux | sha256sum --check --strict
+          chmod 755 steel-linux
+      - name: Run independent SteelMC parity probe
+        run: >-
+          python3 ci/steelmc_probe.py
+          --steel ./steel-linux
+          --loot-finder target/x86_64-unknown-linux-musl/release/mc-loot-finder
+          --seed 215
       - uses: actions/upload-artifact@v7
         with:
           name: ancient-city-chests

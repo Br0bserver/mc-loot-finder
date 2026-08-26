@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Compare one buried-treasure location and loot seed across both backends."""
+"""Compare one buried-treasure location and loot seed across both backends on POSIX."""
 
 from __future__ import annotations
 
 import argparse
 import json
-from compression import zstd
 import os
+import pty
 import queue
 import re
+import signal
 import subprocess
 import tempfile
 import threading
 import time
+from compression import zstd
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +44,7 @@ SPAWN_PATTERN = re.compile(
 LOCATE_PATTERN = re.compile(
     r"nearest minecraft:buried_treasure is at \[(-?\d+), ~, (-?\d+)\]"
 )
+SERVER_READY_PATTERN = re.compile(r"Started Steel Server")
 
 
 def world_config(seed: int) -> str:
@@ -76,7 +79,7 @@ generator = "minecraft:the_end"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--steel", required=True, type=Path, help="SteelMC 26.2 binary")
+    parser.add_argument("--steel", required=True, type=Path, help="SteelMC 26.1 binary")
     parser.add_argument(
         "--loot-finder", required=True, type=Path, help="mc-loot-finder 26.1.2 binary"
     )
@@ -194,11 +197,58 @@ def nearest_loot_finder_chest(
     )
 
 
-def stop_server(process: subprocess.Popen[bytes], master_fd: int) -> None:
+class PtyProcess:
+    def __init__(self, pid: int, args: list[str]) -> None:
+        self.pid = pid
+        self.args = args
+        self.returncode: int | None = None
+
+    def poll(self) -> int | None:
+        if self.returncode is not None:
+            return self.returncode
+        try:
+            waited_pid, status = os.waitpid(self.pid, os.WNOHANG)
+        except ChildProcessError:
+            self.returncode = 0
+            return self.returncode
+        if waited_pid == 0:
+            return None
+        self.returncode = os.waitstatus_to_exitcode(status)
+        return self.returncode
+
+    def wait(self, timeout: float | None = None) -> int:
+        if self.returncode is not None:
+            return self.returncode
+        if timeout is None:
+            _, status = os.waitpid(self.pid, 0)
+            self.returncode = os.waitstatus_to_exitcode(status)
+            return self.returncode
+        deadline = time.monotonic() + timeout
+        while True:
+            result = self.poll()
+            if result is not None:
+                return result
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(self.args, timeout)
+            time.sleep(min(0.05, remaining))
+
+    def kill(self) -> None:
+        if self.poll() is None:
+            os.kill(self.pid, signal.SIGKILL)
+
+
+def send_console_command(master_fd: int, command: str) -> None:
+    os.write(master_fd, command.encode())
+    time.sleep(0.2)
+    os.write(master_fd, b"\r")
+
+
+def stop_server(process: PtyProcess, master_fd: int) -> None:
     if process.poll() is not None:
         return
     try:
-        os.write(master_fd, b"stop\r")
+        send_console_command(master_fd, "stop")
     except OSError:
         pass
     try:
@@ -273,18 +323,11 @@ def probe(steel: Path, loot_finder: Path, seed: int) -> None:
         config.mkdir()
         (config / "worlds.toml").write_text(world_config(seed), encoding="utf-8")
 
-        master_fd, slave_fd = os.openpty()
-        try:
-            process = subprocess.Popen(
-                [str(steel)],
-                cwd=root,
-                stdin=slave_fd,
-                stdout=slave_fd,
-                stderr=slave_fd,
-                close_fds=True,
-            )
-        finally:
-            os.close(slave_fd)
+        pid, master_fd = pty.fork()
+        if pid == 0:
+            os.chdir(root)
+            os.execv(str(steel), [str(steel)])
+        process = PtyProcess(pid, [str(steel)])
 
         output = os.fdopen(
             os.dup(master_fd), "r", encoding="utf-8", errors="replace", newline=""
@@ -296,14 +339,15 @@ def probe(steel: Path, loot_finder: Path, seed: int) -> None:
             spawn = wait_for_line(
                 lines, transcript, SPAWN_PATTERN, START_TIMEOUT_SECONDS
             )
+            wait_for_line(
+                lines, transcript, SERVER_READY_PATTERN, START_TIMEOUT_SECONDS
+            )
             center_x, center_z = int(spawn.group(1)), int(spawn.group(2))
             expected_x, expected_y, expected_z, expected_seed = (
                 nearest_loot_finder_chest(loot_finder, seed, center_x, center_z)
             )
 
-            os.write(
-                master_fd, b"locate structure minecraft:buried_treasure\r"
-            )
+            send_console_command(master_fd, "locate structure minecraft:buried_treasure")
             located = wait_for_line(
                 lines, transcript, LOCATE_PATTERN, LOCATE_TIMEOUT_SECONDS
             )
