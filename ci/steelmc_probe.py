@@ -44,6 +44,7 @@ LOCATE_PATTERN = re.compile(
     r"nearest minecraft:buried_treasure is at \[(-?\d+), ~, (-?\d+)\]"
 )
 SERVER_READY_PATTERN = re.compile(r"Started Steel Server")
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def world_config(seed: int) -> str:
@@ -135,7 +136,7 @@ def wait_for_line(
             ) from error
         transcript.append(chunk)
         buffered += chunk
-        match = pattern.search(buffered)
+        match = pattern.search(ANSI_ESCAPE_PATTERN.sub("", buffered))
         if match:
             return match
 
