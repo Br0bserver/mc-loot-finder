@@ -179,7 +179,7 @@ impl SurfaceTerrainSampler {
         let default_block = <OverworldNoises as DimensionNoises>::Settings::default_block_id();
         let default_fluid = <OverworldNoises as DimensionNoises>::Settings::default_fluid_id();
         let mut base_states = vec![air; HEIGHT as usize];
-        for y in MIN_Y..MIN_Y + HEIGHT {
+        for y in (MIN_Y..MIN_Y + HEIGHT).rev() {
             base_states[(y - MIN_Y) as usize] = match ctx.column_state(x, y, z) {
                 ColumnBlock::Air => air,
                 ColumnBlock::Solid => default_block,
