@@ -60,6 +60,16 @@ impl Scanner {
         let min_z = chunk_z
             .checked_mul(16)
             .ok_or_else(|| Error::Worldgen("desert pyramid chunk z overflowed".to_owned()))?;
+        for (x, z) in [
+            (min_x, min_z),
+            (min_x, min_z + DESERT_PYRAMID_DEPTH),
+            (min_x + DESERT_PYRAMID_WIDTH, min_z),
+            (min_x + DESERT_PYRAMID_WIDTH, min_z + DESERT_PYRAMID_DEPTH),
+        ] {
+            if ctx.terrain_surface_height(x, z, false) - 1 < ctx.sea_level() {
+                return Ok(invalid_scan());
+            }
+        }
 
         let facing = stub.pieces[0].orientation.unwrap_or(Direction::North);
         let mut random = self.chunk_random(chunk_x, chunk_z);
@@ -69,7 +79,7 @@ impl Scanner {
         let mut lowest = i32::MAX;
         for x in min_x..=min_x + DESERT_PYRAMID_WIDTH - 1 {
             for z in min_z..=min_z + DESERT_PYRAMID_DEPTH - 1 {
-                lowest = lowest.min(ctx.base_height(x, z, false));
+                lowest = lowest.min(ctx.terrain_surface_height(x, z, false));
             }
         }
         let base_y = lowest + ground_offset;

@@ -150,7 +150,7 @@ impl Scanner {
             let (is_beached, structure_id) = remaining.remove(choice);
             let structure_data = REGISTRY.structures.by_key(&structure_id)?;
             let ocean_floor = !is_beached;
-            let y = ctx.base_height(middle_x, middle_z, ocean_floor) - 1;
+            let y = ctx.terrain_surface_height(middle_x, middle_z, ocean_floor) - 1;
             let biome = ctx.biome_at(middle_x, y, middle_z);
             if structure_data.allowed_biomes.contains(&biome.key) {
                 return Some(is_beached);
@@ -173,7 +173,7 @@ impl Scanner {
         let mut sum = 0_i64;
         for x in origin.x..origin.x + template.size[0] {
             for z in origin.z..origin.z + template.size[2] {
-                let height = ctx.base_height(x, z, ocean_floor);
+                let height = ctx.terrain_surface_height(x, z, ocean_floor);
                 lowest = lowest.min(height);
                 sum += i64::from(height);
             }

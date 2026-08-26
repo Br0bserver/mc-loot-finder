@@ -3,6 +3,7 @@ mod chests;
 mod jigsaw_scan;
 mod shipwreck;
 mod single_piece;
+mod surface_probe;
 mod template_data;
 mod template_scan;
 
@@ -30,6 +31,7 @@ use steel_worldgen::structure::{ColumnBlock, GenerationContext, StructureGenerat
 
 use crate::catalog::{CandidateStructure, DecorationSeedSpec, ScanKind, ScanSupport};
 use crate::error::Error;
+use surface_probe::SurfaceTerrainSampler;
 
 static TEMPLATE_POOLS: LazyLock<FxHashMap<Identifier, TemplatePoolData>> = LazyLock::new(|| {
     vanilla_template_pools()
@@ -83,6 +85,7 @@ pub struct Scanner {
     nether_noises: Option<NetherNoises>,
     biome_source: BiomeSourceKind,
     splitter: RandomSplitter,
+    surface_terrain: Option<RefCell<SurfaceTerrainSampler>>,
 }
 
 pub struct OverworldScannerContext<'src> {
@@ -97,6 +100,7 @@ pub struct OverworldScannerContext<'src> {
     aquifer: RefCell<LazyAquifer<'src, OverworldNoises>>,
     surface_y_cache: RefCell<Option<i32>>,
     height_cache_grid_ready: RefCell<bool>,
+    surface_terrain: Option<&'src RefCell<SurfaceTerrainSampler>>,
 }
 
 impl<'src> OverworldScannerContext<'src> {
@@ -198,7 +202,11 @@ impl StructureGenerationContext for OverworldScannerContext<'_> {
         self.with_context(|ctx| ctx.surface_y())
     }
     fn terrain_surface_height(&self, x: i32, z: i32, ocean_floor: bool) -> i32 {
-        self.with_context(|ctx| ctx.terrain_surface_height(x, z, ocean_floor))
+        if let Some(surface_terrain) = self.surface_terrain {
+            surface_terrain.borrow_mut().height(x, z, ocean_floor)
+        } else {
+            self.with_context(|ctx| ctx.terrain_surface_height(x, z, ocean_floor))
+        }
     }
     fn terrain_is_opaque(&self, x: i32, y: i32, z: i32, ocean_floor: bool) -> bool {
         self.with_context(|ctx| ctx.terrain_is_opaque(x, y, z, ocean_floor))
@@ -484,7 +492,8 @@ impl Scanner {
         let dimension = structure.dimension;
         let is_nether = dimension == "minecraft:the_nether";
         let is_end = dimension == "minecraft:the_end";
-
+        let surface_terrain =
+            (!is_nether && !is_end).then(|| RefCell::new(SurfaceTerrainSampler::new(world_seed)));
         let splitter = LegacyRandom::from_seed(world_seed as u64).next_positional();
         let params = get_noise_parameters();
 
@@ -517,6 +526,7 @@ impl Scanner {
             nether_noises,
             biome_source,
             splitter,
+            surface_terrain,
         }
     }
 
@@ -570,6 +580,7 @@ impl Scanner {
                 aquifer: RefCell::new(aquifer),
                 surface_y_cache: RefCell::new(None),
                 height_cache_grid_ready: RefCell::new(true),
+                surface_terrain: self.surface_terrain.as_ref(),
             }))
         } else if let Some(noises) = &self.nether_noises {
             let mut height_cache = NetherColumnCache::new();

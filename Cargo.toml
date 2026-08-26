@@ -13,6 +13,7 @@ rustc-hash = "2"
 steel-registry = { git = "https://github.com/Steel-Foundation/SteelMC.git", rev = "d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2" }
 steel-utils = { git = "https://github.com/Steel-Foundation/SteelMC.git", rev = "d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2" }
 steel-worldgen = { git = "https://github.com/Steel-Foundation/SteelMC.git", rev = "d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2" }
+steel-core = { git = "https://github.com/Steel-Foundation/SteelMC.git", rev = "d2aadbdb2e6e5a23fa9f8abdb2ced202c1ab49c2" }
 thiserror = "2"
 
 [[bin]]

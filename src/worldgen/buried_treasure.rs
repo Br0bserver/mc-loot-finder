@@ -3,7 +3,7 @@ use crate::decoration_seed::container_loot_seed;
 use crate::error::Error;
 use crate::random::{LegacyRandom48, Random};
 use steel_worldgen::structure::single_piece::BuriedTreasureStructure;
-use steel_worldgen::structure::{ColumnBlock, Structure, StructureGenerationContext};
+use steel_worldgen::structure::{Structure, StructureGenerationContext};
 
 const FREQUENCY_SALT: u32 = 10_387_320;
 const FREQUENCY: f32 = 0.01;
@@ -38,18 +38,30 @@ impl Scanner {
         })?;
         let mut ctx = self.generation_context(chunk_x, chunk_z);
         let mut rng = self.feature_random(chunk_x, chunk_z);
-        let Some(stub) =
+        let Some(_stub) =
             BuriedTreasureStructure.find_generation_point(&mut ctx, structure_data, &mut rng)
         else {
             return Ok(invalid_scan());
         };
-        let chest_x = stub.position.0;
-        let chest_z = stub.position.2;
-        let ocean_floor_height = ctx.base_height(chest_x, chest_z, true);
-        let top_y = ocean_floor_height;
+        let chest_x = chunk_x
+            .checked_mul(16)
+            .and_then(|value| value.checked_add(9))
+            .ok_or_else(|| Error::Worldgen("buried treasure chest x overflowed".to_owned()))?;
+        let chest_z = chunk_z
+            .checked_mul(16)
+            .and_then(|value| value.checked_add(9))
+            .ok_or_else(|| Error::Worldgen("buried treasure chest z overflowed".to_owned()))?;
+        let top_y = ctx.terrain_surface_height(chest_x, chest_z, true);
+        let terrain = self
+            .surface_terrain
+            .as_ref()
+            .expect("overworld scanners must have a surface terrain sampler");
         let mut chest_y = None;
         for y in (self.min_y()..=top_y).rev() {
-            if ctx.column_state(chest_x, y - 1, chest_z) == ColumnBlock::Solid {
+            if terrain
+                .borrow_mut()
+                .is_buried_treasure_support(chest_x, y - 1, chest_z)
+            {
                 chest_y = Some(y);
                 break;
             }
